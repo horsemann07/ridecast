@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Portable Comm Module — Architecture Diagram</title>
+<style>
+  body{font-family:Inter,Arial,Helvetica,sans-serif;background:#0f172a;color:#e6eef8;padding:18px}
+  .canvas{background:#071028;border-radius:12px;padding:18px;box-shadow:0 10px 30px rgba(2,6,23,0.6)}
+  svg {width:100%;height:820px}
+  .box{fill:#0b1830;stroke:#23456a;stroke-width:2;rx:8;}
+  .box-strong{fill:#08203a;stroke:#25607f;stroke-width:2;rx:10}
+  .text{fill:#e6eef8;font-size:13px;font-weight:600}
+  .sub{fill:#cfe7ff;font-size:12px;font-weight:400}
+  .arrow{stroke:#7fd3ff;stroke-width:2;marker-end:url(#arrow)}
+  .dashed{stroke-dasharray:6 6;stroke:#4da3c6;opacity:0.6}
+  .note{fill:#9fd3ff;font-size:11px}
+</style>
+</head>
+<body>
+<div class="canvas">
+<svg viewBox="0 0 1200 820" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="#7fd3ff" />
+    </marker>
+  </defs>
+
+  <!-- Left: Phone/PC -->
+  <rect x="20" y="40" width="230" height="110" class="box-strong"/>
+  <text x="35" y="68" class="text">Phone / PC (App)</text>
+  <text x="35" y="88" class="sub">— Map tiles (HTTP/TLS)</text>
+  <text x="35" y="106" class="sub">— Music / Audio streams</text>
+  <text x="35" y="124" class="sub">— Notifications (BLE/GATT)</text>
+
+  <!-- Top-left: Wi-Fi cloud label -->
+  <rect x="280" y="18" width="180" height="50" class="box"/>
+  <text x="292" y="46" class="text">Wi‑Fi / Router / AP</text>
+
+  <!-- Left-bottom: BLE label -->
+  <rect x="280" y="320" width="180" height="50" class="box"/>
+  <text x="292" y="348" class="text">Bluetooth (BLE / Classic)</text>
+
+  <!-- Center: Comm Module -->
+  <rect x="500" y="40" width="360" height="210" class="box-strong"/>
+  <text x="518" y="66" class="text">Comm Module (ESP32‑S3 / S4)</text>
+  <text x="518" y="88" class="sub">— Wi‑Fi + BLE stacks</text>
+  <text x="518" y="106" class="sub">— TLS (mbedTLS)</text>
+  <text x="518" y="124" class="sub">— Secure element (ATECC608A)</text>
+  <text x="518" y="142" class="sub">— USB (OTG / CDC), multiple UARTs, SPI/I2C</text>
+  <text x="518" y="160" class="sub">— Bridge / Router / IO Dispatcher</text>
+
+  <!-- Daughterboard (mezzanine) -->
+  <rect x="500" y="280" width="360" height="160" class="box"/>
+  <text x="518" y="306" class="text">IO Daughterboard / Mezzanine</text>
+  <text x="518" y="328" class="sub">— UART level-shifters (TTL / RS‑232)</text>
+  <text x="518" y="346" class="sub">— CAN / CAN‑FD transceiver</text>
+  <text x="518" y="364" class="sub">— USB‑C connector / host/device</text>
+  <text x="518" y="382" class="sub">— Galvanic isolation (optional)</text>
+
+  <!-- Right: Cluster MCU -->
+  <rect x="900" y="40" width="240" height="110" class="box-strong"/>
+  <text x="920" y="68" class="text">Cluster MCU / Instrument Cluster</text>
+  <text x="920" y="90" class="sub">— Receives frames over UART / CAN / USB</text>
+  <text x="920" y="108" class="sub">— Handles display, audio, controls</text>
+
+  <!-- Right-bottom: Logging & OTA -->
+  <rect x="900" y="320" width="240" height="130" class="box"/>
+  <text x="920" y="348" class="text">Logging / Diagnostics / OTA</text>
+  <text x="920" y="370" class="sub">— Persistent logs (SD / flash)</text>
+  <text x="920" y="388" class="sub">— Remote log stream (TLS)</text>
+  <text x="920" y="406" class="sub">— Secure OTA (signed images)</text>
+
+  <!-- Arrows: Phone -> Wi-Fi -> Comm Module -->
+  <path d="M250 95 L280 95" class="arrow" />
+  <path d="M460 95 L500 95" class="arrow" />
+  <path d="M460 95 L500 95" class="arrow" />
+  <path d="M460 95 L500 95" class="arrow" />
+
+  <!-- Draw curved arrow from Phone to Wi-Fi to Comm Module -->
+  <path d="M250 95 C320 95, 360 60, 500 60" class="arrow" fill="none"/>
+
+  <!-- Wi-Fi cloud to Comm Module -->
+  <path d="M360 43 L500 60" class="arrow" />
+
+  <!-- BLE path -->
+  <path d="M280 345 C360 345, 420 360, 500 380" class="arrow" />
+
+  <!-- Comm Module to Daughterboard (vertical) -->
+  <path d="M680 250 L680 280" class="arrow" />
+
+  <!-- Comm Module to Cluster (UART / CAN / USB) -->
+  <path d="M860 140 L900 140" class="arrow" />
+  <text x="780" y="128" class="sub">UART / CAN / USB</text>
+
+  <!-- Daughterboard to Cluster (CAN / USB) -->
+  <path d="M860 360 L900 360" class="arrow" />
+  <text x="780" y="348" class="sub">CAN / USB / TTL</text>
+
+  <!-- Security & Modes box -->
+  <rect x="20" y="180" width="230" height="120" class="box"/>
+  <text x="35" y="206" class="text">Security & Modes</text>
+  <text x="35" y="226" class="sub">— TLS on/off</text>
+  <text x="35" y="246" class="sub">— AES-GCM serial encryption</text>
+  <text x="35" y="266" class="sub">— Secure element key store</text>
+
+  <!-- Arrows from Security to Comm Module -->
+  <path d="M250 240 L500 240" class="dashed" />
+  <text x="320" y="230" class="note">Config / Key provisioning</text>
+
+  <!-- Monitoring arrow to Logging box -->
+  <path d="M700 420 L900 420" class="dashed" />
+  <text x="640" y="436" class="note">Metrics / Heartbeat / Logs (1s)</text>
+
+  <!-- Small legend -->
+  <rect x="20" y="320" width="230" height="80" class="box"/>
+  <text x="35" y="344" class="text">Legend</text>
+  <text x="35" y="364" class="sub">— Wi‑Fi: bulk / TLS</text>
+  <text x="35" y="382" class="sub">— BLE: pairing & low‑bw</text>
+
+  <!-- Footer note -->
+  <text x="20" y="760" class="note">Diagram: Comm Module core stays constant; swap IO daughterboard for different physical serial interfaces (UART / RS‑232 / CAN / USB).</text>
+
+</svg>
+</div>
+</body>
+</html>

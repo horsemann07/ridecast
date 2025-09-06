@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Data Flow Diagram — Phone → Comm Module → MCU</title>
+<style>
+  body{font-family:Inter,Arial,Helvetica,sans-serif;background:#0f172a;color:#e6eef8;padding:18px}
+  .canvas{background:#071028;border-radius:12px;padding:18px;box-shadow:0 10px 30px rgba(2,6,23,0.6)}
+  svg {width:100%;height:820px}
+  .box{fill:#0b1830;stroke:#23456a;stroke-width:2;rx:8;}
+  .box-strong{fill:#08203a;stroke:#25607f;stroke-width:2;rx:10}
+  .text{fill:#e6eef8;font-size:13px;font-weight:600}
+  .sub{fill:#cfe7ff;font-size:12px;font-weight:400}
+  .arrow{stroke:#7fd3ff;stroke-width:2;marker-end:url(#arrow)}
+  .dashed{stroke-dasharray:6 6;stroke:#4da3c6;opacity:0.6}
+  .note{fill:#9fd3ff;font-size:11px}
+</style>
+</head>
+<body>
+<div class="canvas">
+<svg viewBox="0 0 1200 820" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="#7fd3ff" />
+    </marker>
+  </defs>
+
+  <!-- Phone -->
+  <rect x="40" y="60" width="220" height="100" class="box-strong"/>
+  <text x="60" y="88" class="text">Phone / App</text>
+  <text x="60" y="110" class="sub">— Map / Music / Notifications</text>
+  <text x="60" y="128" class="sub">— Wi‑Fi (TLS) / BLE</text>
+
+  <!-- Comm Module: Network Rx -->
+  <rect x="320" y="40" width="280" height="120" class="box"/>
+  <text x="340" y="68" class="text">Comm Module — Network API</text>
+  <text x="340" y="88" class="sub">Wi‑Fi TCP/UDP stack</text>
+  <text x="340" y="106" class="sub">BLE GATT / Classic</text>
+  <text x="340" y="124" class="sub">TLS handshake (opt)</text>
+
+  <!-- Arrow Phone -> Comm Module Net -->
+  <path d="M260 110 L320 100" class="arrow" />
+
+  <!-- Comm Module: Security Layer -->
+  <rect x="320" y="190" width="280" height="90" class="box"/>
+  <text x="340" y="216" class="text">Security Layer API</text>
+  <text x="340" y="236" class="sub">— AES-GCM / ChaCha20</text>
+  <text x="340" y="254" class="sub">— Config: on/off</text>
+
+  <!-- Arrow Net -> Security -->
+  <path d="M460 160 L460 190" class="arrow" />
+
+  <!-- Comm Module: Bridge / Dispatcher -->
+  <rect x="320" y="310" width="280" height="100" class="box"/>
+  <text x="340" y="338" class="text">Bridge & Dispatcher API</text>
+  <text x="340" y="358" class="sub">— Packet framing</text>
+  <text x="340" y="376" class="sub">— Routing to serial IO</text>
+  <text x="340" y="394" class="sub">— Error check / retry</text>
+
+  <!-- Arrow Security -> Bridge -->
+  <path d="M460 280 L460 310" class="arrow" />
+
+  <!-- IO Layer -->
+  <rect x="320" y="450" width="280" height="110" class="box"/>
+  <text x="340" y="478" class="text">IO Layer (Portable Serial API)</text>
+  <text x="340" y="498" class="sub">— UART (extra high baud)</text>
+  <text x="340" y="516" class="sub">— CAN / CAN‑FD</text>
+  <text x="340" y="534" class="sub">— USB‑CDC</text>
+  <text x="340" y="552" class="sub">— Encryption passthrough</text>
+
+  <!-- Arrow Bridge -> IO -->
+  <path d="M460 410 L460 450" class="arrow" />
+
+  <!-- Cluster MCU -->
+  <rect x="650" y="470" width="260" height="100" class="box-strong"/>
+  <text x="670" y="498" class="text">Cluster MCU / MPU</text>
+  <text x="670" y="518" class="sub">— Receives serial frames</text>
+  <text x="670" y="536" class="sub">— Decrypt (if enabled)</text>
+  <text x="670" y="554" class="sub">— Parse data (maps, notif)</text>
+
+  <!-- Arrow IO -> Cluster -->
+  <path d="M600 505 L650 505" class="arrow" />
+
+  <!-- Notes -->
+  <text x="40" y="620" class="note">Flow: Phone → Wi‑Fi/BLE → Network API → Security Layer → Bridge API → IO API → Cluster MCU.</text>
+  <text x="40" y="640" class="note">Encryption (TLS for Wi‑Fi, AES for serial) can be enabled/disabled as per config.</text>
+
+</svg>
+</div>
+</body>
+</html>
