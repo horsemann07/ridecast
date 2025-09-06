@@ -89,3 +89,9 @@ cmake ..
 
 # Build firmware
 cmake --build .
+
+```
+
+## License
+RideCast is a proprietary project. Unauthorized copying, distribution, or modification is strictly prohibited. 
+For licensing inquiries, contact Navyantra.
