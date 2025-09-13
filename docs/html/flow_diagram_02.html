@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Ridecast Flowchart with Tasks</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
+  <style>
+    body {
+      background-color: #f4f6f9;
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      margin: 0;
+    }
+
+    h2 { margin-bottom: 12px; }
+
+    .container {
+      display: flex;
+      gap: 20px;
+    }
+
+    .mermaid {
+      background: #ffffff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      flex: 2 1 700px;
+    }
+
+    .tasks-panel {
+      flex: 1 1 300px;
+      background: #e6f2ff;
+      border-radius: 10px;
+      padding: 16px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+
+    .tasks-panel h3 {
+      margin-top: 0;
+      color: #0369a1;
+      font-size: 16px;
+    }
+
+    .task {
+      background: #ffffff;
+      border: 1px solid #4a90e2;
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 10px;
+      font-size: 13px;
+      color: #000;
+    }
+
+    .task b { color: #0369a1; }
+  </style>
+</head>
+<body>
+  <h2>Ridecast MCU Flow with FreeRTOS Tasks</h2>
+  <div class="container">
+    <div class="mermaid">
+      flowchart TD
+        A([MCU Start]):::step --> B([Get Msg from MPU via UART]):::step
+        B --> C([Start Wi-Fi]):::step
+        C --> D([Attempt Wi-Fi Connection]):::step
+        D --> E{Wi-Fi Connected?}:::decision
+        E -- Yes --> F([Create Secure Connection with App]):::step
+        E -- No --> R[Increment Retry Counter]:::step
+        R --> S{Retries < 3?}:::decision
+        S -- Yes --> D
+        S -- No --> X([Send Wi-Fi Fail Status to MPU]):::fail
+
+        F --> G([TLS Handshake with Mobile App]):::step
+        G --> H{Handshake Success?}:::decision
+        H -- No --> I([Send Handshake Fail Status to MPU]):::fail
+        H -- Yes --> J([Send Handshake Pass Status to MPU]):::pass
+        J --> K([Receive Data from App]):::step
+        K --> L([Forward Data to UART]):::step
+
+        %% Side Annotations
+        C -.-> C_NOTE[/"Enable Wi-Fi hardware and set SSID+Password"/]:::note
+        D -.-> D_NOTE[/"Try to connect to Wi-Fi"/]:::note
+        R -.-> R_NOTE[/"Increase retry count each failure"/]:::note
+        S -.-> S_NOTE[/"Max retries = 3"/]:::note
+        G -.-> G_NOTE[/"Perform mbedTLS handshake"/]:::note
+        K -.-> K_NOTE[/"Decrypt data from app"/]:::note
+        L -.-> L_NOTE[/"Send raw bytes over UART to MPU"/]:::note
+
+        classDef step fill:#e6f2ff,stroke:#4a90e2,stroke-width:2px,color:#000,rx:8,ry:8;
+        classDef decision fill:#fff3cd,stroke:#f0ad4e,stroke-width:2px,color:#000,rx:8,ry:8;
+        classDef pass fill:#d4edda,stroke:#28a745,stroke-width:2px,color:#000,rx:8,ry:8;
+        classDef fail fill:#f8d7da,stroke:#dc3545,stroke-width:2px,color:#000,rx:8,ry:8;
+        classDef note fill:#f0f0f0,stroke:#999,stroke-dasharray: 5 5,rx:6,ry:6;
+    </div>
+
+    <div class="tasks-panel">
+      <h3>FreeRTOS Task Mapping</h3>
+      <div class="task">
+        <b>UART Task</b>
+        <div>Receives start signal + credentials from MPU, sends PASS/FAIL, forwards app ↔ MPU data.</div>
+      </div>
+      <div class="task">
+        <b>Wi-Fi Task</b>
+        <div>Configures Wi-Fi driver, monitors connection, manages lwIP netif & DHCP.</div>
+      </div>
+      <div class="task">
+        <b>TLS Task</b>
+        <div>Performs mbedTLS handshake, manages TLS session, exposes read/write APIs to dispatcher.</div>
+      </div>
+      <div class="task">
+        <b>Dispatcher Task</b>
+        <div>Routes data: UART ↔ TLS; handles retries, reconnection logic, watchdog pings.</div>
+      </div>
+      <div class="task">
+        <b>Logger / Monitor</b>
+        <div>Non-blocking logging, status reporting, error counters.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    mermaid.initialize({ startOnLoad: true });
+  </script>
+</body>
+</html>
