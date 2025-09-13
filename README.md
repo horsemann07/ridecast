@@ -26,19 +26,24 @@ Key features:
 │   │ ├── html # Documentation HTML files
 │   │ ├── images # Architecture diagrams, flowcharts
 │   │ └── doxygen # doxygen documents
-├──/platform
-│   │ ├── bsp # Board Support Package (MCU & hardware abstraction)
-│   │ │    ├── common_io # Generic IO drivers
-│   │ │    ├── serial_com # UART, CAN, USB interfaces
-│   │ │    └── wireless_com # Wi-Fi and BLE drivers
-│   │ ├── middleware # Communication stacks and crypto
+├──/bsp # Board Support Package (MCU & hardware abstraction)
+│   │ ├── common_io # Generic IO driver
+│   │ ├── serial_com # UART, CAN, USB interfaces
+│   │ └── wireless_com # Wi-Fi and BLE drivers
+├──/middleware # Communication stacks and crypto
 │   │ │    ├── comm # TCP/IP, BLE stacks
 │   │ │    └── crypto # TLS/AES modules
 │   │ └── OS # Optional: Vendor-supplied RTOS (CMSIS, FreeRTOS)
+├───external
+│   ├───component
+│   │   ├───lwip # TCP/IP stack source (lwIP)
+│   │   ├───mbedtls # TLS/crypto library (mbedTLS)
+│   ├───os
+│   │   freertos # FreeRTOS (or CMSIS-RTOS) related headers and wrappers
 ├──/tests
 │   │ ├── integration # End-to-end and protocol flow tests
 │   │ └── unit # Unit tests for individual modules
-├── /vendors          # Vendor-specific SDKs or drivers
+├── /sdk          # Vendor-specific SDKs or drivers
 │   ├── esp           # Vendor SDKs for hardware peripherals (ESP-IDF, STM32 HAL,NXP SDK, etc.)
 
 ```
