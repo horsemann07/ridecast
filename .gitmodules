@@ -1,9 +1,9 @@
-[submodule "external/lwip"]
-	path = external/lwip
-	url = https://github.com/lwip-tcpip/lwip.git
-[submodule "external/mbedtls"]
-	path = external/mbedtls
+[submodule "external/component/mbedtls"]
+	path = external/component/mbedtls
 	url = https://github.com/Mbed-TLS/mbedtls.git
-[submodule "os/freertos"]
-	path = os/freertos
+[submodule "external/component/lwip"]
+	path = external/component/lwip
+	url = https://github.com/lwip-tcpip/lwip.git
+[submodule "external/os/freertos"]
+	path = external/os/freertos
 	url = https://github.com/ARM-software/CMSIS-FreeRTOS.git
