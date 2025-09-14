@@ -7,3 +7,6 @@
 [submodule "external/os/freertos"]
 	path = external/os/freertos
 	url = https://github.com/ARM-software/CMSIS-FreeRTOS.git
+[submodule "sdk/esp"]
+	path = sdk/esp
+	url = https://github.com/espressif/esp-idf.git
