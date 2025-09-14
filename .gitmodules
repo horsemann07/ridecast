@@ -13,6 +13,6 @@
 [submodule "external/external/logger/embedded-cli"]
 	path = external/external/logger/embedded-cli
 	url = https://github.com/funbiscuit/embedded-cli.git
-[submodule "external/logger/embedded-cli"]
-	path = external/logger/embedded-cli
+[submodule "external/cli/embedded-cli"]
+	path = external/cli/embedded-cli
 	url = https://github.com/funbiscuit/embedded-cli.git
