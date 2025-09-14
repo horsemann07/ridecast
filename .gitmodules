@@ -10,3 +10,9 @@
 [submodule "sdk/esp"]
 	path = sdk/esp
 	url = https://github.com/espressif/esp-idf.git
+[submodule "external/external/logger/embedded-cli"]
+	path = external/external/logger/embedded-cli
+	url = https://github.com/funbiscuit/embedded-cli.git
+[submodule "external/logger/embedded-cli"]
+	path = external/logger/embedded-cli
+	url = https://github.com/funbiscuit/embedded-cli.git
