@@ -4,8 +4,8 @@
 [submodule "external/component/lwip"]
 	path = external/component/lwip
 	url = https://github.com/lwip-tcpip/lwip.git
-[submodule "external/os/freertos"]
-	path = external/os/freertos
+[submodule "external/os/cmsis_freertos"]
+	path = external/os/cmsis_freertos
 	url = https://github.com/ARM-software/CMSIS-FreeRTOS.git
 [submodule "sdk/esp"]
 	path = sdk/esp
@@ -16,3 +16,6 @@
 [submodule "external/cli/embedded-cli"]
 	path = external/cli/embedded-cli
 	url = https://github.com/funbiscuit/embedded-cli.git
+[submodule "external/os/cmsis"]
+	path = external/os/cmsis
+	url = https://github.com/ARM-software/CMSIS-FreeRTOS.git
