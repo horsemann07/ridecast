@@ -10,12 +10,9 @@
 [submodule "sdk/esp"]
 	path = sdk/esp
 	url = https://github.com/espressif/esp-idf.git
-[submodule "external/external/logger/embedded-cli"]
-	path = external/external/logger/embedded-cli
-	url = https://github.com/funbiscuit/embedded-cli.git
 [submodule "external/cli/embedded-cli"]
 	path = external/cli/embedded-cli
 	url = https://github.com/funbiscuit/embedded-cli.git
 [submodule "external/os/cmsis"]
 	path = external/os/cmsis
-	url = https://github.com/ARM-software/CMSIS-FreeRTOS.git
+	url = https://github.com/ARM-software/CMSIS_6.git
