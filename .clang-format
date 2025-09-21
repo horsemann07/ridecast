@@ -75,7 +75,7 @@ AccessModifierOffset: 0
 #   BAS_AlwaysBreak (in configuration: AlwaysBreak) Always break after an open bracket, if the parameters don’t fit on a single line, e.g.:
 #   someLongFunction(
 #       argument1, argument2);
-AlignAfterOpenBracket: false
+AlignAfterOpenBracket: Align
 
 # AlignConsecutiveAssignments (bool)
 # If true, aligns consecutive assignments.
@@ -84,6 +84,34 @@ AlignAfterOpenBracket: false
 # int b    = 23;
 # int ccc  = 23;
 AlignConsecutiveAssignments: true
+
+# AlignConsecutiveMacros (AlignConsecutiveStyle)
+# Style of aligning consecutive macro definitions.
+# Consecutive will result in formattings like:
+# #define SHORT_NAME       42
+# define LONGER_NAME      0x007f
+# define EVEN_LONGER_NAME (2)
+# define foo(x)           (x * x)
+# define bar(y, z)        (y + z)
+# Nested configuration flags:
+# Alignment options.
+# They can also be read as a whole for compatibility. The choices are:
+# - None
+# - Consecutive
+# - AcrossEmptyLines
+# - AcrossComments
+# - AcrossEmptyLinesAndComments
+# For example, to align across empty lines and not across comments, either of these work.
+
+# AlignConsecutiveMacros: AcrossEmptyLines
+# AlignConsecutiveMacros:
+#   Enabled: true
+#   AcrossEmptyLines: true
+#   AcrossComments: false
+AlignConsecutiveMacros:
+  Enabled: true
+  AcrossEmptyLines: true
+  AcrossComments: false
 
 # AlignEscapedNewlinesLeft (bool)
 # If true, aligns escaped newlines as far left as possible. Otherwise puts them into the right-most column.
@@ -94,11 +122,35 @@ AlignEscapedNewlinesLeft: true
 # Specifically, this aligns operands of a single expression that needs to be split over multiple lines, e.g.:
 # int aaa = bbbbbbbbbbbbbbb +
 #           ccccccccccccccc;
-AlignOperands: false
+AlignOperands: true
 
-# AlignTrailingComments (bool)
-# If true, aligns trailing comments.
-AlignTrailingComments: true
+# AlignTrailingComments (bool or mapping)
+# If true or Always, aligns trailing comments across lines.
+# Example: 
+#   int a;   // comment
+#   int ab;  // comment
+#
+# Possible values:
+#   - Leave  (Leave comments as-is)
+#   - Always (Align trailing comments)
+#   - Never  (Do not align, but still format spacing)
+#
+# OverEmptyLines: N
+#   Controls alignment across blocks separated by up to N empty lines.
+#   Example (OverEmptyLines: 2):
+#       int a;      // aligned
+#       int ab;     // aligned
+#
+#       int abcdef; // aligned too
+#
+#   Example (OverEmptyLines: 1):
+#       int a;   // aligned
+#       int ab;  // aligned
+#
+#       int abcdef; // not aligned
+AlignTrailingComments: 
+  Kind: Always
+  OverEmptyLines: 2
 
 # AllowAllParametersOfDeclarationOnNextLine (bool)
 # Allow putting all parameters of a function declaration onto the next line even if BinPackParameters is false.
@@ -110,7 +162,7 @@ AllowShortBlocksOnASingleLine: false
 
 # AllowShortCaseLabelsOnASingleLine (bool)
 # If true, short case labels will be contracted to a single line.
-AllowShortCaseLabelsOnASingleLine: true
+AllowShortCaseLabelsOnASingleLine: false
 
 # AllowShortFunctionsOnASingleLine (ShortFunctionStyle)
 # Dependent on the value, int f() { return 0; } can be put on a single line.
@@ -186,7 +238,7 @@ BreakBeforeBinaryOperators: false
 #   BS_GNU (in configuration: GNU) Always break before braces and add an extra level of indentation to braces of control statements, not to those of class, function or other definitions.
 #   BS_WebKit (in configuration: WebKit) Like Attach, but break before functions.
 #   BS_Custom (in configuration: Custom) Configure each individual brace in BraceWrapping.
-BreakBeforeBraces: Attach
+BreakBeforeBraces: Allman
 
 # BreakBeforeTernaryOperators (bool)
 # If true, ternary operators will be placed after line breaks.
@@ -278,6 +330,15 @@ IndentFunctionDeclarationAfterType: false
 # Indent if a function definition or declaration is wrapped after the type.
 #IndentWrappedFunctionNames:
 
+# IndentPPDirectives 
+# The preprocessor directive indenting style to use.
+# Possible values:
+# PPDIS_None (in configuration: None) Does not indent any directives.
+# PPDIS_AfterHash (in configuration: AfterHash) Indents directives after the hash.
+# PPDIS_BeforeHash (in configuration: BeforeHash) Indents directives before the hash.
+# PPDIS_Leave (in configuration: Leave) Leaves indentation of directives as-is.
+IndentPPDirectives: BeforeHash
+
 # KeepEmptyLinesAtTheStartOfBlocks (bool)
 # If true, empty lines at the start of blocks are kept.
 #KeepEmptyLinesAtTheStartOfBlocks:
@@ -346,13 +407,13 @@ PenaltyReturnTypeOnItsOwnLine: 20
 #   PAS_Middle (in configuration: Middle) Align pointer in the middle.
 #PointerAlignment:
 
-# ReflowComments (bool)
+# ReflowComments (bool) (from v3.9)
 # If true, clang-format will attempt to re-flow comments.
-#ReflowComments: true (from v3.9)
+ReflowComments: true 
 
-# SortIncludes (bool)
+# SortIncludes (bool) (from v3.9)
 # If true, clang-format will sort #includes.
-#SortIncludes: false (from v3.9)
+SortIncludes: false 
 
 # SpaceAfterCStyleCast (bool)
 # If true, a space may be inserted after C style casts.
@@ -368,7 +429,7 @@ SpaceBeforeAssignmentOperators: true
 #   SBPO_Never (in configuration: Never) Never put a space before opening parentheses.
 #   SBPO_ControlStatements (in configuration: ControlStatements) Put a space before opening parentheses only after control statement keywords (for/if/while...).
 #   SBPO_Always (in configuration: Always) Always put a space before opening parentheses, except when it’s prohibited by the syntax rules (in function-like macro definitions) or when determined by other style rules (after unary operators, opening parentheses, etc.)
-SpaceBeforeParens: Always
+SpaceBeforeParens: Never
 
 # SpaceInEmptyParentheses (bool)
 # If true, spaces may be inserted into ().

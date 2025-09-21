@@ -1,0 +1,533 @@
+
+
+
+#include <string.h>
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/FreeRTOSConfig.h"
+#include "freertos/task.h"
+#include "cmsis_os2.h"
+
+/* Limits */
+#define MAX_BITS_TASK_NOTIFY      31U
+#define MAX_BITS_EVENT_GROUPS     24U
+
+#define THREAD_FLAGS_INVALID_BITS (~((1UL << MAX_BITS_TASK_NOTIFY) - 1U))
+#define EVENT_FLAGS_INVALID_BITS  (~((1UL << MAX_BITS_EVENT_GROUPS) - 1U))
+
+/* Kernel version and identification string definition (major.minor.rev: mmnnnrrrr dec) */
+#define KERNEL_VERSION                                  \
+    (((uint32_t)tskKERNEL_VERSION_MAJOR * 10000000UL) | \
+    ((uint32_t)tskKERNEL_VERSION_MINOR * 10000UL) |     \
+    ((uint32_t)tskKERNEL_VERSION_BUILD * 1UL))
+
+#define KERNEL_ID       ("FreeRTOS " tskKERNEL_VERSION_NUMBER)
+
+#define osCMSIS         0x20001U // API version (2.1.0 encoded)
+
+#define IS_IRQ_MASKED() (xPortInIsrContext () != 0)
+
+/* Timer callback information structure definition */
+typedef struct
+{
+    osTimerFunc_t func;
+    void* arg;
+} TimerCallback_t;
+
+/* Kernel initialization state */
+static osKernelState_t KernelState = osKernelInactive;
+
+/*
+  Determine if CPU executes from interrupt context or if interrupts are masked.
+*/
+__STATIC_INLINE uint32_t IRQ_Context (void)
+{
+    uint32_t irq;
+    BaseType_t state;
+
+    irq = 0U;
+
+    if (IS_IRQ_MODE ())
+    {
+        /* Called from interrupt context */
+        irq = 1U;
+    }
+    else
+    {
+        /* Get FreeRTOS scheduler state */
+        state = xTaskGetSchedulerState ();
+
+        if (state != taskSCHEDULER_NOT_STARTED)
+        {
+            /* Scheduler was started */
+            if (IS_IRQ_MASKED ())
+            {
+                /* Interrupts are masked */
+                irq = 1U;
+            }
+        }
+    }
+
+    /* Return context, 0: thread context, 1: IRQ context */
+    return (irq);
+}
+
+// internal kernel state
+static int kernel_initialized = 0;
+
+osStatus_t osKernelInitialize (void)
+{
+    kernel_initialized = 1;
+    return osOK;
+}
+
+
+osStatus_t osKernelGetInfo (osVersion_t* version, char* id_buf, uint32_t id_size)
+{
+    if (version)
+    {
+        version->api    = KERNEL_VERSION;
+        version->kernel = KERNEL_VERSION;
+    }
+    if ((id_buf != NULL) && (id_size != 0U))
+    {
+        /* Buffer for retrieving identification string is provided */
+        if (id_size > sizeof (KERNEL_ID))
+        {
+            id_size = sizeof (KERNEL_ID);
+        }
+        /* Copy kernel identification string into provided buffer */
+        memcpy (id_buf, KERNEL_ID, id_size);
+    }
+    return osOK;
+}
+
+osKernelState_t osKernelGetState (void)
+{
+    if (!kernel_initialized)
+        return osKernelInactive;
+
+    BaseType_t state = xTaskGetSchedulerState ();
+    if (state == taskSCHEDULER_NOT_STARTED)
+    {
+        return osKernelReady;
+    }
+    if (state == taskSCHEDULER_RUNNING)
+    {
+        return osKernelRunning;
+    }
+    if (state == taskSCHEDULER_SUSPENDED)
+    {
+        return osKernelLocked;
+    }
+
+    return osKernelError;
+}
+
+osStatus_t osKernelStart (void)
+{
+    vTaskStartScheduler ();
+    return osOK;
+}
+
+int32_t osKernelLock (void)
+{
+    vTaskSuspendAll ();
+    return osError;
+}
+
+int32_t osKernelUnlock (void)
+{
+    if (xTaskResumeAll () == pdTRUE)
+        return osOK;
+    return osError;
+}
+
+int32_t osKernelRestoreLock (int32_t lock)
+{
+    if (lock)
+    {
+        vTaskSuspendAll ();
+        return osError;
+    }
+    else
+    {
+        xTaskResumeAll ();
+        return osOK;
+    }
+}
+
+uint32_t osKernelSuspend (void)
+{
+    vTaskSuspendAll ();
+    return osOK;
+}
+
+void osKernelResume (uint32_t sleep_ticks)
+{
+    (void)sleep_ticks;
+    xTaskResumeAll ();
+}
+
+osStatus_t osKernelProtect (uint32_t safety_class)
+{
+    (void)safety_class;
+    return osError; // Not supported in FreeRTOS
+}
+
+osStatus_t osKernelDestroyClass (uint32_t safety_class, uint32_t mode)
+{
+    (void)safety_class;
+    (void)mode;
+    return osError; // Not supported in FreeRTOS
+}
+
+uint32_t osKernelGetTickCount (void)
+{
+    return (uint32_t)xTaskGetTickCount ();
+}
+
+uint32_t osKernelGetTickFreq (void)
+{
+    return (uint32_t)configTICK_RATE_HZ;
+}
+
+uint32_t osKernelGetSysTimerCount (void)
+{
+    // In FreeRTOS, system timer = tick count
+    return (uint32_t)xTaskGetTickCount ();
+}
+
+uint32_t osKernelGetSysTimerFreq (void)
+{
+    return (uint32_t)configTICK_RATE_HZ;
+}
+
+
+//  ==== Thread Management Functions ====
+
+osThreadId_t osThreadNew (osThreadFunc_t func, void* argument, const osThreadAttr_t* attr)
+{
+    TaskHandle_t handle = NULL;
+    UBaseType_t priority =
+    (attr && attr->priority) ? attr->priority : tskIDLE_PRIORITY + 1;
+    uint32_t stack_size = (attr && attr->stack_size) ? attr->stack_size : configMINIMAL_STACK_SIZE;
+
+    BaseType_t res = xTaskCreate (func, // Task entry function
+    (attr && attr->name) ? attr->name : "cmsis_thread",
+    stack_size / sizeof (StackType_t), // FreeRTOS expects stack depth in words
+    argument,                          // Thread argument
+    priority,                          // Priority
+    &handle                            // Return handle
+    );
+
+    if (res != pdPASS)
+    {
+        return NULL;
+    }
+    return handle;
+}
+
+osThreadId_t osThreadGetId (void)
+{
+    return xTaskGetCurrentTaskHandle ();
+}
+
+const char* osThreadGetName (osThreadId_t thread_id)
+{
+    return pcTaskGetName (thread_id);
+}
+
+osPriority_t osThreadGetPriority (osThreadId_t thread_id)
+{
+    return uxTaskPriorityGet (thread_id);
+}
+
+osStatus_t osThreadSetPriority (osThreadId_t thread_id, osPriority_t priority)
+{
+    vTaskPrioritySet (thread_id, priority);
+    return osOK;
+}
+
+osStatus_t osThreadYield (void)
+{
+    taskYIELD ();
+    return osOK;
+}
+
+osStatus_t osThreadSuspend (osThreadId_t thread_id)
+{
+    vTaskSuspend (thread_id);
+    return osOK;
+}
+
+osStatus_t osThreadResume (osThreadId_t thread_id)
+{
+    vTaskResume (thread_id);
+    return osOK;
+}
+
+osStatus_t osThreadTerminate (osThreadId_t thread_id)
+{
+    vTaskDelete (thread_id);
+    return osOK;
+}
+
+__NO_RETURN void osThreadExit (void)
+{
+    vTaskDelete (NULL);
+    for (;;)
+    {
+    } // never returns
+}
+
+uint32_t osThreadGetStackSpace (osThreadId_t thread_id)
+{
+    return uxTaskGetStackHighWaterMark (thread_id) * sizeof (StackType_t);
+}
+
+
+uint32_t osThreadFlagsSet (osThreadId_t thread_id, uint32_t flags)
+{
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
+    if (taskSCHEDULER_RUNNING == xTaskGetSchedulerState ())
+    {
+        // Notify from ISR or task context
+        if (xPortIsInsideInterrupt ())
+        {
+            vTaskNotifyGiveIndexedFromISR ((TaskHandle_t)thread_id, 0, &xHigherPriorityTaskWoken);
+            portYIELD_FROM_ISR (xHigherPriorityTaskWoken);
+        }
+        else
+        {
+            xTaskNotify ((TaskHandle_t)thread_id, flags, eSetBits);
+        }
+    }
+    else
+    {
+        return (uint32_t)osErrorResource;
+    }
+
+    return osOK;
+}
+
+/// Clear the specified Thread Flags of current running thread.
+uint32_t osThreadFlagsClear (uint32_t flags)
+{
+    TaskHandle_t hTask = xTaskGetCurrentTaskHandle ();
+    uint32_t prev_flags;
+
+    // Clear requested bits and return old value
+    xTaskNotifyAndQuery (hTask, ~flags, eAnd, &prev_flags);
+    return prev_flags;
+}
+
+/// Get the current Thread Flags of current running thread.
+uint32_t osThreadFlagsGet (void)
+{
+    TaskHandle_t hTask     = xTaskGetCurrentTaskHandle ();
+    uint32_t current_flags = 0;
+
+    xTaskNotifyAndQuery (hTask, 0, eNoAction, &current_flags);
+    return current_flags;
+}
+
+/// Wait for one or more Thread Flags of the current running thread to become signaled.
+uint32_t osThreadFlagsWait (uint32_t flags, uint32_t options, uint32_t timeout)
+{
+    TaskHandle_t hTask      = xTaskGetCurrentTaskHandle ();
+    uint32_t notified_value = 0;
+
+    BaseType_t result = xTaskNotifyWait ((options & osFlagsNoClear) ? 0 : flags, // bits to clear on entry
+    (options & osFlagsNoClear) ? 0 : flags, // bits to clear on exit
+    &notified_value, (timeout == osWaitForever) ? portMAX_DELAY : pdMS_TO_TICKS (timeout));
+
+    if (result == pdTRUE)
+    {
+        return notified_value & flags; // return relevant bits
+    }
+    else
+    {
+        return (uint32_t)osErrorTimeout;
+    }
+}
+
+
+osEventFlagsId_t osEventFlagsNew (const osEventFlagsAttr_t* attr)
+{
+    EventGroupHandle_t hEvent = xEventGroupCreate ();
+    return (osEventFlagsId_t)hEvent;
+}
+
+const char* osEventFlagsGetName (osEventFlagsId_t ef_id)
+{
+    (void)ef_id; // FreeRTOS Event Groups have no name
+    return NULL;
+}
+
+uint32_t osEventFlagsSet (osEventFlagsId_t ef_id, uint32_t flags)
+{
+    EventGroupHandle_t hEvent = (EventGroupHandle_t)ef_id;
+    EventBits_t bits          = xEventGroupSetBits (hEvent, (EventBits_t)flags);
+    return (uint32_t)bits;
+}
+
+uint32_t osEventFlagsClear (osEventFlagsId_t ef_id, uint32_t flags)
+{
+    EventGroupHandle_t hEvent = (EventGroupHandle_t)ef_id;
+    EventBits_t prev_bits     = xEventGroupGetBits (hEvent);
+    xEventGroupClearBits (hEvent, (EventBits_t)flags);
+    return (uint32_t)prev_bits;
+}
+
+uint32_t osEventFlagsGet (osEventFlagsId_t ef_id)
+{
+    EventGroupHandle_t hEvent = (EventGroupHandle_t)ef_id;
+    return (uint32_t)xEventGroupGetBits (hEvent);
+}
+
+uint32_t osEventFlagsWait (osEventFlagsId_t ef_id, uint32_t flags, uint32_t options, uint32_t timeout)
+{
+    EventGroupHandle_t hEvent = (EventGroupHandle_t)ef_id;
+    EventBits_t wait_flags    = (EventBits_t)flags;
+    EventBits_t result;
+
+    BaseType_t wait_all      = (options & osFlagsWaitAll) ? pdTRUE : pdFALSE;
+    BaseType_t clear_on_exit = (options & osFlagsNoClear) ? pdFALSE : pdTRUE;
+
+    result = xEventGroupWaitBits (hEvent, wait_flags, clear_on_exit, wait_all,
+    (timeout == osWaitForever) ? portMAX_DELAY : pdMS_TO_TICKS (timeout));
+
+    if ((options & osFlagsWaitAll) && ((result & flags) != flags))
+    {
+        return (uint32_t)osErrorTimeout;
+    }
+    else if (!(options & osFlagsWaitAll) && ((result & flags) == 0))
+    {
+        return (uint32_t)osErrorTimeout;
+    }
+
+    return (uint32_t)(result & flags);
+}
+
+osStatus_t osEventFlagsDelete (osEventFlagsId_t ef_id)
+{
+    vEventGroupDelete ((EventGroupHandle_t)ef_id);
+    return osOK;
+}
+
+osMutexId_t osMutexNew (const osMutexAttr_t* attr)
+{
+    (void)attr; // CMSIS attributes ignored
+    SemaphoreHandle_t hMutex = xSemaphoreCreateRecursiveMutex ();
+    return (osMutexId_t)hMutex;
+}
+
+const char* osMutexGetName (osMutexId_t mutex_id)
+{
+    (void)mutex_id; // FreeRTOS mutexes have no name
+    return NULL;
+}
+
+osStatus_t osMutexAcquire (osMutexId_t mutex_id, uint32_t timeout)
+{
+    SemaphoreHandle_t hMutex = (SemaphoreHandle_t)mutex_id;
+    if (xSemaphoreTakeRecursive (hMutex,
+        (timeout == osWaitForever) ? portMAX_DELAY : pdMS_TO_TICKS (timeout)) == pdTRUE)
+    {
+        return osOK;
+    }
+    return osErrorTimeout;
+}
+
+osStatus_t osMutexRelease (osMutexId_t mutex_id)
+{
+    SemaphoreHandle_t hMutex = (SemaphoreHandle_t)mutex_id;
+    if (xSemaphoreGiveRecursive (hMutex) == pdTRUE)
+    {
+        return osOK;
+    }
+    return osErrorResource;
+}
+
+osThreadId_t osMutexGetOwner (osMutexId_t mutex_id)
+{
+    (void)mutex_id;
+    // FreeRTOS does not directly expose mutex owner
+    return NULL;
+}
+
+osStatus_t osMutexDelete (osMutexId_t mutex_id)
+{
+    vSemaphoreDelete ((SemaphoreHandle_t)mutex_id);
+    return osOK;
+}
+
+// ==== Semaphore Management Functions ====
+
+osSemaphoreId_t
+osSemaphoreNew (uint32_t max_count, uint32_t initial_count, const osSemaphoreAttr_t* attr)
+{
+    (void)attr; // attributes not used in FreeRTOS
+    if (max_count == 0U || initial_count > max_count)
+    {
+        return NULL;
+    }
+
+    SemaphoreHandle_t hSem = xSemaphoreCreateCounting (max_count, initial_count);
+    return (osSemaphoreId_t)hSem;
+}
+
+const char* osSemaphoreGetName (osSemaphoreId_t semaphore_id)
+{
+    (void)semaphore_id;
+    // FreeRTOS semaphores do not have names
+    return NULL;
+}
+
+osStatus_t osSemaphoreAcquire (osSemaphoreId_t semaphore_id, uint32_t timeout)
+{
+    SemaphoreHandle_t hSem = (SemaphoreHandle_t)semaphore_id;
+    if (hSem == NULL)
+        return osErrorParameter;
+
+    if (xSemaphoreTake (hSem,
+        (timeout == osWaitForever) ? portMAX_DELAY : pdMS_TO_TICKS (timeout)) == pdTRUE)
+    {
+        return osOK;
+    }
+    return osErrorTimeout;
+}
+
+osStatus_t osSemaphoreRelease (osSemaphoreId_t semaphore_id)
+{
+    SemaphoreHandle_t hSem = (SemaphoreHandle_t)semaphore_id;
+    if (hSem == NULL)
+        return osErrorParameter;
+
+    if (xSemaphoreGive (hSem) == pdTRUE)
+    {
+        return osOK;
+    }
+    return osErrorResource;
+}
+
+uint32_t osSemaphoreGetCount (osSemaphoreId_t semaphore_id)
+{
+    SemaphoreHandle_t hSem = (SemaphoreHandle_t)semaphore_id;
+    if (hSem == NULL)
+        return 0;
+
+    return (uint32_t)uxSemaphoreGetCount (hSem);
+}
+
+osStatus_t osSemaphoreDelete (osSemaphoreId_t semaphore_id)
+{
+    SemaphoreHandle_t hSem = (SemaphoreHandle_t)semaphore_id;
+    if (hSem == NULL)
+        return osErrorParameter;
+
+    vSemaphoreDelete (hSem);
+    return osOK;
+}

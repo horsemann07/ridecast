@@ -1,0 +1,43 @@
+
+<type>(<scope>): <short description>
+
+# NOTE: Lines starting with '#' are comments and will NOT be committed.
+# Wrap text at 72 characters for readability.
+# ------------------------------
+# Commit Message Template
+# ------------------------------
+# Format: <type>(<scope>): <short description>
+#
+# type: feat | fix | docs | style | refactor | perf | test | ci | chore | update | init
+# scope: optional, module or folder affected (e.g., uart, cli, dispatcher, wifi)
+# short description: concise, written in present tense
+#
+# ------------------------------
+# Allowed Commit Types:
+# | Type       | Description                                      |
+# |------------|--------------------------------------------------|
+# | init       | Initial project setup or repository scaffolding  |
+# | feat       | New feature or functionality                     |
+# | fix        | Bug fix or issue resolution                      |
+# | ci         | Changes to CI/CD scripts or configuration        |
+# | docs       | Documentation changes or updates                 |
+# | style      | Formatting, indentation, or code style changes   |
+# | refactor   | Code restructuring or cleanup (no feature/fix)   |
+# | perf       | Performance improvements                         |
+# | test       | Adding/updating unit/integration tests           |
+# | chore      | Misc tasks (build scripts, dependencies, tools)  |
+# | update     | Minor updates, version bumps, or non-functional  |
+#
+# ------------------------------
+# Example commits:
+#   feat(cli): add embedded-cli v0.1.4 as submodule
+#   fix(uart): resolve RX buffer overflow
+#   docs: add flow diagram for secure channel
+#   refactor(dispatcher): simplify routing logic
+#   ci: add GitHub Actions build job
+#
+# ------------------------------
+# Footer (optional):
+#   BREAKING CHANGE: <explanation>
+#   Closes: #123
+# ------------------------------

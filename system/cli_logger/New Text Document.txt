@@ -1,0 +1,16 @@
+          +----------------------+
+          |      UART RX ISR     |
+          +----------------------+
+                     |
+                     v
+          embeddedCliReceiveChar(c)
+                     |
+          +----------------------+
+          | embeddedCli Process  |
+          +----------------------+
+            |              |
+   CLI Commands         Logger Messages
+     Callback             Print()
+       |                     |
+       v                     v
+ Application Logic      Print to UART
