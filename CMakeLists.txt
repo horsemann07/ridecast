@@ -26,7 +26,8 @@ if(ESP_BOARD)
     list(APPEND CMAKE_PREFIX_PATH "${IDF_PATH}")
 
     # Override project dir so ESP-IDF knows where main/ lives
-    set(PROJECT_DIR ${CMAKE_SOURCE_DIR}/app/main)
+    # set(PROJECT_DIR ${CMAKE_SOURCE_DIR}/app/main)
+    set(EXTRA_COMPONENT_DIRS "${CMAKE_SOURCE_DIR}/app/main")
 
     # Include ESP-IDF project CMake
     include(${IDF_PATH}/tools/cmake/project.cmake)
