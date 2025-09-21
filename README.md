@@ -18,33 +18,46 @@ Key features:
 ```bash
 /ridecast
 │
-├──/app
-│   │ └── dispatcher # Routes data between wireless and serial interfaces
-├──/cmakes
-│   │ └── build # Build artifacts
-├──/docs
-│   │ ├── html # Documentation HTML files
-│   │ ├── images # Architecture diagrams, flowcharts
-│   │ └── doxygen # doxygen documents
-├──/bsp # Board Support Package (MCU & hardware abstraction)
-│   │ ├── common_io # Generic IO driver
-│   │ ├── serial_com # UART, CAN, USB interfaces
-│   │ └── wireless_com # Wi-Fi and BLE drivers
-├──/middleware # Communication stacks and crypto
-│   │ │    ├── comm # TCP/IP, BLE stacks
-│   │ │    └── crypto # TLS/AES modules
-│   │ └── OS # Optional: Vendor-supplied RTOS (CMSIS, FreeRTOS)
-├───external
-│   ├───component
-│   │   ├───lwip # TCP/IP stack source (lwIP)
-│   │   ├───mbedtls # TLS/crypto library (mbedTLS)
-│   ├───os
-│   │   freertos # FreeRTOS (or CMSIS-RTOS) related headers and wrappers
-├──/tests
-│   │ ├── integration # End-to-end and protocol flow tests
-│   │ └── unit # Unit tests for individual modules
-├── /sdk          # Vendor-specific SDKs or drivers
-│   ├── esp           # Vendor SDKs for hardware peripherals (ESP-IDF, STM32 HAL,NXP SDK, etc.)
+├── /app
+│   └── main              # Application entry point (routes data between wireless and serial interfaces)
+│
+├── /cmakes               # CMake scripts 
+│
+├── /docs
+│   ├── html              # Generated documentation in HTML format
+│   ├── images            # Architecture diagrams, flowcharts, design visuals
+│   └── doxygen           # Doxygen configuration files and outputs
+│
+├── /bsp                  # Board Support Package (MCU-specific hardware abstraction)
+│   ├── include           # Generic hardware abstraction headers (common IO driver APIs)
+│   ├── port              # Hardware interface implementations (UART, CAN, USB, etc.)
+│   │   ├── esp           # ESP32/ESP-IDF specific drivers (UART, CAN, Wi-Fi, etc.)
+│   │   ├── stm           # STM32 HAL-based implementations (UART, CAN, timers, etc.)
+│   │   └── ti            # TI MCU driver implementations
+│   ├── system
+│       ├── config        # System-level configuration (clocks, pins, interrupts, etc.)
+│       └── cli_logger    # Command-line interface logger for debugging and monitoring
+│
+├── /middleware           # Protocol stacks, cryptography, and middleware services
+│
+├── /external             # Third-party libraries and OS wrappers
+│   ├── component
+│   │   ├── lwip          # Lightweight TCP/IP stack (lwIP source code)
+│   │   └── mbedtls       # TLS/crypto library (mbedTLS source code)
+│   └── os
+│       ├── cmsis         # CMSIS headers and standard ARM abstraction
+│       ├── cmsis_freertos # CMSIS-RTOS wrapper for FreeRTOS
+│       └── cmsis_esp     # CMSIS-RTOS adaptation layer for ESP-IDF
+│
+├── /tests
+│   ├── integration       # End-to-end, system-level, and protocol flow tests
+│   └── unit              # Unit tests for individual modules/components
+│
+├── /sdk                  # Vendor-specific SDKs and HAL drivers
+│   ├── esp               # ESP-IDF SDK and tools
+│   ├── stm               # STM32 HAL and CubeMX-generated drivers (future)
+│   └── ti                # TI SDK or driver support (future)
+
 
 ```
 
