@@ -1,4 +1,4 @@
-#ifdef __cplusplus
+
 /**
  * @file bsp_uart.h
  * @brief BSP UART driver API definitions.
@@ -22,17 +22,17 @@ extern "C"
     // Public Functions / Types
     // =========================
 
-    /**
-     * @enum bspUartOpStatus_t
-     * @brief UART read/write operation status values.
-     */
-    typedef enum
-    {
-        eBspUartWriteCompleted, /**< UART write operation completed successfully. */
-        eBspUartReadCompleted, /**< UART read operation completed successfully. */
-        eBspUartLastWriteFailed, /**< UART driver reported error during write operation. */
-        eBspUartLastReadFailed /**< UART driver reported error during read operation. */
-    } bspUartOpStatus_t;
+#define BSP_UART_BAUD_1200   ((uint32_t)1200U)
+#define BSP_UART_BAUD_9600   ((uint32_t)9600U)
+#define BSP_UART_BAUD_19200  ((uint32_t)19200U)
+#define BSP_UART_BAUD_38400  ((uint32_t)38400U)
+#define BSP_UART_BAUD_57600  ((uint32_t)57600U)
+#define BSP_UART_BAUD_115200 ((uint32_t)115200U)
+#define BSP_UART_BAUD_230400 ((uint32_t)230400U)
+#define BSP_UART_BAUD_460800 ((uint32_t)460800U)
+#define BSP_UART_BAUD_921600 ((uint32_t)921600U)
+
+    typedef uint32_t bspUartBaudrate_t;
 
     /**
      * @enum bspUartParity_t
@@ -55,26 +55,6 @@ extern "C"
         eBspUartStopBitsTwo  /**< Two stop bits. */
     } bspUartStopBits_t;
 
-    /**
-     * @typedef bspUartCallback_t
-     * @brief Callback function type for UART operation completion.
-     *
-     * @param[out] status      UART asynchronous operation status.
-     * @param[in]  userContext User-provided context pointer (opaque to the driver).
-     */
-    typedef void (*bspUartCallback_t) (bspUartOpStatus_t status, void* userContext);
-
-    /**
-     * @struct bspUartDescriptor
-     * @brief Forward declaration of the UART descriptor type.
-     */
-    struct bspUartDescriptor;
-
-    /**
-     * @typedef bspUartHandle_t
-     * @brief Handle type returned by bspUartOpen().
-     */
-    typedef struct bspUartDescriptor* bspUartHandle_t;
 
     /**
      * @enum bspUartIoctlRequest_t
@@ -89,32 +69,112 @@ extern "C"
     } bspUartIoctlRequest_t;
 
     /**
-     * @struct bspUartConfig_t
-     * @brief Configuration parameters for BSP UART.
+     * @enum bspUartMode_t
+     * @brief UART operation mode: transmit, receive, or both.
+     */
+    typedef enum
+    {
+        eBspUartModeTx,  /**< Transmit only. */
+        eBspUartModeRx,  /**< Receive only. */
+        eBspUartModeTxRx /**< Transmit and receive. */
+    } bspUartMode_t;
+
+    typedef enum
+    {
+        eBspUartWordLength5 = 5,
+        eBspUartWordLength6 = 6,
+        eBspUartWordLength7 = 7,
+        eBspUartWordLength8 = 8
+    } bspUartWordLength_t;
+
+
+    /**
+     * @struct bspUartHandle_t
+     * @brief UART handle/config structure for BSP driver (optimized for memory usage).
      *
-     * @var bspUartConfig_t::baudrate
-     * Baud rate to configure (e.g., 9600, 115200).
-     * @var bspUartConfig_t::parity
-     * Parity mode, see @ref bspUartParity_t.
-     * @var bspUartConfig_t::stopBits
-     * Stop bits configuration, see @ref bspUartStopBits_t.
-     * @var bspUartConfig_t::wordLength
-     * Word length (number of data bits, e.g., 8).
-     * @var bspUartConfig_t::flowControlEn
-     * Flow control: 0 = disabled, 1 = enabled.
+     * This structure holds all configuration and runtime parameters for a UART instance.
+     * Members are ordered for optimal packing and minimal memory usage on most MCUs.
+     *
+     * - Place 32-bit fields first, then 16-bit, then 8-bit fields.
+     * - Use only the required width for each field.
+     *
+     * @var bspUartHandle_t::baudrate      UART baud rate (e.g., 9600, 115200).
+     * @var bspUartHandle_t::uartRxPin     RX pin number (platform-specific).
+     * @var bspUartHandle_t::uartTxPin     TX pin number (platform-specific).
+     * @var bspUartHandle_t::fifoSize      FIFO/buffer size (if supported).
+     * @var bspUartHandle_t::portNum       UART instance/port number (e.g., 1 for USART1).
+     * @var bspUartHandle_t::wordLength    Number of data bits (e.g., 8).
+     * @var bspUartHandle_t::parity        UART parity mode (see @ref bspUartParity_t).
+     * @var bspUartHandle_t::stopBits      UART stop bits (see @ref bspUartStopBits_t).
+     * @var bspUartHandle_t::hwFlowControl Hardware flow control: 0 = disabled, 1 = enabled.
+     * @var bspUartHandle_t::mode          UART mode: transmit, receive, or both (see @ref bspUartMode_t).
+     * @var bspUartHandle_t::oversampling  Oversampling value (e.g., 8 or 16).
+     * @var bspUartHandle_t::invertTx      TX line inversion: 0 = normal, 1 = inverted.
+     * @var bspUartHandle_t::invertRx      RX line inversion: 0 = normal, 1 = inverted.
+     * @var bspUartHandle_t::dmaEnable     DMA enable: 0 = disabled, 1 = enabled.
+     * @var bspUartHandle_t::rxThreshold   RX FIFO threshold (if supported).
+     *
+     *  @code
+     * // Example: Initialize UART handle and use with ESP-IDF
+     * bspUartHandle_t uartHandle = {
+     *     .portNum = 1, // UART1
+     *     .baudrate = BSP_UART_BAUD_115200,
+     *     .parity = eBspUartParityNone,
+     *     .stopBits = eBspUartStopBitsOne,
+     *     .wordLength = 8,
+     *     .hwFlowControl = 0,
+     *     .mode = eBspUartModeTxRx,
+     *     .oversampling = 16,
+     *     .invertTx = 0,
+     *     .invertRx = 0,
+     *     .fifoSize = 128,
+     *     .dmaEnable = 0
+     * };
+     *
+     * // Initialize UART peripheral
+     * bspUartInit(uartHandle);
+     *
+     * // Send data
+     * const uint8_t msg[] = "Hello UART";
+     * bspUartSendSync(uartHandle, msg, sizeof(msg));
+     *
+     * // Receive data
+     * uint8_t rxBuf[16];
+     * bspUartReceiveSync(uartHandle, rxBuf, sizeof(rxBuf), 100);
+     * @endcode
      */
     typedef struct
     {
-        uint32_t baudrate;
-        bspUartParity_t parity;
-        bspUartStopBits_t stopBits;
-        uint8_t wordLength;
-        uint8_t flowControlEn;
-    } bspUartConfig_t;
+        bspUartBaudrate_t baudrate;     /**< UART baud rate. */
+        uint32_t uartRxPin;             /**< RX pin number. */
+        uint32_t uartTxPin;             /**< TX pin number. */
+        uint32_t uartRtsPin;            /**< RTS pin number. */
+        uint32_t uartCtsPin;            /**< CTS pin number. */
+        uint16_t fifoSize;              /**< FIFO/buffer size. */
+        uint8_t portNum;                /**< UART instance/port number. */
+        bspUartWordLength_t wordLength; /**< Number of data bits. */
+        bspUartParity_t parity;         /**< UART parity mode. */
+        bspUartStopBits_t stopBits;     /**< UART stop bits. */
+        bool hwFlowControlEn; /**< Hardware flow control: 0 = disabled, 1 = enabled. */
+        bspUartMode_t mode;   /**< UART mode: transmit, receive, or both. */
+        uint8_t oversampling; /**< Oversampling value (e.g., 8 or 16). */
+        uint8_t invertTx;  /**< TX line inversion: 0 = normal, 1 = inverted. */
+        uint8_t invertRx;  /**< RX line inversion: 0 = normal, 1 = inverted. */
+        uint8_t dmaEnable; /**< DMA enable: 0 = disabled, 1 = enabled. */
+        uint8_t rxThreshold; /**< RX FIFO threshold. */
+    } bspUartHandle_t;
 
     // =========================
     // BSP UART API
     // =========================
+    /**
+     * @typedef bspUartCallback_t
+     * @brief Callback function type for UART operation completion.
+     *
+     * @param[out] status      UART asynchronous operation status.
+     * @param[in]  userContext User-provided context pointer (opaque to the driver).
+     */
+    typedef void (*bspUartCallback_t)(errStatus_t status, void* userContext);
 
     /**
      * @brief Initialize the UART peripheral.
@@ -122,7 +182,7 @@ extern "C"
      * @param[in] handle UART handle.
      * @return Status of the operation.
      */
-    errStatus_t bspUartInit (bspUartHandle_t handle);
+    errStatus_t bspUartInit(bspUartHandle_t* ptHandle);
 
     /**
      * @brief De-initialize the UART peripheral.
@@ -130,7 +190,7 @@ extern "C"
      * @param[in] handle UART handle.
      * @return Status of the operation.
      */
-    errStatus_t bspUartDeInit (bspUartHandle_t handle);
+    errStatus_t bspUartDeInit(bspUartHandle_t* ptHandle);
 
     /**
      * @brief Send data synchronously over UART.
@@ -140,7 +200,7 @@ extern "C"
      * @param[in] length Number of bytes to send.
      * @return Status of the operation.
      */
-    errStatus_t bspUartSendSync (bspUartHandle_t handle, const uint8_t* data, size_t length);
+    errStatus_t bspUartSendSync(bspUartHandle_t handle, const uint8_t* data, size_t length, uint32_t timeout_ms);
 
     /**
      * @brief Receive data synchronously over UART.
@@ -152,7 +212,7 @@ extern "C"
      * @return Status of the operation.
      */
     errStatus_t
-    bspUartReceiveSync (bspUartHandle_t handle, uint8_t* data, size_t length, uint32_t timeout_ms);
+    bspUartReceiveSync(bspUartHandle_t handle, uint8_t* data, size_t length, uint32_t timeout_ms);
 
     /**
      * @brief Send data asynchronously over UART.
@@ -164,11 +224,11 @@ extern "C"
      * @param[in] userContext User-provided context pointer.
      * @return Status of the operation.
      */
-    errStatus_t bspUartSendAsync (bspUartHandle_t handle,
-    const uint8_t* data,
-    size_t length,
-    bspUartCallback_t callback,
-    void* userContext);
+    errStatus_t bspUartSendAsync(bspUartHandle_t handle,
+                                 const uint8_t* data,
+                                 size_t length,
+                                 bspUartCallback_t callback,
+                                 void* userContext);
 
     /**
      * @brief Receive data asynchronously over UART.
@@ -180,11 +240,11 @@ extern "C"
      * @param[in] userContext User-provided context pointer.
      * @return Status of the operation.
      */
-    errStatus_t bspUartReceiveAsync (bspUartHandle_t handle,
-    uint8_t* data,
-    size_t length,
-    bspUartCallback_t callback,
-    void* userContext);
+    errStatus_t bspUartReceiveAsync(bspUartHandle_t handle,
+                                    uint8_t* data,
+                                    size_t length,
+                                    bspUartCallback_t callback,
+                                    void* userContext);
 
 #ifdef __cplusplus
 }

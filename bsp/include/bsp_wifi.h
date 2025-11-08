@@ -35,10 +35,10 @@ extern "C"
  * @brief Required configuration and error code headers for BSP Wi-Fi API.
  *
  * - bsp_config.h: Contains board and Wi-Fi configuration macros (SSID length, password length, etc).
- * - bsp_err.h: Defines the errStatus_t type and error codes used by all BSP Wi-Fi API functions.
+ * - err_status.h: Defines the errStatus_t type and error codes used by all BSP Wi-Fi API functions.
  */
 #include "bsp_config.h"
-#include "bsp_err.h"
+#include "err_status.h"
 
 #define BSP_WIFI_SSID_MAX_LEN       bspCONFIG_WIFI_SSID_MAX_LEN
 #define BSP_WIFI_PASSWORD_MAX_LEN   bspCONFIG_WIFI_PASSWORD_MAX_LEN

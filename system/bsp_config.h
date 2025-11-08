@@ -10,6 +10,7 @@ extern "C"
 
 
 #include <stdint.h>
+#include <stddef.h>
 
     // Configuration parameters for the BSP (Board Support Package).
 

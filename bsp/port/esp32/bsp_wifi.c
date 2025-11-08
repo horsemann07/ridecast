@@ -20,13 +20,6 @@
 // Include the corresponding header file for WiFi BSP
 #include "bsp_wifi.h"
 
-// Include ESP-IDF WiFi headers
-#include "esp_wifi.h"
-#include "esp_event.h"
-#include "esp_smartconfig.h"
-#include "event_groups.h"
-#include "esp_netif_ip_addr.h"
-
 #ifdef ESP_BOARD_LWIP
     #include "esp_netif.h"
     #include "lwip/netif.h"
@@ -41,6 +34,12 @@
     #include "lwip/inet.h"
 #endif // ESP_BOARD_LWIP
 
+// Include ESP-IDF WiFi headers
+#include "esp_wifi.h"
+#include "esp_event.h"
+#include "esp_smartconfig.h"
+#include "event_groups.h"
+#include "esp_netif_ip_addr.h"
 #include "nvs_flash.h"
 #include "nvs.h"
 
@@ -57,6 +56,7 @@
     #define WIFI_LOGD(fmt, ...) ESP_LOGD(__FILENAME__, fmt, ##__VA_ARGS__)
 
 #else // BSP logging: just map directly
+    #include "cli_logger.h"
     #define WIFI_LOGI(fmt, ...) BSP_LOGI(fmt, ##__VA_ARGS__)
     #define WIFI_LOGW(fmt, ...) BSP_LOGW(fmt, ##__VA_ARGS__)
     #define WIFI_LOGE(fmt, ...) BSP_LOGE(fmt, ##__VA_ARGS__)
@@ -116,7 +116,7 @@ static struct netif* softap_netif = NULL; // Access Point
 #endif // ESP_BOARD_LWIP
 
 // Wi-Fi NVS (flash) namespace and configuration limits
-#define WIFI_FLASH_NS         "WiFi"
+#define WIFI_FLASH_NS         "BspWiFi"
 #define MAX_WIFI_KEY_WIDTH    (5)
 #define MAX_SECURITY_MODE_LEN (1)
 #define MAX_AP_CONNECTIONS    (4)
