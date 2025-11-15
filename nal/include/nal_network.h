@@ -37,6 +37,7 @@ extern "C"
 
 #include <stdint.h>
 #include <stddef.h>
+#include "err_status.h"
 
 #include "sys_config.h"
 
@@ -46,12 +47,26 @@ extern "C"
 #endif
 
 
-/* Platform headers (lwIP, CMSIS, mbedTLS) are optional at compile-time */
-#ifdef SYS_USE_LWIP
+    /* Platform headers (lwIP, CMSIS, mbedTLS) are optional at compile-time */
+    /*-------------------------------------------------------------
+     *  Socket (lwIP / POSIX)
+     *------------------------------------------------------------*/
+
+#if defined(ESP_PLATFORM) && defined(ESP_PLATFORM_LWIP)
+
+    /* ESP-IDF provides lwIP */
     #include "lwip/sockets.h"
     #include "lwip/netdb.h"
+    #include "lwip/errno.h"
+
+#elif defined(SYS_USE_LWIP)
+
+    /* User-provided lwIP */
+    #include "lwip/sockets.h"
+    #include "lwip/netdb.h"
+
 #else
-    /* Provide minimal socket typedefs so header compiles where lwIP is not present. */
+    /* Generic POSIX sockets */
     #include <sys/types.h>
     #include <sys/socket.h>
     #include <netinet/in.h>
@@ -59,8 +74,15 @@ extern "C"
     #include <unistd.h>
 #endif
 
-/* Optionally include mbedTLS types when TLS is enabled */
-#ifdef SYS_USE_MBEDTLS
+    /* Optionally include mbedTLS types when TLS is enabled */
+
+    /*-------------------------------------------------------------
+     *  TLS / mbedTLS support
+     *------------------------------------------------------------*/
+
+#if defined(ESP_PLATFORM) && defined(ESP_PLATFORM_MBEDTLS)
+
+    /* Use ESP-IDF’s mbedTLS */
     #include "mbedtls/platform.h"
     #include "mbedtls/net_sockets.h"
     #include "mbedtls/ssl.h"
@@ -68,9 +90,23 @@ extern "C"
     #include "mbedtls/entropy.h"
     #include "mbedtls/ctr_drbg.h"
     #include "mbedtls/x509_crt.h"
+
+#elif defined(SYS_USE_MBEDTLS)
+
+    /* Use user-provided mbedTLS (for STM32/Linux builds) */
+    #include "mbedtls/platform.h"
+    #include "mbedtls/net_sockets.h"
+    #include "mbedtls/ssl.h"
+    #include "mbedtls/ssl_ciphersuites.h"
+    #include "mbedtls/entropy.h"
+    #include "mbedtls/ctr_drbg.h"
+    #include "mbedtls/x509_crt.h"
+
+#else
+/* No TLS → Provide stub types if needed */
+typedef void* tls_context_t;
 #endif
 
-#include "sys_config.h" /* project-wide config (may enable/disable subsystems) */
     /* -------------------------
      * Internal async context
      * ------------------------- */
@@ -110,77 +146,8 @@ extern "C"
         NAL_EVENT_ERROR /**< Generic error occurred; check logs or state */
     } nalEvent_t;
 
-    /**
-     * @brief Asynchronous context for a single nal network handle.
-     *
-     * Internal per-instance state used by the nal implementation. Fields are
-     * intentionally exposed so the C file can store per-handle async state
-     * without a separate private header.
-     */
-    typedef struct
-    {
-        int used;                   /**< 0 = free, 1 = in-use */
-        int sockfd;                 /**< socket fd for this async instance */
-        struct nalHandle_t* handle; /**< back-reference to parent handle */
-        nalEventCallback_t cb;      /**< user callback */
-        void* user_ctx;             /**< user context passed to callback */
-        void* recv_buf;      /**< optional receive buffer provided by user */
-        size_t recv_buf_len; /**< length of recv_buf */
-        void* send_buf;      /**< pointer to pending send buffer (malloc'd) */
-        size_t send_len;     /**< length of pending send buffer */
-        int want_send;       /**< flag set when send_buf is ready */
-#ifdef SYS_USE_CMSIS
-        osMutexId_t lock;    /**< mutex protecting per-ctx state */
-        osThreadId_t thread_id;   /**< worker thread id */
-        osSemaphoreId_t exit_sem; /**< signalled by worker on exit */
-#else
-    void* lock;      /**< placeholder when CMSIS not present */
-    void* thread_id; /**< placeholder */
-    void* exit_sem;  /**< placeholder */
-#endif
-        volatile int running;     /**< 0 = stopped, 1 = running */
-    } nalAsyncCtx_t;
-
-
-    /**
-     * @brief Opaque NAL handle structure.
-     *
-     * The nalHandle_t structure encapsulates all state needed for a single
-     * network connection. Callers should treat it as an opaque container
-     * allocated on the stack or statically.
-     *
-     * @note This structure should be initialized via nal_init() before use.
-     * @warning Do not access members directly; use NAL API functions instead.
-     */
-    typedef struct
-    {
-        nalScheme_t scheme; /**< Configured transport scheme (TCP or TLS) */
-        int sockfd; /**< Underlying socket file descriptor (-1 if unused) */
-
-        uint32_t recv_timeout_ms; /**< Default receive timeout in milliseconds (0 = blocking) */
-        uint32_t send_timeout_ms; /**< Default send timeout in milliseconds (0 = blocking) */
-
-#ifdef SYS_USE_MBEDTLS
-        mbedtls_ssl_context ssl; /**< mbedTLS SSL context for encrypted communication */
-        mbedtls_ssl_config conf;           /**< mbedTLS SSL configuration */
-        mbedtls_ctr_drbg_context ctr_drbg; /**< mbedTLS random number generator context */
-        mbedtls_entropy_context entropy; /**< mbedTLS entropy source for RNG seeding */
-        mbedtls_x509_crt cacert; /**< mbedTLS CA certificate chain for verification */
-        mbedtls_net_context net_ctx; /**< mbedTLS network context wrapping sockfd */
-        uint8_t tls_prepared; /**< TLS context initialization flag (0 or 1) */
-#else
-    void* tls_placeholder; /**< Placeholder to maintain ABI compatibility */
-#endif
-
-#ifdef SYS_USE_CMSIS
-        osMutexId_t lock; /**< CMSIS-RTOS mutex for thread-safe operations */
-#else
-    void* lock; /**< Placeholder when CMSIS-RTOS is not available */
-#endif
-
-        nalAsyncCtx_t async_ctx; /**< Asynchronous operation context and state */
-    } nalHandle_t;
-
+    /* Forward declare struct so pointers can be used before full definition */
+    typedef struct nalHandle nalHandle_t;
 
     /**
      * @brief Callback function prototype for receiving asynchronous NAL events.
@@ -213,6 +180,82 @@ extern "C"
                                        void* user_ctx,
                                        void* data,
                                        size_t length);
+
+
+    /**
+     * @brief Asynchronous context for a single nal network handle.
+     *
+     * Internal per-instance state used by the nal implementation. Fields are
+     * intentionally exposed so the C file can store per-handle async state
+     * without a separate private header.
+     */
+    typedef struct
+    {
+        int used;              /**< 0 = free, 1 = in-use */
+        int sockfd;            /**< socket fd for this async instance */
+        nalHandle_t* handle;   /**< back-reference to parent handle */
+        nalEventCallback_t cb; /**< user callback */
+        void* user_ctx;        /**< user context passed to callback */
+        void* recv_buf;        /**< optional receive buffer provided by user */
+        size_t recv_buf_len;   /**< length of recv_buf */
+        void* send_buf;        /**< pointer to pending send buffer (malloc'd) */
+        size_t send_len;       /**< length of pending send buffer */
+        int want_send;         /**< flag set when send_buf is ready */
+#ifdef SYS_USE_CMSIS
+        osMutexId_t lock;      /**< mutex protecting per-ctx state */
+        osThreadId_t thread_id;   /**< worker thread id */
+        osSemaphoreId_t exit_sem; /**< signalled by worker on exit */
+#else
+    void* lock;      /**< placeholder when CMSIS not present */
+    void* thread_id; /**< placeholder */
+    void* exit_sem;  /**< placeholder */
+#endif
+        volatile int running;     /**< 0 = stopped, 1 = running */
+    } nalAsyncCtx_t;
+
+
+    /**
+     * @brief Opaque NAL handle structure.
+     *
+     * The nalHandle_t structure encapsulates all state needed for a single
+     * network connection. Callers should treat it as an opaque container
+     * allocated on the stack or statically.
+     *
+     * @note This structure should be initialized via nal_init() before use.
+     * @warning Do not access members directly; use NAL API functions instead.
+     */
+    struct nalHandle
+    {
+        nalScheme_t scheme; /**< Configured transport scheme (TCP or TLS) */
+        int sockfd; /**< Underlying socket file descriptor (-1 if unused) */
+
+        uint32_t recv_timeout_ms; /**< Default receive timeout in milliseconds (0 = blocking) */
+        uint32_t send_timeout_ms; /**< Default send timeout in milliseconds (0 = blocking) */
+
+#if defined(SYS_USE_MBEDTLS) || defined(ESP_PLATFORM_MBEDTLS)
+        char server_name[128];
+        mbedtls_ssl_context ssl; /**< mbedTLS SSL context for encrypted communication */
+        mbedtls_ssl_config conf;           /**< mbedTLS SSL configuration */
+        mbedtls_ctr_drbg_context ctr_drbg; /**< mbedTLS random number generator context */
+        mbedtls_entropy_context entropy; /**< mbedTLS entropy source for RNG seeding */
+        mbedtls_x509_crt cacert; /**< mbedTLS CA certificate chain for verification */
+        mbedtls_net_context net_ctx; /**< mbedTLS network context wrapping sockfd */
+        uint8_t tls_initialized; /**< TLS context initialization flag (0 or 1) */
+        uint8_t* ca_cert_buf; /**< Raw CA certificate buffer */
+        size_t ca_cert_len;   /**< Length of CA certificate buffer */
+#else
+    void* tls_placeholder; /**< Placeholder to maintain ABI compatibility */
+#endif // #if defined(SYS_USE_MBEDTLS) || defined(ESP_PLATFORM_MBEDTLS)
+
+#ifdef SYS_USE_CMSIS
+        osMutexId_t lock; /**< CMSIS-RTOS mutex for thread-safe operations */
+#else
+    void* lock; /**< Placeholder when CMSIS-RTOS is not available */
+#endif
+
+        nalAsyncCtx_t async_ctx; /**< Asynchronous operation context and state */
+    }; // nalHandle_t
+
 
     /* -------------------------------------------------------------------------
      *  Public API (High-Level Contract)
@@ -284,12 +327,8 @@ extern "C"
      *  - ERR_STS_BUSY if a previous async operation is still active
      *  - ERR_STS_INTERNAL_ERROR if resource or socket creation fails
      */
-    errStatus_t nalNetworkConnectAsync(nalHandle_t* handle,
-                                       const char* host,
-                                       uint16_t port,
-                                       nalScheme_t scheme,
-                                       nalEventCallback_t cb,
-                                       void* user_ctx);
+    errStatus_t
+    nalNetworkConnect(nalHandle_t* handle, const char* host, uint16_t port, nalScheme_t scheme);
 
     /**
      * @brief Synchronously disconnect and clean protocol state for a handle.
@@ -297,13 +336,13 @@ extern "C"
      * Performs a TLS shutdown if applicable and closes the underlying socket.
      * Safe to call multiple times; redundant calls have no effect.
      *
-     * @param[in,out] h   Pointer to the nalHandle_t representing the connection.
+     * @param[in,out] handle   Pointer to the nalHandle_t representing the connection.
      *
      * @return
      *  - ERR_STS_OK on success
      *  - ERR_STS_INTERNAL_ERROR if socket closure or cleanup fails
      */
-    errStatus_t nalNetworkDisconnectSync(nalHandle_t* h);
+    errStatus_t nalNetworkDisconnect(nalHandle_t* handle);
 
     /**
      * @brief Synchronous send.
@@ -311,7 +350,7 @@ extern "C"
      * Sends data over the connected transport (TCP/TLS). Blocks until the entire
      * buffer is sent, a timeout occurs, or an error is detected.
      *
-     * @param[in,out] h          Pointer to nalHandle_t of the active connection.
+     * @param[in,out] handle     Pointer to nalHandle_t of the active connection.
      * @param[in]     buf        Pointer to buffer containing data to send.
      * @param[in]     len        Length of data in bytes.
      * @param[in]     timeout_ms Timeout in milliseconds.
@@ -320,7 +359,7 @@ extern "C"
      *  - Number of bytes sent (>=0) on success
      *  - Negative error code on failure
      */
-    int32_t nalNetworkSendSync(nalHandle_t* h, const void* buf, size_t len, uint32_t timeout_ms);
+    int32_t nalNetworkSend(nalHandle_t* handle, const void* buf, size_t len, uint32_t timeout_ms);
 
     /**
      * @brief Synchronous receive.
@@ -328,7 +367,7 @@ extern "C"
      * Waits for data from the remote peer. Returns once data is received, the
      * connection is closed, or a timeout/error occurs.
      *
-     * @param[in,out] h          Pointer to nalHandle_t of the active connection.
+     * @param[in,out] handle     Pointer to nalHandle_t of the active connection.
      * @param[out]    buf        Pointer to buffer where received data will be stored.
      * @param[in]     len        Maximum number of bytes to read.
      * @param[in]     timeout_ms Timeout in milliseconds.
@@ -338,7 +377,7 @@ extern "C"
      *  - 0 on orderly connection close
      *  - Negative error code on failure
      */
-    int32_t nalNetworkRecvSync(nalHandle_t* h, void* buf, size_t len, uint32_t timeout_ms);
+    int32_t nalNetworkRecv(nalHandle_t* handle, void* buf, size_t len, uint32_t timeout_ms);
 
     /* ------------------------------- Async API ------------------------------- */
 

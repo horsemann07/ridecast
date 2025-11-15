@@ -35,7 +35,6 @@
 #include <stdlib.h>
 
 #include "nal_network.h"
-#include "errStatus.h"
 
 #ifdef SYS_USE_CMSIS
     #include "cmsis_os2.h"
@@ -43,10 +42,6 @@
     #error "Async NAL requires CMSIS-RTOS2 (define SYS_USE_CMSIS)"
 #endif
 
-#ifdef SYS_USE_LWIP
-    #include "lwip/sockets.h"
-    #include "lwip/netdb.h"
-#endif
 
 /* --- Macro to allow redefinition for safe callback dispatching --- */
 #ifndef NAL_CALL_CB_SAFE
@@ -431,70 +426,70 @@ static errStatus_t nal_openSocket(nalHandle_t* h, const char* host, uint16_t por
     return ERR_STS_OK;
 }
 /* ------------------------------------------------------------------------- */
-#ifdef USE_MBEDTLS
-static errStatus_t nal_tlsHandshake(nalHandle_t* h)
+#if defined(SYS_USE_MBEDTLS) || defined(ESP_PLATFORM_MBEDTLS)
+static errStatus_t nal_tlsHandshake(nalHandle_t* handle)
 {
-    CHECK_PARAM(h);
+    CHECK_PARAM(handle);
     int ret;
 
-    mbedtls_net_init(&h->net_ctx);
-    mbedtls_ssl_init(&h->ssl);
-    mbedtls_ssl_config_init(&h->conf);
-    mbedtls_ctr_drbg_init(&h->ctr_drbg);
-    mbedtls_entropy_init(&h->entropy);
-    mbedtls_x509_crt_init(&h->cacert);
+    mbedtls_net_init(&handle->net_ctx);
+    mbedtls_ssl_init(&handle->ssl);
+    mbedtls_ssl_config_init(&handle->conf);
+    mbedtls_ctr_drbg_init(&handle->ctr_drbg);
+    mbedtls_entropy_init(&handle->entropy);
+    mbedtls_x509_crt_init(&handle->cacert);
 
     const char* pers = "nal_tls";
-    if((ret = mbedtls_ctr_drbg_seed(&h->ctr_drbg, mbedtls_entropy_func, &h->entropy,
-                                    (const unsigned char*)pers, strlen(pers))) != 0)
+    if((ret = mbedtls_ctr_drbg_seed(&handle->ctr_drbg, mbedtls_entropy_func,
+                                    &handle->entropy, (const unsigned char*)pers,
+                                    strlen(pers))) != 0)
     {
         goto tls_fail;
     }
 
-    if((ret = mbedtls_ssl_config_defaults(&h->conf, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM,
+    if((ret = mbedtls_ssl_config_defaults(&handle->conf, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM,
                                           MBEDTLS_SSL_PRESET_DEFAULT)) != 0)
     {
         goto tls_fail;
     }
 
-    mbedtls_ssl_conf_authmode(&h->conf, MBEDTLS_SSL_VERIFY_OPTIONAL);
-    mbedtls_ssl_conf_rng(&h->conf, mbedtls_ctr_drbg_random, &h->ctr_drbg);
+    mbedtls_ssl_conf_authmode(&handle->conf, MBEDTLS_SSL_VERIFY_OPTIONAL);
+    mbedtls_ssl_conf_rng(&handle->conf, mbedtls_ctr_drbg_random, &handle->ctr_drbg);
 
-    if((ret = mbedtls_ssl_setup(&h->ssl, &h->conf)) != 0)
+    if((ret = mbedtls_ssl_setup(&handle->ssl, &handle->conf)) != 0)
     {
         goto tls_fail;
     }
 
-    if(server_name && server_name[0] != '\0')
+    if(handle->server_name[0] != '\0')
     {
-        if((ret = mbedtls_ssl_set_hostname(&h->ssl, server_name)) != 0)
-        {
+        ret = mbedtls_ssl_set_hostname(&handle->ssl, handle->server_name);
+        if(ret != 0)
             goto tls_fail;
-        }
     }
-
-    h->net_ctx.fd = h->sockfd;
-    mbedtls_ssl_set_bio(&h->ssl, &h->net_ctx, mbedtls_net_send, mbedtls_net_recv, NULL);
+    handle->net_ctx.fd = handle->sockfd;
+    mbedtls_ssl_set_bio(&handle->ssl, &handle->net_ctx, mbedtls_net_send,
+                        mbedtls_net_recv, NULL);
 
     /* Consider a handshake timeout wrapper if needed */
-    if((ret = mbedtls_ssl_handshake(&h->ssl)) != 0)
+    if((ret = mbedtls_ssl_handshake(&handle->ssl)) != 0)
     {
-        ret = ERR_STS_TLS_HANDSHAKE_FAIL;
+        ret = ERR_STS_HANDSHAKE_FAIL;
         goto tls_fail;
     }
 
-    h->tls_initialized = 1;
+    handle->tls_initialized = 1;
     return ERR_STS_OK;
 
 tls_fail:
     /* free any partial initialization */
-    mbedtls_x509_crt_free(&h->cacert);
-    mbedtls_ssl_free(&h->ssl);
-    mbedtls_ssl_config_free(&h->conf);
-    mbedtls_ctr_drbg_free(&h->ctr_drbg);
-    mbedtls_entropy_free(&h->entropy);
-    mbedtls_net_free(&h->net_ctx);
-    h->tls_initialized = 0;
+    mbedtls_x509_crt_free(&handle->cacert);
+    mbedtls_ssl_free(&handle->ssl);
+    mbedtls_ssl_config_free(&handle->conf);
+    mbedtls_ctr_drbg_free(&handle->ctr_drbg);
+    mbedtls_entropy_free(&handle->entropy);
+    mbedtls_net_free(&handle->net_ctx);
+    handle->tls_initialized = 0;
     return ERR_STS_INTERNAL_ERROR;
 }
 #endif
@@ -512,7 +507,7 @@ errStatus_t nalNetworkInit(nalHandle_t* handle)
 
     memset(handle, 0, sizeof(*handle));
 
-    handle->scheme          = NAL_SCHEME_TCP;
+    handle->scheme          = NAL_SCHEME_PLAIN;
     handle->sockfd          = -1;
     handle->recv_timeout_ms = 0;
     handle->send_timeout_ms = 0;
@@ -527,14 +522,14 @@ errStatus_t nalNetworkInit(nalHandle_t* handle)
     handle->lock = NULL;
 #endif
 
-#ifdef SYS_USE_MBEDTLS
+#if defined(SYS_USE_MBEDTLS) || defined(ESP_PLATFORM_MBEDTLS)
     /* initialize mbedTLS contexts but delay heavy operations until connect */
     mbedtls_ssl_init(&handle->ssl);
     mbedtls_ssl_config_init(&handle->conf);
     mbedtls_ctr_drbg_init(&handle->ctr_drbg);
     mbedtls_entropy_init(&handle->entropy);
     mbedtls_x509_crt_init(&handle->cacert);
-    handle->tls_prepared = 0;
+    handle->tls_initialized = 0;
 #endif
 
     /* ensure global async table inited */
@@ -562,8 +557,8 @@ errStatus_t nalNetworkDeinit(nalHandle_t* handle)
     }
 #endif
 
-#ifdef SYS_USE_MBEDTLS
-    if(handle->tls_prepared)
+#if defined(SYS_USE_MBEDTLS) || defined(ESP_PLATFORM_MBEDTLS)
+    if(handle->tls_initialized)
     {
         /* free TLS runtime resources */
         mbedtls_ssl_free(&handle->ssl);
@@ -571,7 +566,7 @@ errStatus_t nalNetworkDeinit(nalHandle_t* handle)
         mbedtls_ctr_drbg_free(&handle->ctr_drbg);
         mbedtls_entropy_free(&handle->entropy);
         mbedtls_x509_crt_free(&handle->cacert);
-        handle->tls_prepared = 0;
+        handle->tls_initialized = 0;
     }
     else
     {
@@ -591,58 +586,59 @@ errStatus_t nalNetworkDeinit(nalHandle_t* handle)
     return ERR_STS_OK;
 }
 /* ------------------------------------------------------------------------- */
-errStatus_t nalNetworkConnect(nalHandle_t* h, const char* host, uint16_t port, nalScheme_t scheme)
+errStatus_t nalNetworkConnect(nalHandle_t* handle, const char* host, uint16_t port, nalScheme_t scheme)
 {
-    errStatus_t sts = nal_openSocket(h, host, port);
+    errStatus_t sts = nal_openSocket(handle, host, port);
     if(sts != ERR_STS_OK)
     {
         return sts;
     }
 
-    h->scheme = scheme; /* ensure scheme remembered */
+    handle->scheme = scheme; /* ensure scheme remembered */
 
-#ifdef USE_MBEDTLS
+#if defined(SYS_USE_MBEDTLS) || defined(ESP_PLATFORM_MBEDTLS)
     if(scheme == NAL_SCHEME_TLS)
     {
-        sts = nal_tlsHandshake(h);
+        strncpy(handle->server_name, host, sizeof(handle->server_name) - 1);
+        sts = nal_tlsHandshake(handle);
         if(sts != ERR_STS_OK)
         {
-            lwip_close(h->sockfd);
+            lwip_close(handle->sockfd);
             return sts;
         }
-        h->tls_initialized = 1;
+        handle->tls_initialized = 1;
     }
 #endif
     return ERR_STS_OK;
 }
 /* ------------------------------------------------------------------------- */
-errStatus_t nalNetworkDisconnectSync(nalHandle_t* h)
+errStatus_t nalNetworkDisconnect(nalHandle_t* handle)
 {
-    CHECK_PARAM(h);
+    CHECK_PARAM(handle);
 
-#ifdef USE_MBEDTLS
-    if(h->scheme == NAL_SCHEME_TLS && h->tls_initialized)
+#if defined(SYS_USE_MBEDTLS) || defined(ESP_PLATFORM_MBEDTLS)
+    if(handle->scheme == NAL_SCHEME_TLS && handle->tls_initialized)
     {
-        mbedtls_ssl_close_notify(&h->ssl);
-        mbedtls_ssl_free(&h->ssl);
-        mbedtls_ssl_config_free(&h->conf);
-        mbedtls_ctr_drbg_free(&h->ctr_drbg);
-        mbedtls_entropy_free(&h->entropy);
-        h->tls_initialized = 0;
+        mbedtls_ssl_close_notify(&handle->ssl);
+        mbedtls_ssl_free(&handle->ssl);
+        mbedtls_ssl_config_free(&handle->conf);
+        mbedtls_ctr_drbg_free(&handle->ctr_drbg);
+        mbedtls_entropy_free(&handle->entropy);
+        handle->tls_initialized = 0;
     }
 #endif
 
-    if(h->sockfd >= 0)
+    if(handle->sockfd >= 0)
     {
-        lwip_close(h->sockfd);
-        h->sockfd = -1;
+        lwip_close(handle->sockfd);
+        handle->sockfd = -1;
     }
     return ERR_STS_OK;
 }
 /* ------------------------------------------------------------------------- */
-int32_t nalNetworkSendSync(nalHandle_t* h, const void* buf, size_t len, uint32_t timeout_ms)
+int32_t nalNetworkSend(nalHandle_t* handle, const void* buf, size_t len, uint32_t timeout_ms)
 {
-    if(!h || h->sockfd < 0 || !buf)
+    if(!handle || handle->sockfd < 0 || !buf)
     {
         return -1;
     }
@@ -652,23 +648,23 @@ int32_t nalNetworkSendSync(nalHandle_t* h, const void* buf, size_t len, uint32_t
         struct timeval tv;
         tv.tv_sec  = timeout_ms / 1000;
         tv.tv_usec = (timeout_ms % 1000) * 1000;
-        lwip_setsockopt(h->sockfd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+        lwip_setsockopt(handle->sockfd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
     }
 
-#ifdef USE_MBEDTLS
-    if(h->scheme == NAL_SCHEME_TLS)
+#if defined(SYS_USE_MBEDTLS) || defined(ESP_PLATFORM_MBEDTLS)
+    if(handle->scheme == NAL_SCHEME_TLS)
     {
-        return mbedtls_ssl_write(&h->ssl, buf, len);
+        return mbedtls_ssl_write(&handle->ssl, buf, len);
     }
 #endif
 
-    return lwip_send(h->sockfd, buf, len, 0);
+    return lwip_send(handle->sockfd, buf, len, 0);
 }
 
 /* ------------------------------------------------------------------------- */
-int32_t nalNetworkRecvSync(nalHandle_t* h, void* buf, size_t len, uint32_t timeout_ms)
+int32_t nalNetworkRecv(nalHandle_t* handle, void* buf, size_t len, uint32_t timeout_ms)
 {
-    if(!h || h->sockfd < 0 || !buf)
+    if(!handle || handle->sockfd < 0 || !buf)
     {
         return -1;
     }
@@ -678,17 +674,17 @@ int32_t nalNetworkRecvSync(nalHandle_t* h, void* buf, size_t len, uint32_t timeo
         struct timeval tv;
         tv.tv_sec  = timeout_ms / 1000;
         tv.tv_usec = (timeout_ms % 1000) * 1000;
-        lwip_setsockopt(h->sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+        lwip_setsockopt(handle->sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
     }
 
-#ifdef USE_MBEDTLS
-    if(h->scheme == NAL_SCHEME_TLS)
+#if defined(SYS_USE_MBEDTLS) || defined(ESP_PLATFORM_MBEDTLS)
+    if(handle->scheme == NAL_SCHEME_TLS)
     {
-        return mbedtls_ssl_read(&h->ssl, buf, len);
+        return mbedtls_ssl_read(&handle->ssl, buf, len);
     }
 #endif
 
-    return lwip_recv(h->sockfd, buf, len, 0);
+    return lwip_recv(handle->sockfd, buf, len, 0);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -743,9 +739,9 @@ errStatus_t nalNetworkStartAsync(nalHandle_t* handle, nalEventCallback_t cb, voi
     }
     ctx->running = true;
 
-    uint8_t name[16];
+    char name[16];
     snprintf(name, sizeof(name), "nal_async_%d", ctx->sockfd);
-    osThreadAttr_t attr = { .name       = name,
+    osThreadAttr_t attr = { .name       = (const char*)name,
                             .stack_size = NAL_ASYNC_THREAD_STACK,
                             .priority   = NAL_ASYNC_THREAD_PRIO };
     ctx->thread_id = osThreadNew((osThreadFunc_t)async_worker_thread, ctx, &attr);
@@ -764,11 +760,15 @@ errStatus_t nalNetworkStartAsync(nalHandle_t* handle, nalEventCallback_t cb, voi
 errStatus_t nalNetworkStopAsync(nalHandle_t* handle)
 {
     if(!handle)
+    {
         return ERR_STS_INVALID_PARAM;
+    }
 
     nalAsyncCtx_t* ctx = get_ctx_by_sockfd((int)handle->sockfd);
     if(!ctx)
-        return ERR_STS_NOT_INITIALIZED;
+    {
+        return ERR_STS_NOT_INIT;
+    }
 
     /* signal thread to stop */
     ctx->running = 0;
@@ -879,7 +879,7 @@ errStatus_t nalNetworkSendAsync(nalHandle_t* handle, const void* data, size_t le
     nalAsyncCtx_t* c = get_ctx_by_sockfd((int)handle->sockfd);
     if(!c)
     {
-        return ERR_STS_NOT_INITIALIZED;
+        return ERR_STS_NOT_INIT;
     }
 
     osMutexAcquire(c->lock, osWaitForever);
@@ -930,6 +930,7 @@ errStatus_t nalNetworkRecvAsync(nalHandle_t* handle, void* recv_buf, size_t recv
 /* ------------------------------------------------------------------------- */
 errStatus_t nalSetCaCert(nalHandle_t* handle, const uint8_t* ca_pem, size_t len)
 {
+#if defined(SYS_USE_MBEDTLS) || defined(ESP_PLATFORM_MBEDTLS)
     if(!handle || !ca_pem || len == 0)
     {
         return ERR_STS_INVALID_PARAM;
@@ -952,13 +953,14 @@ errStatus_t nalSetCaCert(nalHandle_t* handle, const uint8_t* ca_pem, size_t len)
 
     memcpy(handle->ca_cert_buf, ca_pem, len);
     handle->ca_cert_len = len;
-
+#endif // #if defined(SYS_USE_MBEDTLS ) || defined(ESP_PLATFORM_MBEDTLS)
     return ERR_STS_OK;
 }
 
 /* ------------------------------------------------------------------------- */
 errStatus_t nalGetCaCert(nalHandle_t* handle, const uint8_t** out_ca_pem, size_t* out_len)
 {
+#if defined(SYS_USE_MBEDTLS) || defined(ESP_PLATFORM_MBEDTLS)
     if(!handle || !out_ca_pem || !out_len)
     {
         return ERR_STS_INVALID_PARAM;
@@ -971,7 +973,7 @@ errStatus_t nalGetCaCert(nalHandle_t* handle, const uint8_t** out_ca_pem, size_t
 
     *out_ca_pem = handle->ca_cert_buf;
     *out_len    = handle->ca_cert_len;
-
+#endif // #if defined(SYS_USE_MBEDTLS ) || defined(ESP_PLATFORM_MBEDTLS)
     return ERR_STS_OK;
 }
 /* ------------------------------------------------------------------------- */

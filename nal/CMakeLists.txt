@@ -5,10 +5,9 @@ if(ESP_PLATFORM)
 
     # # This folder acts as the ESP-IDF component for CLI
     idf_component_register(
-        SRCS
-        "${CMAKE_CURRENT_LIST_DIR}/embedded-cli/lib/src/embedded_cli.c"
-
+        SRCS "${CMAKE_CURRENT_LIST_DIR}/srcs/nal_network.c"
         INCLUDE_DIRS
-        "${CMAKE_CURRENT_LIST_DIR}/embedded-cli/lib/include"
+        "${CMAKE_CURRENT_LIST_DIR}/include"
+        PRIV_REQUIRES freertos cmsis_esp system mbedtls lwip
     )
 endif()

@@ -17,9 +17,18 @@ extern "C"
 
     /* */
 
-#define SYS_USE_LWIP
+// #define SYS_USE_LWIP
 #define SYS_USE_CMSIS
-    // #define SYS_USE_MBEDTLS
+// #define SYS_USE_MBEDTLS
+
+/*automatically defined in by espidf build. */
+#ifndef ESP_PLATFORM
+    #define ESP_PLATFORM
+#endif // ESP_PLATFORM
+#define ESP_PLATFORM_LWIP
+#define ESP_PLATFORM_MBEDTLS
+    // #endif
+
 
 #ifdef __cplusplus
 }

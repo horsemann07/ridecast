@@ -33,8 +33,10 @@ if(ESP_PLATFORM)
 
     # ESP-IDF expects a 'main' component → you set it explicitly
     set(EXTRA_COMPONENT_DIRS
+        "${CMAKE_SOURCE_DIR}/system"
         "${CMAKE_SOURCE_DIR}/external/cli"
-        # "${CMAKE_SOURCE_DIR}/external/os/cmsis_esp"
+        "${CMAKE_SOURCE_DIR}/external/os/cmsis_esp"
+        "${CMAKE_SOURCE_DIR}/nal"
         "${CMAKE_SOURCE_DIR}/app/main"
     )
 

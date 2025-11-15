@@ -60,7 +60,7 @@ extern "C"
         ERR_STS_DISCONNECTED = 52, // Connection closed or lost unexpectedly
         ERR_STS_SEND_FAILED  = 53, // Data send operation failed
         ERR_STS_RECV_FAILED  = 54, // Data receive operation failed
-        ERR_STS_TIMEOUT      = 55, // Operation timed out
+        // ERR_STS_TIMEOUT      = 55, // Operation timed out
         ERR_STS_AUTH_FAILED = 56, // Authentication or credential verification failed
         ERR_STS_DNS_FAILED      = 57, // DNS lookup or resolution failed
         ERR_STS_INVALID_ADDR    = 58, // Invalid IP/MAC address or endpoint
@@ -70,7 +70,7 @@ extern "C"
         ERR_STS_COLLISION     = 62, // Channel busy or transmission collision
         ERR_STS_NO_ACK        = 63, // No acknowledgment received
         ERR_STS_PKT_TOO_LARGE = 64, // Packet size exceeds maximum limit
-        ERR_STS_INVALID_PARAM = 65, // Invalid argument or configuration parameter
+        // ERR_STS_INVALID_PARAM = 65, // Invalid argument or configuration parameter
         ERR_STS_SECURITY_FAIL  = 66, // Generic security/encryption failure
         ERR_STS_HANDSHAKE_FAIL = 67, // TLS or protocol handshake failed
         ERR_STS_CERT_INVALID = 68, // Invalid, expired, or untrusted certificate
