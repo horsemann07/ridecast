@@ -51,7 +51,7 @@
  *    2. Provide IS_IRQ_MASKED() to check if global interrupts are masked.
  *    3. Provide IS_IRQ_MODE() to check if currently running inside an ISR.
  *
- *  Note: ESP32 doesn't have ARM's PRIMASK or IPSR, so we emulate behavior using:
+ *  Note: ESP32 doesn't have ARM's PRIMASK or IPSR, so we emulate behavior  using:
  *        - Xtensa: processor status register (PS) + FreeRTOS interrupt nesting
  *        - RISC-V: mstatus and mcause registers
  ******************************************************************************/
@@ -140,8 +140,8 @@ static inline uint32_t __get_ipsr(void)
 /* Kernel version and identification string definition (major.minor.rev: mmnnnrrrr dec) */
 #define KERNEL_VERSION                                  \
     (((uint32_t)tskKERNEL_VERSION_MAJOR * 10000000UL) | \
-    ((uint32_t)tskKERNEL_VERSION_MINOR * 10000UL) |     \
-    ((uint32_t)tskKERNEL_VERSION_BUILD * 1UL))
+     ((uint32_t)tskKERNEL_VERSION_MINOR * 10000UL) |    \
+     ((uint32_t)tskKERNEL_VERSION_BUILD * 1UL))
 
 #define KERNEL_ID       ("FreeRTOS " tskKERNEL_VERSION_NUMBER)
 
@@ -162,12 +162,12 @@ static osKernelState_t KernelState = osKernelInactive;
  * These macros control support for CMSIS-RTOS2 mutexes, timers, thread flags, etc.
  * Normally, these should be set via sdkconfig, but for now we enable them here directly.
  */
-#define configUSE_OS2_MUTEX                   1
-#define configUSE_OS2_TIMER                   1
-#define configUSE_OS2_THREAD_FLAGS            1
+#define configUSE_OS2_MUTEX        1
+#define configUSE_OS2_TIMER        1
+#define configUSE_OS2_THREAD_FLAGS 1
 // #define configUSE_OS2_CPU_AFFINITY            1
-#define configUSE_OS2_THREAD_SUSPEND_RESUME   1
-#define configUSE_OS2_THREAD_ENUMERATE        1
+#define configUSE_OS2_THREAD_SUSPEND_RESUME 1
+#define configUSE_OS2_THREAD_ENUMERATE      1
 
 
 /*
@@ -284,9 +284,13 @@ osKernelState_t osKernelGetState(void)
 
     switch(xTaskGetSchedulerState())
     {
-    case taskSCHEDULER_RUNNING: state = osKernelRunning; break;
+    case taskSCHEDULER_RUNNING:
+        state = osKernelRunning;
+        break;
 
-    case taskSCHEDULER_SUSPENDED: state = osKernelLocked; break;
+    case taskSCHEDULER_SUSPENDED:
+        state = osKernelLocked;
+        break;
 
     case taskSCHEDULER_NOT_STARTED:
     default:
@@ -369,7 +373,9 @@ int32_t osKernelLock(void)
             break;
 
         case taskSCHEDULER_NOT_STARTED:
-        default: lock = (int32_t)osError; break;
+        default:
+            lock = (int32_t)osError;
+            break;
         }
     }
 
@@ -398,10 +404,14 @@ int32_t osKernelUnlock(void)
             (void)xTaskResumeAll();
             break;
 
-        case taskSCHEDULER_RUNNING: lock = 0; break;
+        case taskSCHEDULER_RUNNING:
+            lock = 0;
+            break;
 
         case taskSCHEDULER_NOT_STARTED:
-        default: lock = (int32_t)osError; break;
+        default:
+            lock = (int32_t)osError;
+            break;
         }
     }
 
@@ -453,7 +463,9 @@ int32_t osKernelRestoreLock(int32_t lock)
             break;
 
         case taskSCHEDULER_NOT_STARTED:
-        default: lock = (int32_t)osError; break;
+        default:
+            lock = (int32_t)osError;
+            break;
         }
     }
 
@@ -596,7 +608,7 @@ osThreadId_t osThreadNew(osThreadFunc_t func, void* argument, const osThreadAttr
             }
 
             if((prio < osPriorityIdle) || (prio > osPriorityISR) ||
-            ((attr->attr_bits & osThreadJoinable) == osThreadJoinable))
+               ((attr->attr_bits & osThreadJoinable) == osThreadJoinable))
             {
                 /* Invalid priority or unsupported osThreadJoinable attribute used */
                 return (NULL);
@@ -610,7 +622,7 @@ osThreadId_t osThreadNew(osThreadFunc_t func, void* argument, const osThreadAttr
             }
 
             if((attr->cb_mem != NULL) && (attr->cb_size >= sizeof(StaticTask_t)) &&
-            (attr->stack_mem != NULL) && (attr->stack_size > 0U))
+               (attr->stack_mem != NULL) && (attr->stack_size > 0U))
             {
                 /* The memory for control block and stack is provided, use static object */
                 mem = 1;
@@ -639,14 +651,16 @@ osThreadId_t osThreadNew(osThreadFunc_t func, void* argument, const osThreadAttr
         if(mem == 1)
         {
 #if (configSUPPORT_STATIC_ALLOCATION == 1)
-#if (configUSE_OS2_CPU_AFFINITY == 0)
+    #if (configUSE_OS2_CPU_AFFINITY == 0)
             hTask = xTaskCreateStatic((TaskFunction_t)func, name, stack, argument,
-            prio - 1U, (StackType_t*)attr->stack_mem, (StaticTask_t*)attr->cb_mem);
-#else
-            hTask = xTaskCreateStaticAffinitySet((TaskFunction_t)func, name,
-            stack, argument, prio - 1U, (StackType_t*)attr->stack_mem,
-            (StaticTask_t*)attr->cb_mem, core_aff);
-#endif
+                                      prio - 1U, (StackType_t*)attr->stack_mem,
+                                      (StaticTask_t*)attr->cb_mem);
+    #else
+            hTask =
+            xTaskCreateStaticAffinitySet((TaskFunction_t)func, name, stack, argument,
+                                         prio - 1U, (StackType_t*)attr->stack_mem,
+                                         (StaticTask_t*)attr->cb_mem, core_aff);
+    #endif
 #endif
         }
         else
@@ -654,20 +668,20 @@ osThreadId_t osThreadNew(osThreadFunc_t func, void* argument, const osThreadAttr
             if(mem == 0)
             {
 #if (configSUPPORT_DYNAMIC_ALLOCATION == 1)
-#if (configUSE_OS2_CPU_AFFINITY == 0)
-                if(xTaskCreate((TaskFunction_t)func, name,
-                   (configSTACK_DEPTH_TYPE)stack, argument, prio - 1U, &hTask) != pdPASS)
+    #if (configUSE_OS2_CPU_AFFINITY == 0)
+                if(xTaskCreate((TaskFunction_t)func, name, (configSTACK_DEPTH_TYPE)stack,
+                               argument, prio - 1U, &hTask) != pdPASS)
                 {
                     hTask = NULL;
                 }
-#else
+    #else
                 if(xTaskCreateAffinitySet((TaskFunction_t)func, name,
-                   (configSTACK_DEPTH_TYPE)stack, argument, prio - 1U, core_aff,
-                   &hTask) != pdPASS)
+                                          (configSTACK_DEPTH_TYPE)stack, argument,
+                                          prio - 1U, core_aff, &hTask) != pdPASS)
                 {
                     hTask = NULL;
                 }
-#endif
+    #endif
 #endif
             }
         }
@@ -733,13 +747,21 @@ osThreadState_t osThreadGetState(osThreadId_t thread_id)
     {
         switch(eTaskGetState(hTask))
         {
-        case eRunning: state = osThreadRunning; break;
-        case eReady: state = osThreadReady; break;
+        case eRunning:
+            state = osThreadRunning;
+            break;
+        case eReady:
+            state = osThreadReady;
+            break;
         case eBlocked:
-        case eSuspended: state = osThreadBlocked; break;
+        case eSuspended:
+            state = osThreadBlocked;
+            break;
         case eDeleted:
         case eInvalid:
-        default: state = osThreadError; break;
+        default:
+            state = osThreadError;
+            break;
         }
     }
 
@@ -1415,7 +1437,7 @@ osTimerId_t osTimerNew(osTimerFunc_t func, osTimerType_t type, void* argument, c
         callb     = NULL;
         callb_dyn = 0U;
 
-#if (configSUPPORT_STATIC_ALLOCATION == 1)
+    #if (configSUPPORT_STATIC_ALLOCATION == 1)
         /* Static memory allocation is available: check if memory for control block */
         /* is provided and if it also contains space for callback and its argument */
         if((attr != NULL) && (attr->cb_mem != NULL))
@@ -1425,9 +1447,9 @@ osTimerId_t osTimerNew(osTimerFunc_t func, osTimerType_t type, void* argument, c
                 callb = (TimerCallback_t*)((uint32_t)attr->cb_mem + sizeof(StaticTimer_t));
             }
         }
-#endif
+    #endif
 
-#if (configSUPPORT_DYNAMIC_ALLOCATION == 1)
+    #if (configSUPPORT_DYNAMIC_ALLOCATION == 1)
         /* Dynamic memory allocation is available: if memory for callback and */
         /* its argument is not provided, allocate it from dynamic memory pool */
         if(callb == NULL)
@@ -1440,7 +1462,7 @@ osTimerId_t osTimerNew(osTimerFunc_t func, osTimerType_t type, void* argument, c
                 callb_dyn = 1U;
             }
         }
-#endif
+    #endif
 
         if(callb != NULL)
         {
@@ -1492,22 +1514,22 @@ osTimerId_t osTimerNew(osTimerFunc_t func, osTimerType_t type, void* argument, c
             */
             if(mem == 1)
             {
-#if (configSUPPORT_STATIC_ALLOCATION == 1)
-                hTimer = xTimerCreateStatic(name, 1, reload, callb,
-                TimerCallback, (StaticTimer_t*)attr->cb_mem);
-#endif
+    #if (configSUPPORT_STATIC_ALLOCATION == 1)
+                hTimer = xTimerCreateStatic(name, 1, reload, callb, TimerCallback,
+                                            (StaticTimer_t*)attr->cb_mem);
+    #endif
             }
             else
             {
                 if(mem == 0)
                 {
-#if (configSUPPORT_DYNAMIC_ALLOCATION == 1)
+    #if (configSUPPORT_DYNAMIC_ALLOCATION == 1)
                     hTimer = xTimerCreate(name, 1, reload, callb, TimerCallback);
-#endif
+    #endif
                 }
             }
 
-#if (configSUPPORT_DYNAMIC_ALLOCATION == 1)
+    #if (configSUPPORT_DYNAMIC_ALLOCATION == 1)
             if((hTimer == NULL) && (callb != NULL) && (callb_dyn == 1U))
             {
                 /* Failed to create a timer, release allocated resources */
@@ -1515,7 +1537,7 @@ osTimerId_t osTimerNew(osTimerFunc_t func, osTimerType_t type, void* argument, c
 
                 vPortFree(callb);
             }
-#endif
+    #endif
         }
     }
 
@@ -1649,10 +1671,10 @@ osStatus_t osTimerDelete(osTimerId_t timer_id)
 {
     TimerHandle_t hTimer = (TimerHandle_t)timer_id;
     osStatus_t stat;
-#ifndef USE_FreeRTOS_HEAP_1
-#if (configSUPPORT_DYNAMIC_ALLOCATION == 1)
+    #ifndef USE_FreeRTOS_HEAP_1
+        #if (configSUPPORT_DYNAMIC_ALLOCATION == 1)
     TimerCallback_t* callb;
-#endif
+        #endif
 
     if(IRQ_Context() != 0U)
     {
@@ -1664,13 +1686,13 @@ osStatus_t osTimerDelete(osTimerId_t timer_id)
     }
     else
     {
-#if (configSUPPORT_DYNAMIC_ALLOCATION == 1)
+        #if (configSUPPORT_DYNAMIC_ALLOCATION == 1)
         callb = (TimerCallback_t*)pvTimerGetTimerID(hTimer);
-#endif
+        #endif
 
         if(xTimerDelete(hTimer, 0) == pdPASS)
         {
-#if (configSUPPORT_DYNAMIC_ALLOCATION == 1)
+        #if (configSUPPORT_DYNAMIC_ALLOCATION == 1)
             if((uint32_t)callb & 1U)
             {
                 /* Callback memory was allocated from dynamic pool, clear flag */
@@ -1679,7 +1701,7 @@ osStatus_t osTimerDelete(osTimerId_t timer_id)
                 /* Return allocated memory to dynamic pool */
                 vPortFree(callb);
             }
-#endif
+        #endif
             stat = osOK;
         }
         else
@@ -1687,9 +1709,9 @@ osStatus_t osTimerDelete(osTimerId_t timer_id)
             stat = osErrorResource;
         }
     }
-#else
+    #else
     stat = osError;
-#endif
+    #endif
 
     /* Return execution status */
     return (stat);
@@ -1930,7 +1952,7 @@ uint32_t osEventFlagsWait(osEventFlagsId_t ef_id, uint32_t flags, uint32_t optio
         }
 
         rflags = xEventGroupWaitBits(hEventGroup, (EventBits_t)flags, exit_clr,
-        wait_all, (TickType_t)timeout);
+                                     wait_all, (TickType_t)timeout);
 
         if(options & osFlagsWaitAll)
         {
@@ -2063,39 +2085,39 @@ osMutexId_t osMutexNew(const osMutexAttr_t* attr)
 
             if(mem == 1)
             {
-#if (configSUPPORT_STATIC_ALLOCATION == 1)
+    #if (configSUPPORT_STATIC_ALLOCATION == 1)
                 if(rmtx != 0U)
                 {
-#if (configUSE_RECURSIVE_MUTEXES == 1)
+        #if (configUSE_RECURSIVE_MUTEXES == 1)
                     hMutex = xSemaphoreCreateRecursiveMutexStatic(attr->cb_mem);
-#endif
+        #endif
                 }
                 else
                 {
                     hMutex = xSemaphoreCreateMutexStatic(attr->cb_mem);
                 }
-#endif
+    #endif
             }
             else
             {
                 if(mem == 0)
                 {
-#if (configSUPPORT_DYNAMIC_ALLOCATION == 1)
+    #if (configSUPPORT_DYNAMIC_ALLOCATION == 1)
                     if(rmtx != 0U)
                     {
-#if (configUSE_RECURSIVE_MUTEXES == 1)
+        #if (configUSE_RECURSIVE_MUTEXES == 1)
                         hMutex = xSemaphoreCreateRecursiveMutex();
-#endif
+        #endif
                     }
                     else
                     {
                         hMutex = xSemaphoreCreateMutex();
                     }
-#endif
+    #endif
                 }
             }
 
-#if (configQUEUE_REGISTRY_SIZE > 0)
+    #if (configQUEUE_REGISTRY_SIZE > 0)
             if(hMutex != NULL)
             {
                 if((attr != NULL) && (attr->name != NULL))
@@ -2104,7 +2126,7 @@ osMutexId_t osMutexNew(const osMutexAttr_t* attr)
                     vQueueAddToRegistry(hMutex, attr->name);
                 }
             }
-#endif
+    #endif
 
             if((hMutex != NULL) && (rmtx != 0U))
             {
@@ -2146,7 +2168,7 @@ osStatus_t osMutexAcquire(osMutexId_t mutex_id, uint32_t timeout)
     {
         if(rmtx != 0U)
         {
-#if (configUSE_RECURSIVE_MUTEXES == 1)
+    #if (configUSE_RECURSIVE_MUTEXES == 1)
             if(xSemaphoreTakeRecursive(hMutex, timeout) != pdPASS)
             {
                 if(timeout != 0U)
@@ -2158,7 +2180,7 @@ osStatus_t osMutexAcquire(osMutexId_t mutex_id, uint32_t timeout)
                     stat = osErrorResource;
                 }
             }
-#endif
+    #endif
         }
         else
         {
@@ -2208,12 +2230,12 @@ osStatus_t osMutexRelease(osMutexId_t mutex_id)
     {
         if(rmtx != 0U)
         {
-#if (configUSE_RECURSIVE_MUTEXES == 1)
+    #if (configUSE_RECURSIVE_MUTEXES == 1)
             if(xSemaphoreGiveRecursive(hMutex) != pdPASS)
             {
                 stat = osErrorResource;
             }
-#endif
+    #endif
         }
         else
         {
@@ -2257,7 +2279,7 @@ osThreadId_t osMutexGetOwner(osMutexId_t mutex_id)
 osStatus_t osMutexDelete(osMutexId_t mutex_id)
 {
     osStatus_t stat;
-#ifndef USE_FreeRTOS_HEAP_1
+    #ifndef USE_FreeRTOS_HEAP_1
     SemaphoreHandle_t hMutex;
 
     hMutex = (SemaphoreHandle_t)((uint32_t)mutex_id & ~1U);
@@ -2272,15 +2294,15 @@ osStatus_t osMutexDelete(osMutexId_t mutex_id)
     }
     else
     {
-#if (configQUEUE_REGISTRY_SIZE > 0)
+        #if (configQUEUE_REGISTRY_SIZE > 0)
         vQueueUnregisterQueue(hMutex);
-#endif
+        #endif
         stat = osOK;
         vSemaphoreDelete(hMutex);
     }
-#else
+    #else
     stat = osError;
-#endif
+    #endif
 
     /* Return execution status */
     return (stat);
@@ -2358,8 +2380,9 @@ osSemaphoreNew(uint32_t max_count, uint32_t initial_count, const osSemaphoreAttr
                 if(mem == 1)
                 {
 #if (configSUPPORT_STATIC_ALLOCATION == 1)
-                    hSemaphore = xSemaphoreCreateCountingStatic(
-                    max_count, initial_count, (StaticSemaphore_t*)attr->cb_mem);
+                    hSemaphore =
+                    xSemaphoreCreateCountingStatic(max_count, initial_count,
+                                                   (StaticSemaphore_t*)attr->cb_mem);
 #endif
                 }
                 else
@@ -2525,9 +2548,9 @@ osStatus_t osSemaphoreDelete(osSemaphoreId_t semaphore_id)
     }
     else
     {
-#if (configQUEUE_REGISTRY_SIZE > 0)
+    #if (configQUEUE_REGISTRY_SIZE > 0)
         vQueueUnregisterQueue(hSemaphore);
-#endif
+    #endif
 
         stat = osOK;
         vSemaphoreDelete(hSemaphore);
@@ -2565,7 +2588,7 @@ osMessageQueueNew(uint32_t msg_count, uint32_t msg_size, const osMessageQueueAtt
         if(attr != NULL)
         {
             if((attr->cb_mem != NULL) && (attr->cb_size >= sizeof(StaticQueue_t)) &&
-            (attr->mq_mem != NULL) && (attr->mq_size >= (msg_count * msg_size)))
+               (attr->mq_mem != NULL) && (attr->mq_size >= (msg_count * msg_size)))
             {
                 /* The memory for control block and message data is provided, use static object */
                 mem = 1;
@@ -2573,7 +2596,7 @@ osMessageQueueNew(uint32_t msg_count, uint32_t msg_size, const osMessageQueueAtt
             else
             {
                 if((attr->cb_mem == NULL) && (attr->cb_size == 0U) &&
-                (attr->mq_mem == NULL) && (attr->mq_size == 0U))
+                   (attr->mq_mem == NULL) && (attr->mq_size == 0U))
                 {
                     /* Control block will be allocated from the dynamic pool */
                     mem = 0;
@@ -2884,9 +2907,9 @@ osStatus_t osMessageQueueDelete(osMessageQueueId_t mq_id)
     }
     else
     {
-#if (configQUEUE_REGISTRY_SIZE > 0)
+    #if (configQUEUE_REGISTRY_SIZE > 0)
         vQueueUnregisterQueue(hQueue);
-#endif
+    #endif
 
         stat = osOK;
         vQueueDelete(hQueue);
@@ -2994,15 +3017,15 @@ osMemoryPoolNew(uint32_t block_count, uint32_t block_size, const osMemoryPoolAtt
 
         if(mp != NULL)
         {
-/* Create a semaphore (max count == initial count == block_count) */
-#if (configSUPPORT_STATIC_ALLOCATION == 1)
+    /* Create a semaphore (max count == initial count == block_count) */
+    #if (configSUPPORT_STATIC_ALLOCATION == 1)
             mp->sem =
             xSemaphoreCreateCountingStatic(block_count, block_count, &mp->mem_sem);
-#elif (configSUPPORT_DYNAMIC_ALLOCATION == 1)
+    #elif (configSUPPORT_DYNAMIC_ALLOCATION == 1)
             mp->sem = xSemaphoreCreateCounting(block_count, block_count);
-#else
+    #else
             mp->sem = NULL;
-#endif
+    #endif
 
             if(mp->sem != NULL)
             {
@@ -3182,7 +3205,7 @@ osStatus_t osMemoryPoolFree(osMemoryPoolId_t mp_id, void* block)
             stat = osErrorResource;
         }
         else if((block < (void*)&mp->mem_arr[0]) ||
-        (block > (void*)&mp->mem_arr[mp->mem_sz - 1]))
+                (block > (void*)&mp->mem_arr[mp->mem_sz - 1]))
         {
             /* Block pointer outside of memory array area */
             stat = osErrorParameter;

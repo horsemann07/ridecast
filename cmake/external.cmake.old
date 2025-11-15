@@ -1,0 +1,21 @@
+# external.cmake
+message(STATUS "Configuring external modules...")
+
+set(EXTERNAL_DIR "${CMAKE_SOURCE_DIR}/external")
+
+# Add ESP-IDF components from your external directory
+set(EXTERNAL_COMPONENTS
+    "${EXTERNAL_DIR}/cli"
+    "${EXTERNAL_DIR}/component"
+    "${EXTERNAL_DIR}/os"
+)
+
+foreach(component_dir ${EXTERNAL_COMPONENTS})
+    if(EXISTS "${component_dir}/CMakeLists.txt")
+        message(STATUS "Adding external component: ${component_dir}")
+        idf_component_register()  # Required by ESP-IDF
+        add_subdirectory(${component_dir})
+    else()
+        message(WARNING "Missing CMakeLists.txt: ${component_dir}")
+    endif()
+endforeach()

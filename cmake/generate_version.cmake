@@ -59,6 +59,7 @@ else()
         set(APP_MINOR_VERSION 0)
         set(APP_PATCH_VERSION 0)
     endif()
+
     set(APP_DEV_VERSION ${COMMITS_SINCE_TAG})
     set(APP_STATUS "Development")
 endif()
