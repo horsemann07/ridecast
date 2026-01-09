@@ -20,8 +20,8 @@
  * @version 1.0
  */
 
-#ifndef _BSP_WIFI_H_
-#define _BSP_WIFI_H_
+#ifndef __BSP_WIFI_H__
+#define __BSP_WIFI_H__
 
 
 #ifdef __cplusplus
@@ -72,18 +72,38 @@ extern "C"
     } bspWifiMode_t;
 
     /**
-     * @brief Wi-Fi event types for station and AP.
+     * @brief Unified Wi-Fi event types for BSP.
      *
-     * Enumerates events related to Wi-Fi station and AP connections.
+     * Covers general Wi-Fi lifecycle, STA, AP, and WPS related events.
      */
     typedef enum
     {
-        eBSPWifiEventSTAConnected = 0, /**< Station connected to AP. */
-        eBSPWifiEventSTADisconnected,  /**< Station disconnected from AP. */
-        eBSPWifiEventSTAGotIP,         /**< Station received IP address. */
-        eBSPWifiEventAPSTAConnected, /**< AP received a new station connection. */
-        eBSPWifiEventAPSTADisconnected, /**< AP lost a station connection. */
-        eBSPWifiEventMax /**< Maximum event value (end marker). */
+        /* ---------- General Wi-Fi Events ---------- */
+        eBSPWifiEventReady = 0,    /**< Wi-Fi subsystem initialized and ready */
+        eBSPWifiEventScanDone,     /**< Wi-Fi scan completed */
+        eBSPWifiEventConnected,    /**< Connected to a Wi-Fi network */
+        eBSPWifiEventDisconnected, /**< Disconnected from Wi-Fi network */
+        eBSPWifiEventConnectionFailed, /**< Connection attempt failed */
+        eBSPWifiEventIPReady,          /**< IP address acquired */
+
+        /* ---------- Station (STA) Events ---------- */
+        eBSPWifiEventSTAConnected,    /**< Station connected to AP */
+        eBSPWifiEventSTADisconnected, /**< Station disconnected from AP */
+        eBSPWifiEventSTAGotIP,        /**< Station received IP address */
+
+        /* ---------- Access Point (AP) Events ---------- */
+        eBSPWifiEventAPStateChanged,        /**< AP started or stopped */
+        eBSPWifiEventAPStationConnected,    /**< A station connected to AP */
+        eBSPWifiEventAPStationDisconnected, /**< A station disconnected from AP */
+
+        /* ---------- WPS Events ---------- */
+        eBSPWifiEventWPSSuccess, /**< WPS succeeded */
+        eBSPWifiEventWPSFailed,  /**< WPS failed */
+        eBSPWifiEventWPSTimeout, /**< WPS timed out */
+
+        /* ---------- End Marker ---------- */
+        eBSPWifiEventMax /**< Number of Wi-Fi events (must be last) */
+
     } bspWifiEvent_t;
 
 
@@ -196,28 +216,6 @@ extern "C"
     } bspWifiReason_t;
 
     /**
-     * @brief Wi-Fi event types for general operation.
-     *
-     * Enumerates general Wi-Fi events for connection, scanning, and WPS.
-     */
-    typedef enum
-    {
-        eBSPWifiEventReady = 0,    /**< Wi-Fi is ready. */
-        eBSPWifiEventScanDone,     /**< Scan operation completed. */
-        eBSPWifiEventConnected,    /**< Connected to a Wi-Fi network. */
-        eBSPWifiEventDisconnected, /**< Disconnected from a Wi-Fi network. */
-        eBSPWifiEventConnectionFailed,      /**< Connection attempt failed. */
-        eBSPWifiEventIPReady,               /**< IP address is ready. */
-        eBSPWifiEventAPStateChanged,        /**< AP state changed. */
-        eBSPWifiEventAPStationConnected,    /**< Station connected to AP. */
-        eBSPWifiEventAPStationDisconnected, /**< Station disconnected from AP. */
-        eBSPWifiEventWPSSuccess,            /**< WPS operation succeeded. */
-        eBSPWifiEventWPSFailed,             /**< WPS operation failed. */
-        eBSPWifiEventWPSTimeout,            /**< WPS operation timed out. */
-        eBSPWifiEventMax /**< Maximum event value (end marker). */
-    } bspWifiEventType_t;
-
-    /**
      * @brief Wi-Fi connection status.
      *
      * Enumerates the possible connection statuses for a Wi-Fi network.
@@ -229,7 +227,6 @@ extern "C"
         eBSPWifiConnectionFailed, /**< Connection attempt failed. */
         eBSPWifiMax /**< Maximum connection status value (end marker). */
     } bspWifiConnectionStatus_t;
-    */
 
     /**
      * @brief Wi-Fi IP address types.
@@ -259,7 +256,7 @@ extern "C"
         uint8_t pmMode;    /**< Power management mode (see bspWifiPmMode_t). */
         uint8_t bandwidth; /**< Channel bandwidth (see bspWifiBandwidth_t). */
         uint8_t phyMode;   /**< PHY mode (see bspWifiPhyMode_t). */
-        uin32_t maxIdlePeriodSec; /** Maximum sec wifi keep idle */
+        uint32_t maxIdlePeriodSec; /** Maximum sec wifi keep idle */
     } bspWifiConfig_t;
 
 
@@ -447,7 +444,7 @@ extern "C"
 
     typedef struct
     {
-        bspWifiEventType_t tEventType;
+        bspWifiEvent_t tEventType;
         union
         {
             bspWifiConnectionInfo_t tConnectionInfo;
@@ -626,7 +623,7 @@ extern "C"
      */
     errStatus_t bspWifiGetNetworkProfiles(const uint8_t* const pu8SSID,
                                           uint8_t u8SSIDLen,
-                                          bspWifiNetworkProfile_t* const ptProfile)
+                                          bspWifiNetworkProfile_t* const ptProfile);
     /**
      * @brief Send ICMP ping(s) to a remote IP address.
      * @param[in] pu8IpAddress IP address string.
@@ -687,7 +684,6 @@ extern "C"
      */
     errStatus_t bspWifiStopAp(void);
 
-
     /**
      * @brief Check if the device is connected to a Wi-Fi network.
      * @param[in] params Pointer to network parameters to check.
@@ -708,7 +704,6 @@ extern "C"
      */
     errStatus_t bspWifiSetPMMode(bspWifiPmMode_t pmMode);
 
-
     /**
      * @brief Get the current Wi-Fi power management mode.
      * @param[out] pmMode Pointer to store the current mode.
@@ -726,7 +721,7 @@ extern "C"
      */
     errStatus_t bspWifiStartScan(const bspWifiScanResult_t* const ptScanResult,
                                  bspWifiScanConfig_t* const ptScanConfig,
-                                 uint16_t* pu16NumNetworks uint16_t pu16MaxNumNetworks);
+                                 uint16_t* pu16NumNetworks, uint16_t pu16MaxNumNetworks);
 
 
     /**
@@ -744,7 +739,7 @@ extern "C"
      * @return ERR_STS_NO_MEM              If output buffer is too small
      * @return ERR_STS_UNSUPPORTED_FEATURE If AP mode is not supported in BSP
      */
-    errStatus_t bspWifiGetConnectedStations(bspWifitionInfo_t* stations,
+    errStatus_t bspWifiGetConnectedStations(bspWifiStationInfo_t* stations,
                                             uint8_t* numStations,
                                             uint8_t maxStations);
 
@@ -876,4 +871,4 @@ extern "C"
 }
 #endif
 
-#endif /* _BSP_WIFI_H_ */
+#endif /* __BSP_WIFI_H__ */

@@ -36,6 +36,7 @@ if(ESP_PLATFORM)
         "${CMAKE_SOURCE_DIR}/system"
         "${CMAKE_SOURCE_DIR}/external/cli"
         "${CMAKE_SOURCE_DIR}/external/os/cmsis_esp"
+        "${CMAKE_SOURCE_DIR}/bsp"
         "${CMAKE_SOURCE_DIR}/nal"
         "${CMAKE_SOURCE_DIR}/app/main"
     )

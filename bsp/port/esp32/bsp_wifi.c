@@ -205,7 +205,7 @@ static void prvInvokeEventCallback(bspWifiEvent_t event, void* data)
  *
  *
  * @return ERR_STS_FAIL if registration fails.
- * @return ERR_STS_INV_PARAM if callback is invalid or event type is out of
+ * @return ERR_STS_INVALID_PARAM if callback is invalid or event type is out of
  * range.
  */
 
@@ -213,7 +213,7 @@ errStatus_t bspWifiRegisterEventCallback(bspWifiEvent_t ptEvent, bspWifiEventCal
 {
     if((ptEvent >= eBSPWifiEventMax) || (pCallback == NULL))
     {
-        return ERR_STS_INV_PARAM;
+        return ERR_STS_INVALID_PARAM;
     }
 
     if(tWifiEventHandlers[ptEvent] != NULL)
@@ -231,13 +231,13 @@ errStatus_t bspWifiRegisterEventCallback(bspWifiEvent_t ptEvent, bspWifiEventCal
  * @param[in] event The Wi-Fi event type to unregister (see bspWifiEvent_t).
  * @return ERR_STS_OK on success.
  * @return ERR_STS_FAIL if unregistration fails.
- * @return ERR_STS_INV_PARAM if event type is out of range.
+ * @return ERR_STS_INVALID_PARAM if event type is out of range.
  */
 errStatus_t bspWifiUnregisterEventCallback(bspWifiEvent_t ptEvent)
 {
     if(ptEvent >= eBSPWifiEventMax)
     {
-        return ERR_STS_INV_PARAM;
+        return ERR_STS_INVALID_PARAM;
     }
 
     tWifiEventHandlers[ptEvent] = NULL;
@@ -599,7 +599,7 @@ errStatus_t bspWifiOn(bspWifiMode_t mode, void* pvParam)
     // 2. Check supported modes
     if(mode <= eWiFiModeNotSupported)
     {
-        return ERR_STS_INV_PARAM;
+        return ERR_STS_INVALID_PARAM;
     }
 
     status = bspWifiSetMode(mode);
@@ -614,7 +614,7 @@ errStatus_t bspWifiOn(bspWifiMode_t mode, void* pvParam)
     case eWiFiModeStation:
         if(pvParam == NULL)
         {
-            return ERR_STS_INV_PARAM; // need network credentials
+            return ERR_STS_INVALID_PARAM; // need network credentials
         }
         status = bspWifiConnectToAp((const bspWifiNetworkParams_t*)pvParam);
         break;
@@ -622,7 +622,7 @@ errStatus_t bspWifiOn(bspWifiMode_t mode, void* pvParam)
     case eWiFiModeAP:
         if(pvParam == NULL)
         {
-            return ERR_STS_INV_PARAM; // need AP config
+            return ERR_STS_INVALID_PARAM; // need AP config
         }
         status = bspWifirtAP((const bspWifiConfig_t*)pvParam);
         break;
@@ -632,7 +632,7 @@ errStatus_t bspWifiOn(bspWifiMode_t mode, void* pvParam)
         {
             // Option 1: require a combined config struct
             // Option 2: allow NULL if defaults are acceptable
-            return ERR_STS_INV_PARAM;
+            return ERR_STS_INVALID_PARAM;
         }
         bspWifiApStaConfig_t* comboCfg = (bspWifiApStaConfig_t*)pvParam;
         status                         = bspWifirtAP(&comboCfg->apConfig);
@@ -647,7 +647,7 @@ errStatus_t bspWifiOn(bspWifiMode_t mode, void* pvParam)
         break;
 
     default:
-        status = ERR_STS_INV_PARAM;
+        status = ERR_STS_INVALID_PARAM;
         break;
     }
 
@@ -696,7 +696,7 @@ errStatus_t bspWifiConnectToAp(const bspWifiNetworkParams_t* const pctNetwork)
     if(!CHECK_VALID_WIFI_SSID_LEN(pctNetwork->ssidLength))
     {
         WIFI_LOGD("Invalid SSID length");
-        return ERR_STS_INV_PARAM;
+        return ERR_STS_INVALID_PARAM;
     }
 
     if(pctNetwork->security == eWiFiSecurityWEP)
@@ -708,7 +708,7 @@ errStatus_t bspWifiConnectToAp(const bspWifiNetworkParams_t* const pctNetwork)
        !CHECK_VALID_PASSPHRASE_LEN(pctNetwork->password.wpa.u8Length))
     {
         WIFI_LOGD("Invalid passphrase length");
-        return ERR_STS_INV_PARAM;
+        return ERR_STS_INVALID_PARAM;
     }
 
 
@@ -870,7 +870,7 @@ errStatus_t bspWifiSetMode(bspWifiMode_t mode)
 
     if(mode != eWiFiModeStation && mode != eWiFiModeAP && mode != eWiFiModeAPStation)
     {
-        return ERR_STS_INV_PARAM;
+        return ERR_STS_INVALID_PARAM;
     }
 
     if(osMutexAcquire(s_osWiFiMSem, uMSemaWaitTicks) != osOK)
@@ -940,7 +940,7 @@ errStatus_t bspWifiAddNetworkProfile(const bspWifiNetworkProfile_t* const ptProf
 
     if(ptProfile == NULL && pu16Index == NULL)
     {
-        return ERR_STS_INV_PARAM;
+        return ERR_STS_INVALID_PARAM;
     }
 
     if(osMutexAcquire(s_osWiFiMSem, uMSemaWaitTicks) != osOK)
@@ -1384,7 +1384,7 @@ errStatus_t bspWifiGetMacAddress(uint8_t* pu8Mac, uint8_t* pu8Length)
     if(*pu8Length < 6)
     {
         WIFI_LOGE("Insufficient buffer length for MAC address");
-        return ERR_STS_INV_PARAM;
+        return ERR_STS_INVALID_PARAM;
     }
 
     esp_err_t espStatus = esp_wifi_get_mac(WIFI_IF_STA, pu8Mac);
@@ -1422,7 +1422,7 @@ errStatus_t bspWifiGetHostIPAddress(const uint8_t* const pu8Hostname,
     if(*pu8Length < BSP_WIFI_IP4_ADDR_SIZE)
     {
         WIFI_LOGE("Insufficient buffer length for IP address");
-        return ERR_STS_INV_PARAM;
+        return ERR_STS_INVALID_PARAM;
     }
 
     if(osMutexAcquire(s_osWiFiMSem, uMSemaWaitTicks) != osOK)
@@ -1482,7 +1482,7 @@ errStatus_t bspWifiStartAP(const bspWifiConfig_t* const ptConfig)
     {
         WIFI_LOGE("Invalid SSID length");
         osMutexRelease(s_osWiFiMSem);
-        return ERR_STS_INV_PARAM;
+        return ERR_STS_INVALID_PARAM;
     }
 
     strlcpy((char*)apConfig.ap.ssid, (char*)ptConfig->ap.ssid, ptConfig->ap.ssidLength + 1);
@@ -1494,7 +1494,7 @@ errStatus_t bspWifiStartAP(const bspWifiConfig_t* const ptConfig)
         {
             WIFI_LOGE("Invalid passphrase length");
             osMutexRelease(s_osWiFiMSem);
-            return ERR_STS_INV_PARAM;
+            return ERR_STS_INVALID_PARAM;
         }
         strlcpy((char*)apConfig.ap.password, (char*)ptConfig->ap.password.wpa.cPassphrase,
                 ptConfig->ap.password.wpa.u8Length + 1);
@@ -1510,7 +1510,7 @@ errStatus_t bspWifiStartAP(const bspWifiConfig_t* const ptConfig)
         else
         {
             osMutexRelease(s_osWiFiMSem);
-            return ERR_STS_INV_PARAM;
+            return ERR_STS_INVALID_PARAM;
         }
     }
     else
@@ -1621,7 +1621,7 @@ errStatus_t bspWifiIsConnected(const bspWifiNetworkParams_t* const ptNetwork, ui
 
 errStatus_t bspWifiStartScan(const bspWifiScanResult_t* const ptScanResult,
                              bspWifiScanConfig_t* const ptScanConfig,
-                             uint16_t* pu16NumNetworks uint16_t pu16MaxNumNetworks)
+                             uint16_t* pu16NumNetworks, uint16_t pu16MaxNumNetworks)
 {
     CHECK_PARAM(ptScanConfig);
     CHECK_PARAM(ptScanResult);
@@ -1819,7 +1819,7 @@ errStatus_t bspWifiGetMAC(uint8_t* mac)
 {
     if(mac == NULL)
     {
-        return ERR_STS_INV_PARAM;
+        return ERR_STS_INVALID_PARAM;
     }
 
     if(bWifiStarted == false)
@@ -1920,7 +1920,7 @@ errStatus_t bspWifiSetCountryCode(const uint8_t* pu8CountryCode)
     CHECK_PARAM(pu8CountryCode);
     if(strlen((const char*)pu8CountryCode) != 2)
     {
-        return ERR_STS_INV_PARAM;
+        return ERR_STS_INVALID_PARAM;
     }
 
     if(osMutexAcquire(s_osWiFiMSem, uMSemaWaitTicks) != osOK)

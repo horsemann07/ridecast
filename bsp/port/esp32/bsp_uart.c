@@ -1,58 +1,122 @@
 
+
+/*
+===============================================================================
+BSP UART ASYNC ARCHITECTURE (ESP32 + ESP-IDF + CMSIS-RTOS2)
+===============================================================================
+
+1. One UART driver instance per port (ESP-IDF).
+2. One FreeRTOS queue per UART port:
+   - Required by ESP-IDF uart_driver_install().
+   - Used only inside BSP (not exposed).
+
+3. One shared CMSIS-RTOS2 thread:
+   - Waits on a CMSIS EventFlag.
+   - Processes UART events for ALL ports.
+   - No polling, no busy loops.
+
+4. RX behavior:
+   - RX is always enabled once async is enabled.
+   - When data arrives, ESP-IDF pushes an event into the UART queue.
+   - EventFlag wakes the shared task.
+   - Task drains the queue and invokes the registered callback (if any).
+
+5. TX behavior:
+   - ESP-IDF has no TX-complete interrupt.
+   - TX async is "fire-and-notify":
+       - uart_write_bytes()
+       - optional callback invoked immediately.
+
+6. Callback model:
+   - One callback per UART port.
+   - Same callback used for RX and TX.
+   - If no callback is registered, BSP does nothing.
+
+7. RTOS usage:
+   - CMSIS-RTOS2 for threads, delays, event flags.
+   - FreeRTOS queue ONLY where ESP-IDF requires it.
+
+This design is:
+✔ Event-driven (no polling)
+✔ ESP-IDF compliant
+✔ CMSIS-friendly
+✔ Scalable
+✔ BSP-grade
+
+UART interrupt (hardware)
+   ↓
+ESP-IDF ISR
+   ↓
+uart_event_t pushed to FreeRTOS queue   ← automatic
+   ↓
+FreeRTOS notifier task (BSP code)       ← YOU add this
+   ↓
+osEventFlagsSet(UART_EVT_WAKE)           ← YOU call this
+   ↓
+CMSIS UART event thread wakes
+   ↓
+CMSIS thread drains queues
+   ↓
+User callback invoked
+
+===============================================================================
+*/
+
+
 // Include necessary headers
 #include <string.h>
 
-// bsp includes
-#include "bsp_config.h"
+/* BSP */
 #include "bsp_uart.h"
+#include "bsp_config.h"
 
-// cmsis includes
+/* CMSIS */
 #include "cmsis_os2.h"
 
-// esp idf includes
+/* ESP-IDF */
 #include "driver/uart.h"
 
-#ifdef ESP_BOARD_LOGGING // ESP-IDF logging
+#ifdef ESP_BOARD_LOGGING
     #include "esp_log.h"
-
     #define __FILENAME__        (strrchr("/" __FILE__, '/') + 1)
     #define UART_LOGI(fmt, ...) ESP_LOGI(__FILENAME__, fmt, ##__VA_ARGS__)
     #define UART_LOGW(fmt, ...) ESP_LOGW(__FILENAME__, fmt, ##__VA_ARGS__)
     #define UART_LOGE(fmt, ...) ESP_LOGE(__FILENAME__, fmt, ##__VA_ARGS__)
-    #define UART_LOGD(fmt, ...) ESP_LOGD(__FILENAME__, fmt, ##__VA_ARGS__)
-
-#else // BSP logging: just map directly
+#else
     #include "cli_logger.h"
     #define UART_LOGI(fmt, ...) BSP_LOGI(fmt, ##__VA_ARGS__)
     #define UART_LOGW(fmt, ...) BSP_LOGW(fmt, ##__VA_ARGS__)
     #define UART_LOGE(fmt, ...) BSP_LOGE(fmt, ##__VA_ARGS__)
-    #define UART_LOGD(fmt, ...) BSP_LOGD(fmt, ##__VA_ARGS__)
 #endif
 
 #define UART_EVENT_QUEUE_SIZE      20
 #define UART_EVENT_TASK_STACK_SIZE 2048
 
-// Structure to hold async operation context
 typedef struct
 {
-    uint8_t* data;
-    size_t* length;
-    bspUartCallback_t callback;
-    void* userContext;
-    bool active;
-} uartAsyncContext_t;
+    QueueHandle_t evtQ;        /* ESP-IDF UART event queue */
+    bspUartCallback_t cbFn;    /* registered callback */
+    void* cbCtx;               /* user callback context */
+    bspUartASyncCtx_t rxTxCtx; /* RX/TX shared context */
+} uartRt_t;
 
-// Structure for UART runtime data
-typedef struct
-{
-    osMessageQueueId_t eventQueue;
-    osThreadId_t eventTask;
-    uartAsyncContext_t rxContext;
-    uartAsyncContext_t txContext;
-} uartRuntimeData_t;
+static uartRt_t s_uartRt[UART_NUM_MAX];
 
-// Static storage for runtime data (one per UART port)
-static uartRuntimeData_t s_uartRuntime[UART_NUM_MAX] = { 0 };
+#define UART_EVT_WAKE (1U << 0)
+
+/* One QueueSet for all UART event queues (FreeRTOS only) */
+static QueueSetHandle_t s_uartQueueSet;
+
+/* CMSIS threads */
+static osThreadId_t s_uartNotifyTask;
+static osThreadId_t s_uartEvtThread;
+
+/* CMSIS sync primitive */
+static osEventFlagsId_t s_uartEvtFlags;
+
+static const osThreadAttr_t uartEvtAttr = { .name       = "uart_evt",
+                                            .priority   = osPriorityNormal,
+                                            .stack_size = 2048 };
 
 /*
  **************************************************************
@@ -60,180 +124,82 @@ static uartRuntimeData_t s_uartRuntime[UART_NUM_MAX] = { 0 };
  **************************************************************
  */
 
-// UART event task - processes UART events and invokes callbacks
-static void bsp_uart_event_task(void* pvParameters)
+static void uartNotifyTask(void* arg)
 {
-    int uart_num = (int)(intptr_t)pvParameters;
-    uart_event_t event;
-    uartRuntimeData_t* runtime = &s_uartRuntime[uart_num];
+    QueueSetMemberHandle_t activeMember;
+    uart_event_t ev;
 
-    UART_LOGI("BSP UART%d event task started", uart_num);
+    (void)arg;
+
+    UART_LOGI("UART QueueSet notifier started");
 
     for(;;)
     {
-        // Wait for UART event using CMSIS-RTOS2 API
-        if(osMessageQueueGet(runtime->eventQueue, &event, NULL, osWaitForever) == osOK)
+        /* Block until ANY UART queue has data */
+        activeMember = xQueueSelectFromSet(s_uartQueueSet, portMAX_DELAY);
+
+        if(activeMember == NULL)
         {
-            switch(event.type)
-            {
-            case UART_DATA:
-            {
-                // RX data available
-                if(runtime->rxContext.active)
-                {
-                    size_t available = 0;
-                    uart_get_buffered_data_len(uart_num, &available);
+            continue;
+        }
 
-                    size_t to_read = (available < *runtime->rxContext.length) ?
-                                     available :
-                                     *runtime->rxContext.length;
+        /* Receive exactly one event from the active queue */
+        if(xQueueReceive(activeMember, &ev, 0) == pdTRUE)
+        {
+            /* Put event back so CMSIS task can process it */
+            xQueueSendToFront(activeMember, &ev, 0);
 
-                    int bytes_read =
-                    uart_read_bytes(uart_num, runtime->rxContext.data, to_read, 0);
-
-                    if(bytes_read > 0)
-                    {
-                        *runtime->rxContext.length = (size_t)bytes_read;
-
-                        // Call callback
-                        if(runtime->rxContext.callback != NULL)
-                        {
-                            runtime->rxContext.callback(ERR_STS_OK,
-                                                        runtime->rxContext.userContext);
-                        }
-
-                        runtime->rxContext.active = false;
-                    }
-                }
-                break;
-            }
-
-            case UART_FIFO_OVF:
-            {
-                UART_LOGW("UART%d FIFO overflow", uart_num);
-                uart_flush_input(uart_num);
-                osMessageQueueReset(runtime->eventQueue);
-                break;
-            }
-
-            case UART_BUFFER_FULL:
-            {
-                UART_LOGW("UART%d ring buffer full", uart_num);
-                uart_flush_input(uart_num);
-                osMessageQueueReset(runtime->eventQueue);
-                break;
-            }
-
-            case UART_BREAK:
-            {
-                UART_LOGD("UART%d RX break", uart_num);
-                break;
-            }
-
-            case UART_PARITY_ERR:
-            {
-                UART_LOGE("UART%d parity error", uart_num);
-                if(runtime->rxContext.active && runtime->rxContext.callback != NULL)
-                {
-                    runtime->rxContext.callback(ERR_STS_FAIL, runtime->rxContext.userContext);
-                    runtime->rxContext.active = false;
-                }
-                break;
-            }
-
-            case UART_FRAME_ERR:
-            {
-                UART_LOGE("UART%d frame error", uart_num);
-                if(runtime->rxContext.active && runtime->rxContext.callback != NULL)
-                {
-                    runtime->rxContext.callback(ERR_STS_FAIL, runtime->rxContext.userContext);
-                    runtime->rxContext.active = false;
-                }
-                break;
-            }
-
-            case UART_EVENT_MAX:
-            {
-                // TX done - handled by checking if TX context is active
-                if(runtime->txContext.active)
-                {
-                    if(runtime->txContext.callback != NULL)
-                    {
-                        runtime->txContext.callback(ERR_STS_OK,
-                                                    runtime->txContext.userContext);
-                    }
-                    runtime->txContext.active = false;
-                }
-                break;
-            }
-
-            default:
-                UART_LOGW("UART%d unknown event type: %d", uart_num, event.type);
-                break;
-            }
+            /* Wake CMSIS UART event thread */
+            osEventFlagsSet(s_uartEvtFlags, UART_EVT_WAKE);
         }
     }
 }
 
-// Helper function to initialize async context on-demand
-static errStatus_t uart_init_async_context(int uart_num)
+
+static void uartEvtThread(void* arg)
 {
-    if(uart_num >= UART_NUM_MAX)
+    uart_event_t ev;
+    (void)arg;
+
+    UART_LOGI("UART async event thread started");
+
+    for(;;)
     {
-        UART_LOGE("Invalid UART port number: %d", uart_num);
-        return ERR_STS_INV_PARAM;
+        /* Sleep until ANY UART signals activity */
+        osEventFlagsWait(s_uartEvtFlags, UART_EVT_WAKE, osFlagsWaitAny, osWaitForever);
+
+        osEventFlagsClear(s_uartEvtFlags, UART_EVT_WAKE);
+
+        for(uint8_t port = 0; port < UART_NUM_MAX; port++)
+        {
+            uartRt_t* rt = &s_uartRt[port];
+
+            if(rt->evtQ == NULL)
+                continue;
+
+            while(xQueueReceive(rt->evtQ, &ev, 0) == pdTRUE)
+            {
+                if((ev.type == UART_DATA) && (rt->cbFn != NULL))
+                {
+                    int rd = uart_read_bytes(port, rt->rxTxCtx.data,
+                                             BSP_UART_RXTX_BUFFER_SIZE, 0);
+
+                    if(rd > 0)
+                    {
+                        rt->rxTxCtx.data_len  = (uint16_t)rd;
+                        rt->rxTxCtx.uart_port = port;
+
+                        rt->cbFn(ERR_STS_OK, &rt->rxTxCtx, rt->cbCtx);
+                    }
+                }
+                else if((ev.type == UART_FIFO_OVF) || (ev.type == UART_BUFFER_FULL))
+                {
+                    uart_flush_input(port);
+                    xQueueReset(rt->evtQ);
+                }
+            }
+        }
     }
-
-    // Already initialized
-    if(s_uartRuntime[uart_num].eventQueue != NULL)
-    {
-        return ERR_STS_OK;
-    }
-
-    UART_LOGI("Initializing async context for UART%d", uart_num);
-
-    // First, delete the driver (installed without event queue)
-    uart_driver_delete(uart_num);
-
-    // Create CMSIS message queue for UART events
-    s_uartRuntime[uart_num].eventQueue =
-    osMessageQueueNew(UART_EVENT_QUEUE_SIZE, sizeof(uart_event_t), NULL);
-    if(s_uartRuntime[uart_num].eventQueue == NULL)
-    {
-        UART_LOGE("Failed to create UART event queue");
-        return ERR_STS_FAIL;
-    }
-
-    // Reinstall UART driver with event queue
-    QueueHandle_t native_queue = (QueueHandle_t)s_uartRuntime[uart_num].eventQueue;
-    esp_err_t err =
-    uart_driver_install(uart_num, 256, 256, UART_EVENT_QUEUE_SIZE, &native_queue, 0);
-    if(err != ESP_OK)
-    {
-        UART_LOGE("uart_driver_install with queue failed: %d", err);
-        osMessageQueueDelete(s_uartRuntime[uart_num].eventQueue);
-        s_uartRuntime[uart_num].eventQueue = NULL;
-        return ERR_STS_FAIL;
-    }
-
-    // Create CMSIS thread for UART event handling
-    osThreadAttr_t task_attr = { .name       = "bsp_uart_event_task",
-                                 .stack_size = UART_EVENT_TASK_STACK_SIZE,
-                                 .priority   = osPriorityNormal };
-
-    s_uartRuntime[uart_num].eventTask =
-    osThreadNew(bsp_uart_event_task, (void*)(intptr_t)uart_num, &task_attr);
-    if(s_uartRuntime[uart_num].eventTask == NULL)
-    {
-        UART_LOGE("Failed to create UART event task");
-        uart_driver_delete(uart_num);
-        osMessageQueueDelete(s_uartRuntime[uart_num].eventQueue);
-        s_uartRuntime[uart_num].eventQueue = NULL;
-        return ERR_STS_FAIL;
-    }
-
-    UART_LOGI("UART%d async context initialized", uart_num);
-    return ERR_STS_OK;
 }
 
 /*
@@ -247,7 +213,7 @@ errStatus_t bspUartInit(bspUartHandle_t* ptHandle)
     if(ptHandle == NULL)
     {
         UART_LOGE("UART handle is NULL");
-        return ERR_STS_INV_PARAM;
+        return ERR_STS_INVALID_PARAM;
     }
 
     // Map to ESP-IDF UART port number
@@ -256,7 +222,7 @@ errStatus_t bspUartInit(bspUartHandle_t* ptHandle)
     if(uart_num >= UART_NUM_MAX)
     {
         UART_LOGE("Invalid UART port number: %d", uart_num);
-        return ERR_STS_INV_PARAM;
+        return ERR_STS_INVALID_PARAM;
     }
 
     // Map parity
@@ -308,7 +274,7 @@ errStatus_t bspUartInit(bspUartHandle_t* ptHandle)
         .parity              = parity,
         .stop_bits           = stop_bits,
         .flow_ctrl           = flow_ctrl,
-        .rx_flow_ctrl_thresh = ptHandle->rxThresold,
+        .rx_flow_ctrl_thresh = ptHandle->rxThreshold,
         .source_clk          = UART_SCLK_APB,
     };
 
@@ -328,17 +294,47 @@ errStatus_t bspUartInit(bspUartHandle_t* ptHandle)
         return ERR_STS_FAIL;
     }
 
-    // Install UART driver WITHOUT event queue for sync-only operation
-    int fifo_size = ptHandle->fifoSize ? ptHandle->fifoSize : 256;
-    err = uart_driver_install(uart_num, fifo_size, fifo_size, 0, NULL, 0);
-    if(err != ESP_OK)
+    int fifo_size = ptHandle->fifoSize ? ptHandle->fifoSize : BSP_UART_RXTX_BUFFER_SIZE;
+
+    memset(&s_uartRt[uart_num], 0, sizeof(uartRt_t));
+
+#if BSP_UART_ASYNC_EN
+    /* Create QueueSet once */
+    if(s_uartQueueSet == NULL)
     {
-        UART_LOGE("uart_driver_install failed: %d", err);
-        return ERR_STS_FAIL;
+        /* Size = sum of all queue lengths */
+        s_uartQueueSet = xQueueCreateSet(UART_NUM_MAX * UART_EVENT_QUEUE_SIZE);
+        if(s_uartRt[uart_num].evtQ == NULL)
+        {
+            UART_LOGE("Failed to create UART event queue");
+            return ERR_STS_FAIL;
+        }
     }
 
-    // Initialize async contexts (will be set up on-demand)
-    memset(&s_uartRuntime[uart_num], 0, sizeof(uartRuntimeData_t));
+    /* Install UART driver with this queue */
+    uart_driver_install(uart_num, BSP_UART_RXTX_BUFFER_SIZE, BSP_UART_RXTX_BUFFER_SIZE,
+                        UART_EVENT_QUEUE_SIZE, &s_uartRt[uart_num].evtQ, 0);
+
+
+    if(s_uartEvtFlags == NULL)
+    {
+        s_uartEvtFlags = osEventFlagsNew(NULL);
+    }
+
+    if(s_uartNotifyTask == NULL)
+    {
+        static const osThreadAttr_t uartNotifyAttr = { .name = "uart_notify",
+                                                       .priority = osPriorityAboveNormal,
+                                                       .stack_size = 1024 };
+
+        if(s_uartNotifyTask == NULL)
+        {
+            s_uartNotifyTask = osThreadNew(uartNotifyTask, NULL, &uartNotifyAttr);
+        }
+    }
+#else
+    uart_driver_install(uart_num, fifo_size, fifo_size, 0, NULL, 0);
+#endif
 
     UART_LOGI("UART%d initialized: %d baud, %d bits, parity %d, stop %d, flow "
               "%d",
@@ -347,45 +343,63 @@ errStatus_t bspUartInit(bspUartHandle_t* ptHandle)
     return ERR_STS_OK;
 }
 
+
 errStatus_t bspUartDeInit(bspUartHandle_t* ptHandle)
 {
+    uint8_t uart_num;
+    esp_err_t err;
+
     if(ptHandle == NULL)
     {
         UART_LOGE("UART handle is NULL");
-        return ERR_STS_INV_PARAM;
+        return ERR_STS_INVALID_PARAM;
     }
 
-    int uart_num = ptHandle->portNum;
+    uart_num = ptHandle->portNum;
 
     if(uart_num >= UART_NUM_MAX)
     {
         UART_LOGE("Invalid UART port number: %d", uart_num);
-        return ERR_STS_INV_PARAM;
+        return ERR_STS_INVALID_PARAM;
     }
 
-    // Terminate event task
-    if(s_uartRuntime[uart_num].eventTask != NULL)
-    {
-        osThreadTerminate(s_uartRuntime[uart_num].eventTask);
-        s_uartRuntime[uart_num].eventTask = NULL;
-    }
+    UART_LOGI("De-initializing UART%d", uart_num);
 
-    // Uninstall UART driver
-    esp_err_t err = uart_driver_delete(uart_num);
+    /* -------------------------------------------------
+     * 1. Uninstall ESP-IDF UART driver
+     * ------------------------------------------------- */
+    err = uart_driver_delete(uart_num);
     if(err != ESP_OK)
     {
         UART_LOGE("uart_driver_delete failed: %d", err);
         return ERR_STS_FAIL;
     }
 
-    // Delete message queue
-    if(s_uartRuntime[uart_num].eventQueue != NULL)
+    /* -------------------------------------------------
+     * 2. Remove UART queue from QueueSet
+     * ------------------------------------------------- */
+    if((s_uartQueueSet != NULL) && (s_uartRt[uart_num].evtQ != NULL))
     {
-        osMessageQueueDelete(s_uartRuntime[uart_num].eventQueue);
-        s_uartRuntime[uart_num].eventQueue = NULL;
+        xQueueRemoveFromSet(s_uartRt[uart_num].evtQ, s_uartQueueSet);
     }
 
-    UART_LOGI("UART%d de-initialized", uart_num);
+    /* -------------------------------------------------
+     * 3. Delete UART event queue (FreeRTOS)
+     * ------------------------------------------------- */
+    if(s_uartRt[uart_num].evtQ != NULL)
+    {
+        vQueueDelete(s_uartRt[uart_num].evtQ);
+        s_uartRt[uart_num].evtQ = NULL;
+    }
+
+    /* -------------------------------------------------
+     * 4. Clear callback and runtime context
+     * ------------------------------------------------- */
+    s_uartRt[uart_num].cbFn  = NULL;
+    s_uartRt[uart_num].cbCtx = NULL;
+    memset(&s_uartRt[uart_num].rxTxCtx, 0, sizeof(bspUartASyncCtx_t));
+
+    UART_LOGI("UART%d de-initialized successfully", uart_num);
     return ERR_STS_OK;
 }
 
@@ -394,7 +408,7 @@ errStatus_t bspUartSendSync(bspUartHandle_t* handle, const uint8_t* data, size_t
     if(handle == NULL || data == NULL || length == 0)
     {
         UART_LOGE("Invalid parameters for bspUartSendSync");
-        return ERR_STS_INV_PARAM;
+        return ERR_STS_INVALID_PARAM;
     }
 
     int uart_num = handle->portNum;
@@ -427,7 +441,7 @@ errStatus_t bspUartReceiveSync(bspUartHandle_t* handle, uint8_t* data, size_t* l
     if(handle == NULL || data == NULL || length == NULL)
     {
         UART_LOGE("Invalid parameters for bspUartReceiveSync");
-        return ERR_STS_INV_PARAM;
+        return ERR_STS_INVALID_PARAM;
     }
 
     int uart_num = handle->portNum;
@@ -445,105 +459,47 @@ errStatus_t bspUartReceiveSync(bspUartHandle_t* handle, uint8_t* data, size_t* l
     return ERR_STS_OK;
 }
 
+errStatus_t bspUartRegisterCb(uint8_t port, bspUartCallback_t cb, void* userCtx)
+{
+    if(port >= UART_NUM_MAX)
+    {
+        return ERR_STS_INVALID_PARAM;
+    }
+
+    /* Create per-UART event queue */
+    s_uartRt[port].evtQ = xQueueCreate(UART_EVENT_QUEUE_SIZE, sizeof(uart_event_t));
+    if(s_uartRt[port].evtQ == NULL)
+    {
+        UART_LOGE("Failed to create UART event queue");
+        return ERR_STS_FAIL;
+    }
+
+    /* Add UART queue to QueueSet */
+    if(s_uartQueueSet != NULL && xQueueAddToSet(s_uartRt[port].evtQ, s_uartQueueSet) != pdPASS)
+    {
+        UART_LOGE("Failed to add UART event queue to QueueSet");
+        osMessageQueueDelete(s_uartRt[port].evtQ);
+        s_uartRt[port].evtQ = NULL;
+        return ERR_STS_FAIL;
+    }
+
+    /* Install UART driver with this queue */
+    uart_driver_install(port, BSP_UART_RXTX_BUFFER_SIZE, BSP_UART_RXTX_BUFFER_SIZE,
+                        UART_EVENT_QUEUE_SIZE, &s_uartRt[port].evtQ, 0);
+
+    s_uartRt[port].cbFn  = cb;
+    s_uartRt[port].cbCtx = userCtx;
+    return ERR_STS_OK;
+}
+
+
 errStatus_t bspUartSendAsync(bspUartHandle_t* handle,
                              const uint8_t* data,
                              size_t length,
                              bspUartCallback_t callback,
                              void* userContext)
 {
-    if(handle == NULL || data == NULL || length == 0)
-    {
-        UART_LOGE("Invalid parameters for bspUartSendAsync");
-        return ERR_STS_INV_PARAM;
-    }
-
-    int uart_num = handle->portNum;
-
-    if(uart_num >= UART_NUM_MAX)
-    {
-        UART_LOGE("Invalid UART port number: %d", uart_num);
-        return ERR_STS_INV_PARAM;
-    }
-
-    // Initialize async context on first use
-    if(s_uartRuntime[uart_num].eventQueue == NULL)
-    {
-        errStatus_t status = uart_init_async_context(uart_num);
-        if(status != ERR_STS_OK)
-        {
-            return status;
-        }
-    }
-
-    // Check if a TX operation is already in progress
-    if(s_uartRuntime[uart_num].txContext.active)
-    {
-        UART_LOGE("TX operation already in progress");
-        return ERR_STS_BUSY;
-    }
-
-    // Store callback context
-    s_uartRuntime[uart_num].txContext.callback    = callback;
-    s_uartRuntime[uart_num].txContext.userContext = userContext;
-    s_uartRuntime[uart_num].txContext.active      = true;
-
-    // Send data
-    int bytes_sent = uart_write_bytes(uart_num, (const char*)data, length);
-    if(bytes_sent < 0 || (size_t)bytes_sent != length)
-    {
-        UART_LOGE("uart_write_bytes failed or incomplete");
-        s_uartRuntime[uart_num].txContext.active = false;
-        return ERR_STS_FAIL;
-    }
-
-    // The event task will handle the TX_DONE event and call the callback
-    return ERR_STS_OK;
-}
-
-errStatus_t bspUartReceiveAsync(bspUartHandle_t* handle,
-                                uint8_t* data,
-                                size_t* length,
-                                bspUartCallback_t callback,
-                                void* userContext)
-{
-    if(handle == NULL || data == NULL || length == NULL)
-    {
-        UART_LOGE("Invalid parameters for bspUartReceiveAsync");
-        return ERR_STS_INV_PARAM;
-    }
-
-    int uart_num = handle->portNum;
-
-    if(uart_num >= UART_NUM_MAX)
-    {
-        UART_LOGE("Invalid UART port number: %d", uart_num);
-        return ERR_STS_INV_PARAM;
-    }
-
-    // Initialize async context on first use
-    if(s_uartRuntime[uart_num].eventQueue == NULL)
-    {
-        errStatus_t status = uart_init_async_context(uart_num);
-        if(status != ERR_STS_OK)
-        {
-            return status;
-        }
-    }
-
-    // Check if an RX operation is already in progress
-    if(s_uartRuntime[uart_num].rxContext.active)
-    {
-        UART_LOGE("RX operation already in progress");
-        return ERR_STS_BUSY;
-    }
-
-    // Store async context
-    s_uartRuntime[uart_num].rxContext.data        = data;
-    s_uartRuntime[uart_num].rxContext.length      = length;
-    s_uartRuntime[uart_num].rxContext.callback    = callback;
-    s_uartRuntime[uart_num].rxContext.userContext = userContext;
-    s_uartRuntime[uart_num].rxContext.active      = true;
-
-    // Return immediately - event task will handle UART_DATA event
-    return ERR_STS_OK;
+    // ESP-IDF has no TX-done interrupt
+    UART_LOGE("bspUartSendAsync not supported on ESP32");
+    return ERR_STS_FUNC_NOT_SUPPORTED;
 }

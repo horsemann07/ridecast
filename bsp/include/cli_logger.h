@@ -6,15 +6,14 @@
  * for different log levels (INFO, WARN, ERROR, DEBUG).
  */
 
-#ifndef LOGGER_H
-#define LOGGER_H
+#ifndef __CLI_LOGGER_H__
+#define __CLI_LOGGER_H__
 
 #include <stdarg.h>
 #include <stdint.h>
 #include <string.h>
 
 #include "bsp_uart.h"
-#include "bsp_err.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -48,14 +47,14 @@ extern "C"
      *
      * Typically sets up UART/CLI backend.
      */
-    errStatus_t cliLoggerInit(bspUartHandle_t handle);
+    errStatus_t cliLoggerInit(bspUartHandle_t* handle);
 
     /**
      * @brief Initialize the logger system.
      *
      * Typically sets up UART/CLI backend.
      */
-    errStatus_t cliLoggerDeInit(bspUartHandle_t handle);
+    errStatus_t cliLoggerDeInit(void);
 
     /**
      * @brief Log a message with a specific log level.
@@ -103,4 +102,4 @@ extern "C"
 }
 #endif
 
-#endif /* LOGGER_H */
+#endif /* __CLI_LOGGER_H__ */

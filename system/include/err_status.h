@@ -1,5 +1,5 @@
-#ifndef ERR_STATUS_H
-#define ERR_STATUS_H
+#ifndef __ERR_STATUS_H__
+#define __ERR_STATUS_H__
 
 #ifdef __cplusplus
 extern "C"
@@ -132,4 +132,4 @@ extern "C"
 
 #endif
 
-#endif // ERR_STATUS_H
+#endif /* __ERR_STATUS_H__ */

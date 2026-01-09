@@ -4,16 +4,18 @@
 #include "esp_log.h"
 
 
-static const char* TAG = "CMSIS_DEMO";
+// void MyCmsisTask(void* argument)
+// {
+//     while(1)
+//     {
+//         ESP_LOGI(TAG, "Hello from CMSIS-RTOS2 task!");
+//         osDelay(1000); // CMSIS API → calls vTaskDelay
+//     }
+// }
 
-void MyCmsisTask(void* argument)
-{
-    while(1)
-    {
-        ESP_LOGI(TAG, "Hello from CMSIS-RTOS2 task!");
-        osDelay(1000); // CMSIS API → calls vTaskDelay
-    }
-}
+extern void AppUartSyncDemoStart(void);
+extern void AppUartAsyncDemoStart(void);
+
 
 void app_main(void)
 {
@@ -21,7 +23,11 @@ void app_main(void)
     osKernelInitialize();
 
     // Create one task using CMSIS API
-    osThreadNew(MyCmsisTask, NULL, NULL);
+    // osThreadNew(MyCmsisTask, NULL, NULL);
+
+
+    AppUartSyncDemoStart();
+    // AppUartAsyncDemoStart();
 
     // Start scheduler (will call vTaskStartScheduler internally if not running)
     osKernelStart();

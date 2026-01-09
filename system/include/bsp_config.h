@@ -1,7 +1,12 @@
 
 
-#ifndef _BSP_CONFIG_H_
-#define _BSP_CONFIG_H_
+#ifndef __BSP_CONFIG_H__
+#define __BSP_CONFIG_H__
+
+
+#include <stdint.h>
+#include <stddef.h>
+
 
 #ifdef __cplusplus
 extern "C"
@@ -9,12 +14,13 @@ extern "C"
 #endif
 
 
-#include <stdint.h>
-#include <stddef.h>
+// Configuration parameters for the BSP (Board Support Package).
 
-    // Configuration parameters for the BSP (Board Support Package).
+/* ===== UART BSP configuration ===========  */
+#define bspCONFIG_UART_RXTX_BUFFER_SIZE ((uint32_t)(256U))
 
-    /* === Wifi BSP configuration   */
+
+/* === Wifi BSP configuration   */
 
 #define bspCONFIG_WIFI_SSID_MAX_LEN       (32)
 #define bspCONFIG_WIFI_PASSWORD_MAX_LEN   (64)
@@ -27,4 +33,4 @@ extern "C"
 }
 #endif
 
-#endif /* _BSP_CONFIG_H_ */
+#endif /* __BSP_CONFIG_H__ */
