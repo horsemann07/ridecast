@@ -40,6 +40,7 @@ extern "C"
 #define BSP_UART_BAUD_921600      ((uint32_t)921600U)
 
 #define BSP_UART_RXTX_BUFFER_SIZE (bspCONFIG_UART_RXTX_BUFFER_SIZE)
+#define BSP_UART_POLLING_DELAY_MS (5000U)
 
     typedef uint32_t bspUartBaudrate_t;
     typedef uint8_t bspUartOwner_t;
@@ -72,11 +73,14 @@ extern "C"
      */
     typedef enum
     {
-        eBspUartSetConfig, /**< Set UART configuration using @ref eBspUartConfig_t. */
-        eBspUartGetConfig, /**< Get current UART configuration into @ref eBspUartConfig_t. */
-        eBspUartGetTxCount, /**< Get the number of bytes transmitted in last write. */
-        eBspUartGetRxCount /**< Get the number of bytes received in last read. */
+        eBspUartGetRxCount,  /**< Get the number of bytes received in the current or last async read. */
+        eBspUartIsRxBusy,   /**< Check whether an asynchronous receive operation is in progress. */
+        eBspUartCancelRx,   /**< Cancel the currently active asynchronous receive operation. */
+
+        eBspUartGetTxCount, /**< Get the number of bytes written in the last asynchronous transmit. */
+        eBspUartWaitTxDone  /**< Block until all transmit data is sent or the specified timeout expires. */
     } bspUartIoctlRequest_t;
+
 
     /**
      * @enum bspUartMode_t
