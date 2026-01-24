@@ -20,7 +20,9 @@ extern "C"
 #endif
 
 #include "bsp_uart.h"
-
+/* =========================
+ * Application BSP Configuration
+ * ========================= */
 #define PIN_UNUSED                     ((uint8_t)0)
 
 #define ENABLE                       ((uint8_t)1)
@@ -31,6 +33,8 @@ extern "C"
 #define BSP_UART_OWNER_GNSS         ((bspUartOwner_t)BSP_UART_OWNER_CONSOLE + 1)   // 1
 #define BSP_UART_OWNER_MAX          ((bspUartOwner_t)BSP_UART_OWNER_GNSS + 1)   // 2
 
+
+#define ESP_BOARD_LOGGING
 
     extern const bspUartHandle_t g_bspUartHandles[];
 

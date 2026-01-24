@@ -8,6 +8,22 @@ NAL (Network Abstraction Layer) is a small, portable C component that encapsulat
 
 The main purpose of NAL is to decouple higher-level code (application logic, protocol layers) from platform-specific socket or TLS stacks (BSD sockets, lwIP, mbedTLS, platform SDKs). That makes the rest of the codebase easier to port, test, and reason about.
 
+
+```
+
+/nal
+├── nal.h
+├── nal_core.c        ← common logic (YOU WRITE ONCE)
+├── nal_tls.c        ← common logic (YOU WRITE ONCE)
+├── port/
+│   ├── esp32/
+│   │   └── nal_platform_esp32.c
+│   ├── stm32/
+│   │   └── nal_platform_lwip.c
+
+
+
+```
 ## Why use NAL?
 
 - Portability: write protocol code once and run it on desktop (POSIX) and embedded platforms (lwIP/ESP-IDF) with minimal changes.

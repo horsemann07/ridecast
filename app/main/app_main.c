@@ -4,6 +4,8 @@
 #include "esp_log.h"
 
 
+extern void appStart(void);
+extern void wifi_sta_app_start(void);
 // void MyCmsisTask(void* argument)
 // {
 //     while(1)
@@ -14,7 +16,7 @@
 // }
 
 extern void AppUartSyncDemoStart(void);
-extern void AppUartAsyncDemoStart(void);
+// extern void AppUartAsyncDemoStart(void);
 
 
 void app_main(void)
@@ -26,8 +28,11 @@ void app_main(void)
     // osThreadNew(MyCmsisTask, NULL, NULL);
 
 
-    AppUartSyncDemoStart();
+    // AppUartSyncDemoStart();
     // AppUartAsyncDemoStart();
+
+    //appStart();
+    wifi_sta_app_start();
 
     // Start scheduler (will call vTaskStartScheduler internally if not running)
     osKernelStart();

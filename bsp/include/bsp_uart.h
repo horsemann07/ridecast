@@ -21,7 +21,7 @@ extern "C"
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "err_status.h"
+#include "bsp_err_sts.h"
 
 #include "bsp_config.h"
 
@@ -29,18 +29,21 @@ extern "C"
     // Public Functions / Types
     // =========================
 
-#define BSP_UART_BAUD_1200        ((uint32_t)1200U)
-#define BSP_UART_BAUD_9600        ((uint32_t)9600U)
-#define BSP_UART_BAUD_19200       ((uint32_t)19200U)
-#define BSP_UART_BAUD_38400       ((uint32_t)38400U)
-#define BSP_UART_BAUD_57600       ((uint32_t)57600U)
-#define BSP_UART_BAUD_115200      ((uint32_t)115200U)
-#define BSP_UART_BAUD_230400      ((uint32_t)230400U)
-#define BSP_UART_BAUD_460800      ((uint32_t)460800U)
-#define BSP_UART_BAUD_921600      ((uint32_t)921600U)
+#define BSP_UART_BAUD_1200            ((uint32_t)1200U)
+#define BSP_UART_BAUD_9600            ((uint32_t)9600U)
+#define BSP_UART_BAUD_19200           ((uint32_t)19200U)
+#define BSP_UART_BAUD_38400           ((uint32_t)38400U)
+#define BSP_UART_BAUD_57600           ((uint32_t)57600U)
+#define BSP_UART_BAUD_115200          ((uint32_t)115200U)
+#define BSP_UART_BAUD_230400          ((uint32_t)230400U)
+#define BSP_UART_BAUD_460800          ((uint32_t)460800U)
+#define BSP_UART_BAUD_921600          ((uint32_t)921600U)
 
-#define BSP_UART_RXTX_BUFFER_SIZE (bspCONFIG_UART_RXTX_BUFFER_SIZE)
-#define BSP_UART_POLLING_DELAY_MS (5000U)
+#define BSP_UART_RXTX_BUFFER_SIZE     (bspCONFIG_UART_RXTX_BUFFER_SIZE)
+#define BSP_UART_ASYC_TASK_PRIORITY   (bspCONFIG_UART_ASYC_TASK_PRIORITY)
+#define BSP_UART_ASYC_TASK_STACK_SIZE (bspCONFIG_UART_ASYC_TASK_STACK_SIZE)
+#define BSP_UART_ASYC_EVNT_QUEUE_LEN  (bspCONFIG_UART_ASYC_EVNT_QUEUE_LEN)
+
 
     typedef uint32_t bspUartBaudrate_t;
     typedef uint8_t bspUartOwner_t;
@@ -73,12 +76,12 @@ extern "C"
      */
     typedef enum
     {
-        eBspUartGetRxCount,  /**< Get the number of bytes received in the current or last async read. */
-        eBspUartIsRxBusy,   /**< Check whether an asynchronous receive operation is in progress. */
-        eBspUartCancelRx,   /**< Cancel the currently active asynchronous receive operation. */
+        eBspUartGetRxCount, /**< Get the number of bytes received in the current or last async read. */
+        eBspUartIsRxBusy, /**< Check whether an asynchronous receive operation is in progress. */
+        eBspUartCancelRx, /**< Cancel the currently active asynchronous receive operation. */
 
         eBspUartGetTxCount, /**< Get the number of bytes written in the last asynchronous transmit. */
-        eBspUartWaitTxDone  /**< Block until all transmit data is sent or the specified timeout expires. */
+        eBspUartWaitTxDone /**< Block until all transmit data is sent or the specified timeout expires. */
     } bspUartIoctlRequest_t;
 
 
@@ -210,93 +213,213 @@ extern "C"
     // =========================
     // BSP UART API
     // =========================
-    /**
+
+   /**
      * @typedef bspUartCallback_t
      * @brief UART asynchronous receive callback function.
      *
-     * This callback is invoked by the UART driver when asynchronous receive
-     * data is available or when a receive operation completes.
+     * This callback is invoked by the UART driver from the UART event
+     * handling thread context to notify the user about the completion,
+     * cancellation, or failure of an asynchronous receive operation.
      *
-     * @param[in] status       Status of the UART asynchronous operation.
-     * @param[in] rxCtx        Pointer to UART asynchronous receive context
-     *                         containing received data, data length, and
-     *                         UART port information.
-     * @param[in] userContext  User-provided context pointer (opaque to the driver).
+     * @param[in] status
+     *            Status of the asynchronous UART receive operation.
+     *            - BSP_ERR_STS_OK       : Receive completed successfully
+     *            - BSP_ERR_STS_FAIL     : Receive failed or was cancelled
+     *            - Other values     : Implementation-specific error codes
+     *
+     * @param[in] data
+     *            Pointer to the receive buffer containing the received data.
+     *            This pointer is the same buffer provided by the user when
+     *            starting the asynchronous receive operation.
+     *            May be NULL if the receive operation failed or was cancelled.
+     *
+     * @param[in] data_len
+     *            Number of valid bytes available in @p data.
+     *            Set to zero if no data was received.
+     *
+     * @param[in] userContext
+     *            User-provided context pointer supplied during callback
+     *            registration. The driver does not interpret this value.
+     *
+     * @note The callback is executed in the context of the UART event thread,
+     *       not in interrupt context.
+     * @note The receive buffer must remain valid until this callback is invoked.
+     * @note Only one asynchronous receive operation is supported per UART port
+     *       at a time.
      */
-    typedef void (*bspUartCallback_t)(errStatus_t status,
-                                      bspUartASyncCtx_t* rxtxCtx,
-                                      void* userContext);
+    typedef void (*bspUartCallback_t)(bsp_err_sts_t status,
+                                    uint8_t* data,
+                                    uint16_t data_len,
+                                    void* userContext);
+
 
     /**
-     * @brief Initialize the UART peripheral.
+     * @brief Initialize a UART port.
      *
-     * @param[in] handle UART handle.
-     * @return Status of the operation.
+     * Configures the UART hardware according to the parameters provided
+     * in the BSP UART handle. This includes baud rate, word length,
+     * parity, stop bits, flow control, and pin mapping.
+     *
+     * If asynchronous mode is enabled, this function also installs the
+     * UART driver, creates the event queue, and starts the UART event
+     * handling thread.
+     *
+     * @param[in] ptHandle Pointer to BSP UART handle containing configuration.
+     *
+     * @return BSP_ERR_STS_OK            UART initialized successfully.
+     * @return BSP_ERR_STS_INVALID_PARAM Invalid handle or UART port number.
+     * @return BSP_ERR_STS_FAIL          UART driver or hardware configuration failed.
+     * @return BSP_ERR_STS_NO_MEM        Failed to create RTOS resources.
+     *
+     * @note This function must be called before any UART send/receive APIs.
+     * @note In async mode, a single shared event thread is used for all UARTs.
      */
-    errStatus_t bspUartInit(bspUartHandle_t* ptHandle);
+    bsp_err_sts_t bspUartInit(bspUartHandle_t* ptHandle);
 
     /**
-     * @brief De-initialize the UART peripheral.
+     * @brief De-initialize a UART port.
      *
-     * @param[in] handle UART handle.
-     * @return Status of the operation.
+     * Stops UART operation, uninstalls the ESP-IDF UART driver,
+     * deletes associated RTOS resources, and clears the runtime
+     * context for the specified UART port.
+     *
+     * @param[in] ptHandle Pointer to BSP UART handle.
+     *
+     * @return BSP_ERR_STS_OK            UART de-initialized successfully.
+     * @return BSP_ERR_STS_INVALID_PARAM Invalid handle or UART port number.
+     * @return BSP_ERR_STS_FAIL          Failed to uninstall UART driver.
+     *
+     * @note Any ongoing asynchronous RX operation is aborted.
+     * @note After de-initialization, the UART must be re-initialized
+     *       before reuse.
      */
-    errStatus_t bspUartDeInit(bspUartHandle_t* ptHandle);
+    bsp_err_sts_t bspUartDeInit(bspUartHandle_t* ptHandle);
 
     /**
      * @brief Send data synchronously over UART.
      *
-     * @param[in] handle UART handle.
-     * @param[in] data Pointer to data buffer to send.
-     * @param[in] length Number of bytes to send.
-     * @return Status of the operation.
+     * Writes the specified buffer to the UART transmit FIFO and blocks
+     * until all data has been transmitted or a timeout occurs.
+     *
+     * @param[in] handle     Pointer to BSP UART handle.
+     * @param[in] data       Pointer to data buffer to transmit.
+     * @param[in] length     Number of bytes to transmit.
+     * @param[in] timeout_ms Timeout in milliseconds to wait for transmission.
+     *
+     * @return BSP_ERR_STS_OK            Data transmitted successfully.
+     * @return BSP_ERR_STS_INVALID_PARAM Invalid parameters.
+     * @return BSP_ERR_STS_FAIL          UART transmission failed or timed out.
+     *
+     * @note This API blocks the calling thread.
+     * @note Suitable for low-frequency or control-path transmissions.
      */
-    errStatus_t
+    bsp_err_sts_t
     bspUartSendSync(bspUartHandle_t* handle, const uint8_t* data, size_t length, uint32_t timeout_ms);
 
     /**
-     * @brief Receive data synchronously over UART.
+     * @brief Receive data synchronously from UART.
      *
-     * @param[in] handle UART handle.
-     * @param[out] data Pointer to buffer to store received data.
-     * @param[in, out] length Number of bytes to receive.
-     * @param[in] timeout_ms Timeout in milliseconds.
-     * @return Status of the operation.
+     * Reads up to the requested number of bytes from the UART receive
+     * FIFO. The call blocks until data is received or the timeout expires.
+     *
+     * @param[in]     handle     Pointer to BSP UART handle.
+     * @param[out]    data       Buffer to store received data.
+     * @param[in]     data_len   Length of the data buffer.
+     * @param[out]    rx_len     On output: actual number of bytes received.
+     * @param[in]     timeout_ms Timeout in milliseconds to wait for data.
+     *
+     * @return BSP_ERR_STS_OK            Data received successfully.
+     * @return BSP_ERR_STS_INVALID_PARAM Invalid parameters.
+     * @return BSP_ERR_STS_FAIL          UART reception failed.
+     *
+     * @note This API blocks the calling thread.
      */
-    errStatus_t
-    bspUartReceiveSync(bspUartHandle_t* handle, uint8_t* data, size_t* length, uint32_t timeout_ms);
+    bsp_err_sts_t
+    bspUartReceiveSync(bspUartHandle_t* handle, uint8_t* data, size_t data_len, size_t* rx_len, uint32_t timeout_ms);
+
+    /**
+     * @brief Register an asynchronous UART callback.
+     *
+     * Registers a user callback function that will be invoked on
+     * asynchronous RX completion, cancellation, or error.
+     *
+     * @param[in] handle        Pointer to BSP UART handle.
+     * @param[in] callback      Callback function to register.
+     * @param[in] userContext   User-defined context passed to the callback.
+     *
+     * @return BSP_ERR_STS_OK            Callback registered successfully.
+     * @return BSP_ERR_STS_INVALID_PARAM Invalid parameters.
+     *
+     * @note The callback is invoked from the UART event thread context.
+     * @note Only one callback can be registered per UART port.
+     */
+    bsp_err_sts_t bspUartSetCallback(bspUartHandle_t* handle,
+                                   bspUartCallback_t callback,
+                                   void* userContext);
+
+    /**
+     * @brief Start an asynchronous UART receive operation.
+     *
+     * Initiates a non-blocking RX operation. Incoming data is accumulated
+     * into the provided buffer, and the registered callback is invoked
+     * when the RX operation completes or is cancelled.
+     *
+     * @param[in] handle Pointer to BSP UART handle.
+     * @param[out] buffer Buffer to store received data.
+     * @param[in] length Number of bytes to receive.
+     *
+     * @return BSP_ERR_STS_OK            RX operation started successfully.
+     * @return BSP_ERR_STS_INVALID_PARAM Invalid parameters.
+     * @return BSP_ERR_STS_BUSY          RX already in progress.
+     * @return BSP_ERR_STS_NOT_EXIST     Callback not registered.
+     *
+     * @note The buffer must remain valid until the callback is invoked.
+     * @note Only one asynchronous RX operation is allowed at a time.
+     */
+
+    bsp_err_sts_t bspUartReadAsync(bspUartHandle_t* handle, uint8_t* buffer, size_t length);
 
     /**
      * @brief Send data asynchronously over UART.
      *
-     * @param[in] handle UART handle.
-     * @param[in] data Pointer to data buffer to send.
-     * @param[in] length Number of bytes to send.
-     * @param[in] callback Callback function to be called on completion.
-     * @param[in] userContext User-provided context pointer.
-     * @return Status of the operation.
+     * Writes data to the UART transmit FIFO without waiting for
+     * transmission completion.
+     *
+     * @param[in] handle Pointer to BSP UART handle.
+     * @param[in] buffer Data buffer to transmit.
+     * @param[in] length Number of bytes to transmit.
+     *
+     * @return BSP_ERR_STS_OK            Data queued for transmission.
+     * @return BSP_ERR_STS_INVALID_PARAM Invalid parameters.
+     * @return BSP_ERR_STS_FAIL          UART write failed.
+     *
+     * @note This API does not provide completion notification.
      */
-    errStatus_t bspUartSendAsync(bspUartHandle_t* handle,
-                                 const uint8_t* data,
-                                 size_t length,
-                                 bspUartCallback_t callback,
-                                 void* userContext);
+
+    bsp_err_sts_t bspUartWriteAsync(bspUartHandle_t* handle, const uint8_t* buffer, size_t length);
 
     /**
-     * @brief Receive data asynchronously over UART.
+     * @brief Perform control operations on a UART port.
      *
-     * @param[in] handle UART handle.
-     * @param[out] data Pointer to buffer to store received data.
-     * @param[in, out] length Number of bytes to receive.
-     * @param[in] callback Callback function to be called on completion.
-     * @param[in] userContext User-provided context pointer.
-     * @return Status of the operation.
+     * Provides control and query operations for asynchronous UART RX,
+     * such as querying RX status, retrieving received byte count, or
+     * cancelling an ongoing RX operation.
+     *
+     * @param[in] handle Pointer to BSP UART handle.
+     * @param[in] req    IOCTL request identifier.
+     * @param[in,out] arg Pointer to request-specific argument.
+     *
+     * @return BSP_ERR_STS_OK                 Operation successful.
+     * @return BSP_ERR_STS_INVALID_PARAM      Invalid parameters or request.
+     * @return BSP_ERR_STS_UNSUPPORTED Async mode not enabled.
+     *
+     * @note Some requests require @p arg to be non-NULL and point to a
+     *       specific data type (e.g., size_t or bool).
+     * @note Cancelling RX triggers the registered callback with failure status.
      */
-    errStatus_t bspUartRecvAsyncRegisterCb(bspUartHandle_t* handle,
-                                           uint8_t* data,
-                                           size_t* length,
-                                           bspUartCallback_t callback,
-                                           void* userContext);
+
+    bsp_err_sts_t bspUartIoctl(bspUartHandle_t* handle, bspUartIoctlRequest_t req, void* arg);
 
 #ifdef __cplusplus
 }

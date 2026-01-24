@@ -75,51 +75,62 @@ User callback invoked
 
 /* ESP-IDF */
 #include "driver/uart.h"
+#include "esp_log.h"
 
-#ifdef ESP_BOARD_LOGGING
-    #include "esp_log.h"
-    #define __FILENAME__        (strrchr("/" __FILE__, '/') + 1)
-    #define UART_LOGI(fmt, ...) ESP_LOGI(__FILENAME__, fmt, ##__VA_ARGS__)
-    #define UART_LOGW(fmt, ...) ESP_LOGW(__FILENAME__, fmt, ##__VA_ARGS__)
-    #define UART_LOGE(fmt, ...) ESP_LOGE(__FILENAME__, fmt, ##__VA_ARGS__)
-#else
-    #include "cli_logger.h"
-    #define UART_LOGI(fmt, ...) BSP_LOGI(fmt, ##__VA_ARGS__)
-    #define UART_LOGW(fmt, ...) BSP_LOGW(fmt, ##__VA_ARGS__)
-    #define UART_LOGE(fmt, ...) BSP_LOGE(fmt, ##__VA_ARGS__)
-#endif
+#define UART_LOGI(fmt, ...) ESP_LOGI(__FILENAME__, fmt, ##__VA_ARGS__)
+#define UART_LOGW(fmt, ...) ESP_LOGW(__FILENAME__, fmt, ##__VA_ARGS__)
+#define UART_LOGE(fmt, ...) ESP_LOGE(__FILENAME__, fmt, ##__VA_ARGS__)
 
-#define UART_EVENT_QUEUE_SIZE      20
-#define UART_EVENT_TASK_STACK_SIZE 2048
+/* ==================================== */
 
-typedef enum {
-    UART_RX_IDLE = 0,
-    UART_RX_ACTIVE,
+
+/**
+ * @brief UART RX state
+ *
+ * @note This enum is used to track the current state of the UART RX operation.
+ */
+typedef enum
+{
+    UART_RX_IDLE = 0, /*<! No RX operation in progress */
+    UART_RX_ACTIVE,   /*<! RX operation is active and data is being received */
 } uartRxState_t;
 
+
+/**
+ * @brief UART asynchronous runtime context
+ *
+ * @note This structure is used to store the runtime context for each UART port.
+ */
 typedef struct
 {
-    uartRxState_t state;
+    uartRxState_t state; /*<! Current RX state for this UART port */
 
-    uint8_t* rxBuf;
-    size_t   rxExpected;
-    size_t   rxReceived;
+    uint8_t* rxBuf; /*<! User-provided RX buffer (valid only when RX is active) */
+    size_t rxExpected; /*<! Total number of bytes expected for current RX operation */
+    size_t rxReceived; /*<! Number of bytes received so far */
 
-    bspUartCallback_t cbFn;
-    void* cbCtx;
+    bspUartCallback_t cbFn; /*<! User callback invoked on RX completion/cancel/error */
+    void* cbCtx;            /*<! User context passed back to callback */
 
-    QueueHandle_t evtQ;
+    QueueHandle_t evtQ; /*<! RTOS event queue used to receive UART driver events */
 } uartAsyncRt_t;
 
 
+/*<! Per-UART asynchronous runtime contexts */
 static uartAsyncRt_t s_uartRt[UART_NUM_MAX];
 
-/* CMSIS threads */
-static osThreadId_t s_uartEvtThread;
+#if defined(BSP_UART_ENABLE_ASYNC)
+/*<! UART event handling thread ID */
+static osThreadId_t s_uartEvtThrdId;
 
-static const osThreadAttr_t uartEvtAttr = { .name       = "uart_evt",
-                                            .priority   = osPriorityNormal,
-                                            .stack_size = 2048 };
+static const osThreadAttr_t uartEvtAttr = {
+    .name = "uart_evt",           /*<! Thread name (for debugging/trace) */
+    .priority = osPriorityNormal, /*<! Thread priority for UART event handling */
+    .stack_size = 2048, /*<! Stack size in bytes for event processing */
+};
+
+#endif                  // BSP_UART_ENABLE_ASYNC
+
 /* ========================================================= */
 /* UART EVENT TASK                                           */
 /* ========================================================= */
@@ -128,52 +139,53 @@ static void uartEventTask(void* arg)
     uart_event_t ev;
     (void)arg;
 
-    for (;;)
+    for(;;)
     {
-        for (uint8_t port = 0; port < UART_NUM_MAX; port++)
+        for(uint8_t port = 0; port < UART_NUM_MAX; port++)
         {
             uartAsyncRt_t* rt = &s_uartRt[port];
-            if (rt->evtQ == NULL)
+            if(rt->evtQ == NULL)
+            {
                 continue;
+            }
 
-            if (xQueueReceive(rt->evtQ, &ev, BSP_UART_POLLING_DELAY_MS) != pdTRUE)
+            /* Non-blocking per port */
+            if(osMessageQueueGet(rt->evtQ, &ev, NULL, 0U) != osOK)
+            {
                 continue;
+            }
 
             /* RX data event */
-            if (ev.type == UART_DATA && rt->state == UART_RX_ACTIVE)
+            if(ev.type == UART_DATA)
             {
-                int rd = uart_read_bytes(
-                    port,
-                    rt->rxBuf + rt->rxReceived,
-                    rt->rxExpected - rt->rxReceived,
-                    0);
-
-                if (rd > 0)
+                if(rt->rxBuf == NULL)
                 {
-                    rt->rxReceived += rd;
-
-                    /* Completion condition */
-                    if (rt->rxReceived >= rt->rxExpected)
-                    {
-                        rt->state    = UART_RX_IDLE;
-                        rt->rxStatus = ERR_STS_OK;
-
-                        memcpy(ctx.data, rt->rxBuf, rt->rxReceived);
-                        rt->cbFn(ERR_STS_OK, &ctx, rt->cbCtx);
-                    }
+                    continue;
                 }
+                rt->state = UART_RX_ACTIVE;
+                int rd = uart_read_bytes(port, rt->rxBuf, BSP_UART_RXTX_BUFFER_SIZE, 0);
+
+                if(rd <= 0)
+                    continue;
+
+                rt->rxReceived += rd;
+
+                if(rt->rxReceived && rt->cbFn)
+                {
+                    rt->cbFn(BSP_ERR_STS_OK, rt->rxBuf, rt->rxReceived, rt->cbCtx);
+                }
+                rt->state = UART_RX_IDLE;
             }
             /* RX error */
-            else if (ev.type == UART_FIFO_OVF ||
-                     ev.type == UART_BUFFER_FULL)
+            else if(ev.type == UART_FIFO_OVF || ev.type == UART_BUFFER_FULL)
             {
                 uart_flush_input(port);
 
-                rt->state    = UART_RX_IDLE;
-                rt->rxStatus = ERR_STS_FAIL;
-
-                if (rt->cbFn)
-                    rt->cbFn(ERR_STS_FAIL, NULL, rt->cbCtx);
+                if(rt->cbFn)
+                {
+                    rt->cbFn(BSP_ERR_STS_BUFFER_OVERFLOW, rt->rxBuf, 0, rt->cbCtx);
+                }
+                rt->state = UART_RX_IDLE;
             }
         }
     }
@@ -186,12 +198,12 @@ static void uartEventTask(void* arg)
  **************************************************************
  */
 
-errStatus_t bspUartInit(bspUartHandle_t* ptHandle)
+bsp_err_sts_t bspUartInit(bspUartHandle_t* ptHandle)
 {
     if(ptHandle == NULL)
     {
         UART_LOGE("UART handle is NULL");
-        return ERR_STS_INVALID_PARAM;
+        return BSP_ERR_STS_INVALID_PARAM;
     }
 
     // Map to ESP-IDF UART port number
@@ -200,7 +212,7 @@ errStatus_t bspUartInit(bspUartHandle_t* ptHandle)
     if(uart_num >= UART_NUM_MAX)
     {
         UART_LOGE("Invalid UART port number: %d", uart_num);
-        return ERR_STS_INVALID_PARAM;
+        return BSP_ERR_STS_INVALID_PARAM;
     }
 
     // Map parity
@@ -260,7 +272,7 @@ errStatus_t bspUartInit(bspUartHandle_t* ptHandle)
     if(err != ESP_OK)
     {
         UART_LOGE("uart_param_config failed: %d", err);
-        return ERR_STS_FAIL;
+        return BSP_ERR_STS_FAIL;
     }
 
     // Set UART pins
@@ -269,33 +281,46 @@ errStatus_t bspUartInit(bspUartHandle_t* ptHandle)
     if(err != ESP_OK)
     {
         UART_LOGE("uart_set_pin failed: %d", err);
-        return ERR_STS_FAIL;
+        return BSP_ERR_STS_FAIL;
+    }
+    // Install UART driver
+    /* -------------------------------------------------
+     * Install ESP-IDF UART driver (ALWAYS REQUIRED)
+     * ------------------------------------------------- */
+    err = uart_driver_install(uart_num, BSP_UART_RXTX_BUFFER_SIZE, BSP_UART_RXTX_BUFFER_SIZE,
+#if defined(BSP_UART_ENABLE_ASYNC)
+                              BSP_UART_ASYC_EVNT_QUEUE_LEN, &s_uartRt[uart_num].evtQ,
+#else
+                              0, NULL,
+#endif
+                              0);
+
+
+    if(err != ESP_OK)
+    {
+        UART_LOGE("uart_driver_install failed: %d", err);
+        return BSP_ERR_STS_FAIL;
     }
 
-    int fifo_size = ptHandle->fifoSize ? ptHandle->fifoSize : BSP_UART_RXTX_BUFFER_SIZE;
-
-    memset(&s_uartRt[uart_num], 0, sizeof(uartAsyncRt_t));
-
-    uartAsyncRt_t* rt = &s_uartRt[ptHandle->portNum];
-    memset(rt, 0, sizeof(*rt));
-
-    uart_driver_install(
-        h->portNum,
-        BSP_UART_RXTX_BUFFER_SIZE,
-        BSP_UART_RXTX_BUFFER_SIZE,
-        UART_EVT_QUEUE_LEN,
-        &rt->evtQ,
-        0);
+#if defined(BSP_UART_ENABLE_ASYNC)
+    s_uartEvtThrdId = osThreadNew(uartEventTask, NULL, &uartEvtAttr);
+    if(s_uartEvtThrdId == NULL)
+    {
+        UART_LOGE("Failed to create UART async thread");
+        uart_driver_delete(uart_num);
+        return BSP_ERR_STS_NO_MEM;
+    }
+#endif // #if defined(BSP_UART_ENABLE_ASYNC)
 
     UART_LOGI("UART%d initialized: %d baud, %d bits, parity %d, stop %d, flow "
               "%d",
               uart_num, ptHandle->baudrate, ptHandle->wordLength,
               ptHandle->parity, ptHandle->stopBits, ptHandle->hwFlowControlEn);
-    return ERR_STS_OK;
+    return BSP_ERR_STS_OK;
 }
 
 
-errStatus_t bspUartDeInit(bspUartHandle_t* ptHandle)
+bsp_err_sts_t bspUartDeInit(bspUartHandle_t* ptHandle)
 {
     uint8_t uart_num;
     esp_err_t err;
@@ -303,7 +328,7 @@ errStatus_t bspUartDeInit(bspUartHandle_t* ptHandle)
     if(ptHandle == NULL)
     {
         UART_LOGE("UART handle is NULL");
-        return ERR_STS_INVALID_PARAM;
+        return BSP_ERR_STS_INVALID_PARAM;
     }
 
     uart_num = ptHandle->portNum;
@@ -311,10 +336,13 @@ errStatus_t bspUartDeInit(bspUartHandle_t* ptHandle)
     if(uart_num >= UART_NUM_MAX)
     {
         UART_LOGE("Invalid UART port number: %d", uart_num);
-        return ERR_STS_INVALID_PARAM;
+        return BSP_ERR_STS_INVALID_PARAM;
     }
 
     UART_LOGI("De-initializing UART%d", uart_num);
+
+
+#if defined(BSP_UART_ENABLE_ASYNC)
 
     /* -------------------------------------------------
      * 1. Uninstall ESP-IDF UART driver
@@ -323,35 +351,48 @@ errStatus_t bspUartDeInit(bspUartHandle_t* ptHandle)
     if(err != ESP_OK)
     {
         UART_LOGE("uart_driver_delete failed: %d", err);
-        return ERR_STS_FAIL;
+        return BSP_ERR_STS_FAIL;
     }
 
     /* -------------------------------------------------
      * 3. Delete UART event queue (FreeRTOS)
      * ------------------------------------------------- */
-    if(s_uartRt[uart_num].evtQ != NULL)
+    uartAsyncRt_t* rt = &s_uartRt[ptHandle->portNum];
+
+    if((rt->evtQ) != NULL)
     {
-        osMessageQueueDelete(s_uartRt[uart_num].evtQ);
-        s_uartRt[uart_num].evtQ = NULL;
+        osMessageQueueDelete(rt->evtQ);
+        rt->evtQ = NULL;
+    }
+
+    if(s_uartEvtThrdId != NULL)
+    {
+        osThreadTerminate(s_uartEvtThrdId);
+        s_uartEvtThrdId = NULL;
     }
 
     /* -------------------------------------------------
      * 4. Clear callback and runtime context
      * ------------------------------------------------- */
-    s_uartRt[uart_num].cbFn  = NULL;
-    s_uartRt[uart_num].cbCtx = NULL;
-    memset(&s_uartRt[uart_num], 0, sizeof(uartAsyncRt_t));
+    rt->cbFn  = NULL;
+    rt->cbCtx = NULL;
+
+    memset(rt, 0, sizeof(*rt));
+
+#endif // #if defined(BSP_UART_ENABLE_ASYNC)
+
 
     UART_LOGI("UART%d de-initialized successfully", uart_num);
-    return ERR_STS_OK;
+    return BSP_ERR_STS_OK;
 }
 
-errStatus_t bspUartSendSync(bspUartHandle_t* handle, const uint8_t* data, size_t length, uint32_t timeout_ms)
+bsp_err_sts_t
+bspUartSendSync(bspUartHandle_t* handle, const uint8_t* data, size_t length, uint32_t timeout_ms)
 {
     if(handle == NULL || data == NULL || length == 0)
     {
         UART_LOGE("Invalid parameters for bspUartSendSync");
-        return ERR_STS_INVALID_PARAM;
+        return BSP_ERR_STS_INVALID_PARAM;
     }
 
     int uart_num = handle->portNum;
@@ -361,7 +402,7 @@ errStatus_t bspUartSendSync(bspUartHandle_t* handle, const uint8_t* data, size_t
     if(bytes_sent < 0)
     {
         UART_LOGE("uart_write_bytes failed");
-        return ERR_STS_FAIL;
+        return BSP_ERR_STS_FAIL;
     }
     else if((size_t)bytes_sent != length)
     {
@@ -373,131 +414,149 @@ errStatus_t bspUartSendSync(bspUartHandle_t* handle, const uint8_t* data, size_t
     if(err != ESP_OK)
     {
         UART_LOGE("uart_wait_tx_done failed: %d", err);
-        return ERR_STS_FAIL;
+        return BSP_ERR_STS_FAIL;
     }
 
-    return ERR_STS_OK;
+    return BSP_ERR_STS_OK;
 }
 
-errStatus_t bspUartReceiveSync(bspUartHandle_t* handle, uint8_t* data, size_t* length, uint32_t timeout_ms)
+bsp_err_sts_t
+bspUartReceiveSync(bspUartHandle_t* handle, uint8_t* data, size_t data_len, size_t* rx_len, uint32_t timeout_ms)
 {
-    if(handle == NULL || data == NULL || length == NULL)
+    if(handle == NULL || data == NULL || rx_len == NULL)
     {
         UART_LOGE("Invalid parameters for bspUartReceiveSync");
-        return ERR_STS_INVALID_PARAM;
+        return BSP_ERR_STS_INVALID_PARAM;
     }
 
     int uart_num = handle->portNum;
 
     // Receive data
     int bytes_recv =
-    uart_read_bytes(uart_num, data, *length, timeout_ms / portTICK_PERIOD_MS);
+    uart_read_bytes(uart_num, data, data_len, timeout_ms / portTICK_PERIOD_MS);
     if(bytes_recv < 0)
     {
         UART_LOGE("uart_read_bytes failed.");
-        return ERR_STS_FAIL;
+        return BSP_ERR_STS_FAIL;
     }
 
-    *length = (size_t)bytes_recv;
-    return ERR_STS_OK;
+    *rx_len = (size_t)bytes_recv;
+    return BSP_ERR_STS_OK;
 }
 /* -------------------------------------------------- */
 /* CALLBACK REGISTRATION                              */
 /* -------------------------------------------------- */
-errStatus_t bspUartSetCallback(bspUartHandle_t* handle,
-                               bspUartCallback_t callback,
-                               void* userContext)
+bsp_err_sts_t
+bspUartSetCallback(bspUartHandle_t* handle, bspUartCallback_t callback, void* userContext)
 {
-    if (!handle || !callback)
-        return ERR_STS_INVALID_PARAM;
+    if(!handle || !callback)
+        return BSP_ERR_STS_INVALID_PARAM;
 
     uartAsyncRt_t* rt = &s_uartRt[handle->portNum];
-    rt->cbFn    = callback;
-    rt->cbCtx = userContext;
-    return ERR_STS_OK;
+    rt->cbFn          = callback;
+    rt->cbCtx         = userContext;
+    return BSP_ERR_STS_OK;
 }
 
 /* -------------------------------------------------- */
 /* ASYNC READ        */
 /* -------------------------------------------------- */
-errStatus_t bspUartReadAsync(bspUartHandle_t* handle,
-                             uint8_t* buffer,
-                             size_t length)
+bsp_err_sts_t bspUartReadAsync(bspUartHandle_t* handle, uint8_t* buffer, size_t length)
 {
-    if (!handle || !buffer || length == 0)
-        return ERR_STS_INVALID_PARAM;
+    if(!handle || !buffer || length == 0)
+        return BSP_ERR_STS_INVALID_PARAM;
 
     uartAsyncRt_t* rt = &s_uartRt[handle->portNum];
 
-    if (rt->state != UART_RX_IDLE)
-        return ERR_STS_BUSY;
+    if(rt->state != UART_RX_IDLE)
+        return BSP_ERR_STS_BUSY;
 
-    if (rt->cbFn == NULL)
-        return ERR_STS_FAIL; /* callback not registered */
+    if(rt->cbFn == NULL)
+        return BSP_ERR_STS_NOT_EXIST; /* callback not registered */
 
     rt->rxBuf      = buffer;
-    rt->rxExpected = length;
     rt->rxReceived = 0;
     rt->state      = UART_RX_ACTIVE;
 
-    return ERR_STS_OK;
+    return BSP_ERR_STS_OK;
 }
 
-errStatus_t bspUartWriteAsync(bspUartHandle_t* handle,
-                              const uint8_t* buffer,
-                              size_t length)
+bsp_err_sts_t bspUartWriteAsync(bspUartHandle_t* handle, const uint8_t* buffer, size_t length)
 {
-    if (!handle || !buffer || length == 0)
-        return ERR_STS_INVALID_PARAM;
+    if(!handle || !buffer || length == 0)
+        return BSP_ERR_STS_INVALID_PARAM;
 
     int uart_num = handle->portNum;
 
-    int written = uart_write_bytes(uart_num,
-                                   (const char*)buffer,
-                                   length);
-    if (written < 0)
-        return ERR_STS_FAIL;
+    int written = uart_write_bytes(uart_num, (const char*)buffer, length);
+    if(written < 0)
+        return BSP_ERR_STS_FAIL;
 
-    return ERR_STS_OK;
+    return BSP_ERR_STS_OK;
 }
 
 
-
-errStatus_t bspUartIoctl(bspUartHandle_t* handle,
-                          bspUartIoctlRequest_t req,
-                          void* arg)
+bsp_err_sts_t bspUartIoctl(bspUartHandle_t* handle, bspUartIoctlRequest_t req, void* arg)
 {
-    if (!handle)
-        return ERR_STS_INVALID_PARAM;
+    if(handle == NULL)
+        return BSP_ERR_STS_INVALID_PARAM;
+
+    if(handle->portNum >= UART_NUM_MAX)
+        return BSP_ERR_STS_INVALID_PARAM;
+
+#if !defined(BSP_UART_ENABLE_ASYNC)
+    return BSP_ERR_STS_UNSUPPORTED;
+#endif
 
     uartAsyncRt_t* rt = &s_uartRt[handle->portNum];
 
-    switch (req)
+    switch(req)
     {
         case eBspUartGetRxCount:
-            if (!arg)
-                return ERR_STS_INVALID_PARAM;
+            if(arg == NULL)
+                return BSP_ERR_STS_INVALID_PARAM;
+
             *(size_t*)arg = rt->rxReceived;
-            return ERR_STS_OK;
+            return BSP_ERR_STS_OK;
 
         case eBspUartIsRxBusy:
-            if (!arg)
-                return ERR_STS_INVALID_PARAM;
+            if(arg == NULL)
+                return BSP_ERR_STS_INVALID_PARAM;
+
             *(bool*)arg = (rt->state == UART_RX_ACTIVE);
-            return ERR_STS_OK;
+            return BSP_ERR_STS_OK;
 
         case eBspUartCancelRx:
-            if (rt->state == UART_RX_ACTIVE)
-            {
-                rt->state    = UART_RX_IDLE;
-                rt->rxStatus = ERR_STS_FAIL;
 
-                if (rt->cbFn)
-                    rt->cbFn(ERR_STS_FAIL, NULL, rt->cbCtx);
+            if(rt->state != UART_RX_ACTIVE)
+            {
+                return BSP_ERR_STS_OK;
             }
-            return ERR_STS_OK;
+
+            rt->state      = UART_RX_IDLE;
+            rt->rxBuf      = NULL;
+            rt->rxExpected = 0;
+            rt->rxReceived = 0;
+
+            /* Flush pending UART RX data */
+            uart_flush_input(handle->portNum);
+
+            /* Notify event task (if blocked) */
+            if(rt->evtQ != NULL)
+            {
+                uart_event_t evt = { .type = UART_EVENT_MAX };
+                osMessageQueuePut(rt->evtQ, &evt, 0U, 0U);
+            }
+
+            /* Notify user callback */
+            if(rt->cbFn)
+            {
+                rt->cbFn(BSP_ERR_STS_FAIL, NULL, 0, rt->cbCtx);
+            }
+
+            return BSP_ERR_STS_OK;
 
         default:
-            return ERR_STS_INVALID_PARAM;
+            return BSP_ERR_STS_INVALID_PARAM;
     }
 }

@@ -10,80 +10,140 @@
  */
 
 #include <string.h>
+#include <stdio.h>
 
-
-#include "bsp_uart.h"
-#include "cmsis_os2.h"
-#include "bsp_log.h"
 #include "app_bsp_config.h"
 
+#include "cmsis_os2.h"
+#include "bsp_uart.h"
+#include "bsp_err_sts.h"
 
-#ifdef ESP_BOARD_LOGGING // ESP-IDF logging
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
+// #ifdef ESP_BOARD_LOGGING // ESP-IDF logging
     #include "esp_log.h"
-
-    #define __FILENAME__   (strrchr("/" __FILE__, '/') + 1)
-    #define LOGI(fmt, ...) ESP_LOGI(__FILENAME__, fmt, ##__VA_ARGS__)
-    #define LOGW(fmt, ...) ESP_LOGW(__FILENAME__, fmt, ##__VA_ARGS__)
-    #define LOGE(fmt, ...) ESP_LOGE(__FILENAME__, fmt, ##__VA_ARGS__)
-    #define LOGD(fmt, ...) ESP_LOGD(__FILENAME__, fmt, ##__VA_ARGS__)
-
-#else // BSP logging: just map directly
-    #include "bsp_log.h"
-    #define LOGI(fmt, ...) BSP_LOGI(fmt, ##__VA_ARGS__)
-    #define LOGW(fmt, ...) BSP_LOGW(fmt, ##__VA_ARGS__)
-    #define LOGE(fmt, ...) BSP_LOGE(fmt, ##__VA_ARGS__)
-    #define LOGD(fmt, ...) BSP_LOGD(fmt, ##__VA_ARGS__)
+#ifndef __FILENAME__
+#define __FILENAME__   (strrchr("/" __FILE__, '/') + 1)
 #endif
 
+#define LOGI(fmt, ...) ESP_LOGI(__FILENAME__, fmt, ##__VA_ARGS__)
+#define LOGW(fmt, ...) ESP_LOGW(__FILENAME__, fmt, ##__VA_ARGS__)
+#define LOGE(fmt, ...) ESP_LOGE(__FILENAME__, fmt, ##__VA_ARGS__)
+#define LOGD(fmt, ...) ESP_LOGD(__FILENAME__, fmt, ##__VA_ARGS__)
 
-static void UartSyncTask(void* argument)
+// #else // BSP logging: just map directly
+//     #include "bsp_log.h"
+//     #define LOGI(fmt, ...) BSP_LOGI(fmt, ##__VA_ARGS__)
+//     #define LOGW(fmt, ...) BSP_LOGW(fmt, ##__VA_ARGS__)
+//     #define LOGE(fmt, ...) BSP_LOGE(fmt, ##__VA_ARGS__)
+//     #define LOGD(fmt, ...) BSP_LOGD(fmt, ##__VA_ARGS__)
+// #endif
+
+
+/* UART configuration */
+#define UART_TASK_STACK_SIZE 1024
+#define UART_TASK_PRIORITY   osPriorityNormal
+
+#define DEMO_UART_PORT       2
+#define DEMO_UART_TX_PIN     17
+#define DEMO_UART_RX_PIN     16
+
+static osThreadId_t uartTaskHandle;
+
+/* UART task */
+static void UartLoopbackTask(void* argument)
 {
     (void)argument;
 
-    const char txMsg[] = "UART Sync Test\r\n";
-    uint8_t rxBuf[32];
+    LOGI("UART task started\n");
 
-    LOGI("Starting UART synchronous demo");
+    bsp_err_sts_t ret;
 
-    if(bspUartInit((bspUartHandle_t*)&g_bspUartHandles[BSP_UART_OWNER_GNSS]) != ERR_STS_OK)
+    uint8_t txData[] = "CMSIS UART LOOPBACK";
+    uint8_t rxData[64];
+    size_t rxLen = 0;
+
+    bspUartHandle_t uart = { .portNum    = DEMO_UART_PORT,
+                             .baudrate   = BSP_UART_BAUD_115200,
+                             .wordLength = eBspUartWordLength8,
+                             .parity     = eBspUartParityNone,
+                             .stopBits   = eBspUartStopBitsOne,
+                             .mode       = eBspUartModeTxRx,
+
+                             .uartTxPin  = DEMO_UART_TX_PIN,
+                             .uartRxPin  = DEMO_UART_RX_PIN,
+                             .uartRtsPin = 0,
+                             .uartCtsPin = 0,
+
+                             .fifoSize     = 128,
+                             .oversampling = 16,
+                             .rxThreshold  = 1,
+
+                             .invertTx        = 0,
+                             .invertRx        = 0,
+                             .dmaEnable       = 0,
+                             .hwFlowControlEn = false };
+
+    /* Initialize UART */
+    ret = bspUartInit(&uart);
+    if(ret != BSP_ERR_STS_OK)
     {
-        LOGE("UART init failed");
-        osThreadExit();
+        LOGI("UART init failed: %s\n", bsp_err_sts_to_str(ret));
+        // osThreadExit();
+        vTaskDelete(NULL);
     }
 
-    while(1)
+
+    for(;;)
     {
-        /* Send data synchronously */
-        if(bspUartSendSync((bspUartHandle_t*)&g_bspUartHandles[BSP_UART_OWNER_GNSS], (const uint8_t*)txMsg,
-                           strlen(txMsg), 1000U) == ERR_STS_OK)
+        memset(rxData, 0, sizeof(rxData));
+        rxLen = 0;
+
+        /* Transmit */
+        ret = bspUartSendSync(&uart, txData, strlen((char*)txData), 1000);
+
+        if(ret != BSP_ERR_STS_OK)
         {
-            LOGI("TX complete");
+            LOGE("TX failed: %s\n", bsp_err_sts_to_str(ret));
         }
         else
         {
-            LOGW("TX timeout/error");
+            /* Receive */
+            ret = bspUartReceiveSync(&uart, rxData, sizeof(rxData), &rxLen, 1000);
+
+            if(ret == BSP_ERR_STS_OK && rxLen == strlen((char*)txData) &&
+               memcmp(txData, rxData, rxLen) == 0)
+            {
+                LOGI("Loopback OK: %s\n", rxData);
+            }
+            else
+            {
+                LOGE("Loopback FAIL (len=%d)\n", (int)rxLen);
+            }
         }
 
-        /* Receive data synchronously */
-        if(bspUartReceiveSync((bspUartHandle_t*)&g_bspUartHandles[BSP_UART_OWNER_GNSS], rxBuf, 32, 2000U) == ERR_STS_OK)
-        {
-            LOGI("RX complete");
-            LOGD("RX data: %.*s", 32, rxBuf);
-        }
-        else
-        {
-            LOGW("RX timeout");
-        }
-
-        osDelay(1000U);
+        /* Run every 2 seconds */
+        // osDelay(2000);
+        /* Yield CPU cleanly */
+        vTaskDelay(pdMS_TO_TICKS(2000));
     }
 }
 
+
 void AppUartSyncDemoStart(void)
 {
-    const osThreadAttr_t attr = { .name       = "UartSyncTask",
-                                  .priority   = osPriorityNormal,
-                                  .stack_size = 4096U };
+    const osThreadAttr_t attr = { .name       = "uart_loopback",
+                                  .priority   = UART_TASK_PRIORITY,
+                                  .stack_size = UART_TASK_STACK_SIZE };
 
-    (void)osThreadNew(UartSyncTask, NULL, &attr);
+    /* Create UART task */
+    uartTaskHandle = osThreadNew(UartLoopbackTask,
+                                 NULL,
+                                 &attr);
+
+
+    // xTaskCreate(UartLoopbackTask, "uart_loopback", UART_TASK_STACK_SIZE, NULL,
+    //             UART_TASK_PRIORITY, NULL);
 }

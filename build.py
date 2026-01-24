@@ -93,7 +93,7 @@ def idf_build(logger, idf_export_path):
         cmd = f'cmd /c "{idf_export_path}.bat && idf.py build"'
         run_cmd(cmd, logger)
     else:
-        run_cmd("idf.py build", logger)
+        run_cmd(f"idf.py build", logger)
 
 def idf_clean(logger, idf_export_path):
     logger.info("Cleaning build directory...")
@@ -103,7 +103,30 @@ def idf_clean(logger, idf_export_path):
         cmd = f'cmd /c "{idf_export_path}.bat && idf.py fullclean"'
         run_cmd(cmd, logger)
     else:
-        run_cmd("idf.py fullclean", logger)
+        run_cmd(f"idf.py fullclean", logger)
+
+
+def idf_flash(logger, idf_export_path):
+    logger.info("Flashing firmware...")
+    
+    if is_windows():
+        # Run export.bat + build inside SAME cmd.exe
+        cmd = f'cmd /c "{idf_export_path}.bat && idf.py flash"'
+        run_cmd(cmd, logger)
+    else:
+        run_cmd(f"idf.py flash", logger)
+
+def idf_monitor(logger, idf_export_path):
+    logger.info("Monitoring firmware...")
+    
+    if is_windows():
+        # Run export.bat + build inside SAME cmd.exe
+        cmd = f'cmd /c "{idf_export_path}.bat && idf.py monitor"'
+        run_cmd(cmd, logger)
+    else:
+        run_cmd(f"idf.py monitor", logger)
+
+
     
 
 # ----------------------------------------------------
@@ -112,16 +135,22 @@ def idf_clean(logger, idf_export_path):
 def main():
     parser = argparse.ArgumentParser(description="Ridecast Build Utility (Cross Platform)")
 
-    parser.add_argument("-b", "-bg", "--build", "-br", "--releasebuild",
-                        action="store_true", help="Build the project")
-
-    parser.add_argument("-c", "-bcg", "--clean",
-                        action="store_true", help="Clean the project")
-
-    parser.add_argument("-lg", "--logdebug",
-                        action="store_true", help="Enable debug logging")
+    parser.add_argument("-b", "--build", action="store_true", help="Build the project")
+    parser.add_argument("-c", "--clean", action="store_true", help="Clean the project")
+    parser.add_argument("-f", "--flash", action="store_true", help="Flash the project")
+    parser.add_argument("-m", "--monitor", action="store_true", help="Monitor the project")
+    parser.add_argument("-l", "--logdebug", action="store_true", help="Enable debug logging")
+    parser.add_argument("--all", action="store_true",
+                        help="Clean, build, flash and monitor")
 
     args = parser.parse_args()
+
+    # ---------------- Handle --all EARLY ----------------
+    if args.all:
+        args.clean = True
+        args.build = True
+        args.flash = True
+        args.monitor = True
 
     logger = setup_logger(args.logdebug)
 
@@ -133,17 +162,29 @@ def main():
     logger.debug(f"SDK path: {sdk_base}")
     logger.debug(f"Export script base: {idf_export}")
 
-    # ---------------- Actions ----------------
+    # ---------------- No action selected ----------------
+    if not (args.clean or args.build or args.flash or args.monitor):
+        logger.warning(
+            "No action selected. Use -b, -c, -f, -m or --all."
+        )
+        return
+
+    # ---------------- Setup ESP-IDF ONCE ----------------
+    source_idf(idf_export, logger)
+
+    # ---------------- Actions (ordered) ----------------
     if args.clean:
-        source_idf(idf_export, logger)
         idf_clean(logger, idf_export)
 
     if args.build:
-        source_idf(idf_export, logger)
         idf_build(logger, idf_export)
 
-    if not args.build and not args.clean:
-        logger.warning("No action selected. Use --build or --clean.")
+    if args.flash:
+        idf_flash(logger, idf_export)
+
+    if args.monitor:
+        idf_monitor(logger, idf_export)
+
 
 if __name__ == "__main__":
     main()

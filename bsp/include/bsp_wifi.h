@@ -14,8 +14,8 @@
  * scanning for available networks, and retrieving detailed connection and hardware
  * capability information.
  *
- * @note All functions return an @ref errStatus_t indicating the result of the operation.
- *       Refer to @ref bsp_err.h for error code definitions.
+ * @note All functions return an @ref bsp_err_sts_t indicating the result of the operation.
+ *       Refer to @ref bsp_err_sts.h for error code definitions.
  *
  * @version 1.0
  */
@@ -35,10 +35,12 @@ extern "C"
  * @brief Required configuration and error code headers for BSP Wi-Fi API.
  *
  * - bsp_config.h: Contains board and Wi-Fi configuration macros (SSID length, password length, etc).
- * - err_status.h: Defines the errStatus_t type and error codes used by all BSP Wi-Fi API functions.
+ * - bsp_err_sts.h: Defines the bsp_err_sts_t type and error codes used by all BSP Wi-Fi API functions.
  */
 #include "bsp_config.h"
-#include "err_status.h"
+#include "bsp_err_sts.h"
+
+#include "cmsis_os2.h"
 
 #define BSP_WIFI_SSID_MAX_LEN       bspCONFIG_WIFI_SSID_MAX_LEN
 #define BSP_WIFI_PASSWORD_MAX_LEN   bspCONFIG_WIFI_PASSWORD_MAX_LEN
@@ -56,7 +58,12 @@ extern "C"
 #define BSP_WIFI_IP6_ADDR_SIZE   (16U)
 #define BSP_WIFI_MAC_ADDR_SIZE   (6U)
 
-    // =========================
+    /*
+     * *************************************************************************************************
+     *        WIFI ENUMERATIONS
+     * *************************************************************************************************
+     */
+
     /**
      * @brief Wi-Fi operation mode.
      *
@@ -68,7 +75,7 @@ extern "C"
         eWiFiModeAP,          /**< Access point mode. */
         eWiFiModeP2P,         /**< Peer-to-peer mode. */
         eWiFiModeAPStation, /**< Simultaneous AP and Station (repeater) mode. */
-        eWiFiModeNotSupported /**< Unsupported mode. */
+        eWiFiModeMax        /**< Unsupported mode. */
     } bspWifiMode_t;
 
     /**
@@ -81,17 +88,23 @@ extern "C"
         /* ---------- General Wi-Fi Events ---------- */
         eBSPWifiEventReady = 0,    /**< Wi-Fi subsystem initialized and ready */
         eBSPWifiEventScanDone,     /**< Wi-Fi scan completed */
+
         eBSPWifiEventConnected,    /**< Connected to a Wi-Fi network */
         eBSPWifiEventDisconnected, /**< Disconnected from Wi-Fi network */
         eBSPWifiEventConnectionFailed, /**< Connection attempt failed */
         eBSPWifiEventIPReady,          /**< IP address acquired */
+        eBSPWifiEventIPFailed,         /**< IP address acquisition failed */
 
         /* ---------- Station (STA) Events ---------- */
+        eBSPWifiEventSTAStarted,      /**< Wi-Fi station started */
+        eBSPWifiEventSTAStopped,      /**< Wi-Fi station stopped */
         eBSPWifiEventSTAConnected,    /**< Station connected to AP */
         eBSPWifiEventSTADisconnected, /**< Station disconnected from AP */
         eBSPWifiEventSTAGotIP,        /**< Station received IP address */
 
         /* ---------- Access Point (AP) Events ---------- */
+        eBSPWifiEventAPStarted,             /**< AP started */
+        eBSPWifiEventAPStopped,             /**< AP stopped */
         eBSPWifiEventAPStateChanged,        /**< AP started or stopped */
         eBSPWifiEventAPStationConnected,    /**< A station connected to AP */
         eBSPWifiEventAPStationDisconnected, /**< A station disconnected from AP */
@@ -101,6 +114,7 @@ extern "C"
         eBSPWifiEventWPSFailed,  /**< WPS failed */
         eBSPWifiEventWPSTimeout, /**< WPS timed out */
 
+        eBSPWifiEventUnknown,    /**< Unknown event */
         /* ---------- End Marker ---------- */
         eBSPWifiEventMax /**< Number of Wi-Fi events (must be last) */
 
@@ -156,12 +170,13 @@ extern "C"
      */
     typedef enum
     {
-        eBSPWifiPhy11b = 0, /**< IEEE 802.11b. */
-        eBSPWifiPhy11g,     /**< IEEE 802.11g. */
-        eBSPWifiPhy11n,     /**< IEEE 802.11n. */
-        eBSPWifiPhy11ac,    /**< IEEE 802.11ac. */
-        eBSPWifiPhy11ax,    /**< IEEE 802.11ax. */
-        eBSPWifiPhyMax      /**< Maximum PHY mode value (end marker). */
+        eBSPWifiPhyNone = 0,
+        eBSPWifiPhy11b  = 1, /**< IEEE 802.11b. */
+        eBSPWifiPhy11g  = 2, /**< IEEE 802.11g. */
+        eBSPWifiPhy11n  = 3, /**< IEEE 802.11n. */
+        eBSPWifiPhy11ac = 4, /**< IEEE 802.11ac. */
+        eBSPWifiPhy11ax = 5, /**< IEEE 802.11ax. */
+        eBSPWifiPhyLR   = 6, /**< IEEE 802.11ax. */
     } bspWifiPhyMode_t;
 
     /**
@@ -216,154 +231,22 @@ extern "C"
     } bspWifiReason_t;
 
     /**
-     * @brief Wi-Fi connection status.
-     *
-     * Enumerates the possible connection statuses for a Wi-Fi network.
-     */
-    typedef enum
-    {
-        eBSPWifiConnected = 0,    /**< Connected to a Wi-Fi network. */
-        eBSPWifiDisconnected,     /**< Disconnected from a Wi-Fi network. */
-        eBSPWifiConnectionFailed, /**< Connection attempt failed. */
-        eBSPWifiMax /**< Maximum connection status value (end marker). */
-    } bspWifiConnectionStatus_t;
-
-    /**
      * @brief Wi-Fi IP address types.
      *
      * Enumerates the possible IP address types for Wi-Fi connections.
      */
-    typedef enum {
+    typedef enum
+    {
         eBSPWifiIPv4 = 0,
         eBSPWifiIPv6,
         eBSPWifiIPNotSupported
     } bspWifiIPAddressType_t;
 
-    /**
-     * @brief Wi-Fi configuration structure for AP or Station mode.
-     *
-     * This structure holds the configuration parameters required to initialize
-     * a Wi-Fi interface in either Access Point (AP) or Station mode.
+    /*
+     * *************************************************************************************************
+     *        WIFI STRUCTURES
+     * *************************************************************************************************
      */
-    typedef struct
-    {
-        uint8_t ssid[BSP_WIFI_SSID_MAX_LEN]; /**< SSID of the network. */
-        uint8_t password[BSP_WIFI_PASSWORD_MAX_LEN]; /**< Password of the network. */
-        bspWifiSecurity_t security; /**< Security type (see bspWifiSecurity_t). */
-        uint8_t channel;            /**< Channel number (1-11 for 2.4GHz). */
-        uint8_t ssidHidden;     /**< SSID hidden: 0 = visible, 1 = hidden. */
-        uint8_t maxConnections; /**< Maximum connections for AP mode (1-4). */
-        uint8_t pmMode;    /**< Power management mode (see bspWifiPmMode_t). */
-        uint8_t bandwidth; /**< Channel bandwidth (see bspWifiBandwidth_t). */
-        uint8_t phyMode;   /**< PHY mode (see bspWifiPhyMode_t). */
-        uint32_t maxIdlePeriodSec; /** Maximum sec wifi keep idle */
-    } bspWifiConfig_t;
-
-
-    /**
-     * @brief Wi-Fi WEP key structure.
-     *
-     * Holds a single WEP key and its length for use in WEP-secured networks.
-     */
-    typedef struct
-    {
-        uint8_t cKey[BSP_WIFI_WEP_KEY_LEN_MAX]; /**< WEP key (binary array, not C-string). */
-        uint8_t u8Length;                       /**< Length of the WEP key. */
-    } bspWifiWepKey_t;
-
-    /**
-     * @brief WPA/WPA2 passphrase structure.
-     *
-     * Stores a WPA/WPA2 passphrase and its length for use in secure Wi-Fi connections.
-     */
-    typedef struct
-    {
-        uint8_t cPassphrase[BSP_WIFI_PASSWORD_MAX_LEN]; /**< WPA passphrase (binary array, not C-string). */
-        uint8_t u8Length; /**< Length of the passphrase (8-64 uint8_tacters). */
-    } bspWifiWpaPassphrase_t;
-
-    /**
-     * @brief Wi-Fi network parameters for connection.
-     *
-     * Contains all parameters required to connect to a Wi-Fi network, including
-     * SSID, security type, and credentials (WEP or WPA/WPA2).
-     */
-    typedef struct
-    {
-        uint8_t ssid[BSP_WIFI_SSID_MAX_LEN]; /**< SSID of the Wi-Fi network (binary array, not C-string). */
-        uint8_t ssidLength;         /**< Length of the SSID. */
-        bspWifiSecurity_t security; /**< Security type (see bspWifiSecurity_t). */
-        union
-        {
-            bspWifiWepKey_t wep[BSP_WIFI_WEP_KEY_LEN_MAX]; /**< WEP keys (64- and 128-bit keys only). */
-            bspWifiWpaPassphrase_t wpa; /**< WPA/WPA2 passphrase. */
-        } password;                     /**< Credentials for the network. */
-        uint8_t defaultWepKeyIndex; /**< Default WEP key index (0 to wificonfigMAX_WEPKEYS - 1). */
-        uint8_t channel; /**< Channel number (1-11 for 2.4GHz). */
-    } bspWifiNetworkParams_t;
-
-    /**
-     * @brief Wi-Fi scan configuration structure.
-     *
-     * Used to specify parameters for scanning Wi-Fi networks, such as targeted SSID and channel.
-     */
-    typedef struct
-    {
-        uint8_t ssid[BSP_WIFI_SSID_MAX_LEN]; /**< SSID for targeted scan (binary array, not C-string). */
-        uint8_t ssidLength; /**< SSID length, 0 if broadcast scan. */
-        uint8_t channel;    /**< Channel to scan (0 means all channels). */
-        uint8_t show_hidden; /**< Whether to show hidden networks (0 = no, 1 = yes). */
-    } bspWifiScanConfig_t;
-
-    /**
-     * @brief Wi-Fi scan result structure.
-     *
-     * Holds information about a discovered Wi-Fi network during a scan.
-     */
-    typedef struct
-    {
-        uint8_t ssid[BSP_WIFI_SSID_MAX_LEN]; /**< SSID of the discovered network. */
-        uint8_t ssidLength;                  /**< Length of the SSID. */
-        uint8_t bssid[BSP_WIFI_MAC_ADDR_MAX_LEN]; /**< BSSID (MAC address) of the AP. */
-        bspWifiSecurity_t security; /**< Security type of the network. */
-        int8_t rssi;                /**< Signal strength (RSSI). */
-        uint8_t channel;            /**< Channel number. */
-    } bspWifiScanResult_t;
-
-    /**
-     * @brief Wi-Fi station information structure.
-     *
-     * Contains the MAC address of a connected Wi-Fi station.
-     */
-    typedef struct
-    {
-        uint8_t mac[BSP_WIFI_MAC_ADDR_MAX_LEN]; /**< MAC address of the station. */
-        uint8_t rssi;                           /**< rssi of stations */
-    } bspWifiStationInfo_t;
-
-    /**
-     * @brief Wi-Fi network profile structure.
-     *
-     * Stores a saved Wi-Fi network profile, including SSID, BSSID, password, and security type.
-     */
-    typedef struct
-    {
-        uint8_t ssid[BSP_WIFI_SSID_MAX_LEN]; /**< SSID of the network. */
-        uint8_t ssidLength;                  /**< Length of the SSID. */
-        uint8_t bssid[BSP_WIFI_MAC_ADDR_MAX_LEN]; /**< BSSID (MAC address) of the AP. */
-        uint8_t password[BSP_WIFI_PASSWORD_MAX_LEN]; /**< Password for the network. */
-        uint8_t passwordLength;     /**< Length of the password. */
-        bspWifiSecurity_t security; /**< Security type. */
-    } bspWifiNetworkProfile_t;
-
-
-    /** */
-    typedef struct
-    {
-        bspWifiNetworkParams_t staConfig; /**< Station side config */
-        bspWifiConfig_t apConfig;         /**< Access Point config */
-    } bspWifiApStaConfig_t;
-
 
     /**
      * @brief Wi-Fi IP address structure.
@@ -391,41 +274,16 @@ extern "C"
     } bspWifiIPConfig_t;
 
     /**
-     * @brief Wi-Fi connection information structure.
+     * @brief Wi-Fi station information structure.
      *
-     * Contains information about the current Wi-Fi connection.
+     * Contains the MAC address of a connected Wi-Fi station.
      */
     typedef struct
     {
-        uint8_t ssid[BSP_WIFI_SSID_MAX_LEN]; /**< SSID of the connected network. */
-        uint8_t ssidLength;                  /**< Length of the SSID. */
-        uint8_t bssid[BSP_WIFI_MAC_ADDR_MAX_LEN]; /**< BSSID (MAC address) of the AP. */
-        bspWifiSecurity_t security;               /**< Security type. */
-        uint8_t channel;                          /**< Channel number. */
-        bspWifiReason_t disconReason;             /**< Disconnected reason */
-    } bspWifiConnectionInfo_t;
-
-    /**
-     * @brief Wi-Fi statistics information structure.
-     *
-     * Provides statistics and counters for Wi-Fi transmission and reception.
-     */
-    typedef struct
-    {
-        uint32_t txSuccessCount; /**< Number of successful transmissions. */
-        uint32_t txRetryCount;   /**< Number of transmission retries. */
-        uint32_t txFailCount;    /**< Number of failed transmissions. */
-        uint32_t rxSuccessCount; /**< Number of successful receptions. */
-        uint32_t rxCRCErrorCount; /**< Number of CRC errors in received frames. */
-        uint32_t micErrorCount; /**< Number of MIC (Message Integrity Code) errors. */
-        int8_t noise;           /**< Noise level in dBm. */
-        uint16_t phyRate;       /**< Physical layer rate. */
-        uint16_t txRate;        /**< Transmission rate. */
-        uint16_t rxRate;        /**< Reception rate. */
-        int8_t rssi;            /**< Received Signal Strength Indicator. */
-        uint8_t bandwidth;   /**< Channel bandwidth. */
-        uint8_t idleTimePer; /**< Percentage of idle time. */
-    } bspWifitisticInfo_t;
+        uint8_t mac[BSP_WIFI_MAC_ADDR_MAX_LEN]; /**< MAC address of the station. */
+        uint8_t rssi;                           /**< rssi of stations */
+        bspWifiPhyMode_t phyMode;               /**< PHY mode of the station */
+    } bspWifiStationInfo_t;
 
 
     /**
@@ -442,430 +300,536 @@ extern "C"
         uint16_t supportedFeatures;   /**< Bitmask of supported features. */
     } bspWifiCapabilityInfo_t;
 
+    /**
+     * @brief Wi-Fi statistics (generic, cross-platform).
+     *
+     * Values may be partially populated depending on platform capability.
+     */
+    typedef struct
+    {
+        /* ---------- Packet counters ---------- */
+        uint32_t txPackets; /**< Total transmitted packets */
+        uint32_t rxPackets; /**< Total received packets */
+        uint32_t txErrors;  /**< Transmission errors */
+        uint32_t rxErrors;  /**< Reception errors */
+
+        /* ---------- Link quality ---------- */
+        int8_t rssi;  /**< RSSI in dBm (STA or average AP) */
+        int8_t noise; /**< Noise floor in dBm (if supported) */
+
+        /* ---------- Rates ---------- */
+        uint16_t txRateKbps; /**< Current TX rate (kbps) */
+        uint16_t rxRateKbps; /**< Current RX rate (kbps) */
+
+        /* ---------- AP specific ---------- */
+        uint8_t connectedStations; /**< Number of connected stations (AP mode) */
+
+        /* ---------- Validity ---------- */
+        uint32_t validMask; /**< Bitmask indicating which fields are valid */
+
+    } bspWifiStatistics_t;
+
+
+    /**
+     * @brief Wi-Fi network configuration / profile.
+     *
+     * This structure is used for:
+     *  - Connecting to a Wi-Fi network (STA mode)
+     *  - Storing network profiles in non-volatile memory
+     *
+     * The same structure is intentionally reused to avoid
+     * duplication and inconsistency between "connect" and "store" paths.
+     */
+    typedef struct
+    {
+        /* -------------------------------------------------
+         * Network identity
+         * ------------------------------------------------- */
+        uint8_t ssid[BSP_WIFI_SSID_MAX_LEN]; /**< SSID (binary, not null-terminated) */
+        uint8_t ssidLength;                  /**< Length of SSID */
+
+        uint8_t bssid[BSP_WIFI_MAC_ADDR_MAX_LEN]; /**< Optional BSSID (0 = ignore) */
+
+        /* -------------------------------------------------
+         * Security configuration
+         * ------------------------------------------------- */
+        bspWifiSecurity_t security; /**< Security type */
+
+        union
+        {
+            struct
+            {
+                uint8_t key[BSP_WIFI_PASSWORD_MAX_LEN];
+                uint8_t keyLength;
+                uint8_t keyIndex; /**< Default WEP key index */
+            } wep;
+
+            struct
+            {
+                uint8_t passphrase[BSP_WIFI_PASSWORD_MAX_LEN];
+                uint8_t length;
+            } wpa;
+
+        } credential;
+
+        /* -------------------------------------------------
+         * Optional connection hints
+         * ------------------------------------------------- */
+        uint8_t channel; /**< Preferred channel (0 = auto) */
+
+    } bspWifiNetworkConfig_t;
+
+
+    /**
+     * @brief Wi-Fi scan result structure.
+     *
+     * Holds information about a discovered Wi-Fi network during a scan.
+     */
+    typedef struct
+    {
+        uint8_t ssid[BSP_WIFI_SSID_MAX_LEN]; /**< SSID of the discovered network. */
+        uint8_t ssidLength;                  /**< Length of the SSID. */
+        uint8_t bssid[BSP_WIFI_MAC_ADDR_MAX_LEN]; /**< BSSID (MAC address) of the AP. */
+        bspWifiSecurity_t security; /**< Security type of the network. */
+        int8_t rssi;                /**< Signal strength (RSSI). */
+        uint8_t channel;            /**< Channel number. */
+        uint8_t num_result;         /**< Number of results. */
+    } bspWifiApScanResult_t;
+
+
+    /**
+     * @brief Wi-Fi configuration structure for AP
+     *
+     * This structure holds the configuration parameters required to initialize
+     * a Wi-Fi interface in either Access Point (AP)
+     */
+    typedef struct
+    {
+        uint8_t ssid[BSP_WIFI_SSID_MAX_LEN]; /**< SSID of the network. */
+        uint8_t ssidLength;                  /**< Length of the SSID. */
+        uint8_t password[BSP_WIFI_PASSWORD_MAX_LEN]; /**< Password of the network. */
+        uint8_t passwordLength;     /**< Length of the password. */
+        bspWifiSecurity_t security; /**< Security type (see bspWifiSecurity_t). */
+        uint8_t channel;            /**< Channel number (1-11 for 2.4GHz). */
+        uint8_t ssidHidden;     /**< SSID hidden: 0 = visible, 1 = hidden. */
+        uint8_t maxConnections; /**< Maximum connections for AP mode (1-4). */
+        uint8_t pmMode;    /**< Power management mode (see bspWifiPmMode_t). */
+        uint8_t bandwidth; /**< Channel bandwidth (see bspWifiBandwidth_t). */
+        uint8_t phyMode;   /**< PHY mode (see bspWifiPhyMode_t). */
+        uint32_t maxIdlePeriodSec; /** Maximum sec wifi keep idle */
+    } bspWifiApConfig_t;
+
+    /**
+     * @brief Wi-Fi Station (STA) configuration.
+     *
+     * Contains parameters required to connect to an external Access Point.
+     * Platform-specific tuning (PM, PHY, bandwidth) is handled internally.
+     */
+    typedef struct
+    {
+        uint8_t ssid[BSP_WIFI_SSID_MAX_LEN];         /**< Target AP SSID */
+        uint8_t ssidLength;                          /**< Length of SSID */
+
+        uint8_t password[BSP_WIFI_PASSWORD_MAX_LEN]; /**< WPA/WPA2/WPA3 passphrase */
+        uint8_t passwordLength;                      /**< Password length */
+
+        bspWifiSecurity_t security;                  /**< Security type */
+
+        uint8_t channel; /**< Optional: fixed channel (0 = auto) */
+
+    } bspWifiStaConfig_t;
+
+
+    /** */
+    typedef struct
+    {
+        bspWifiStaConfig_t staConfig; /**< Station side config */
+        bspWifiApConfig_t apConfig;   /**< Access Point config */
+    } bspWifiApStaConfig_t;
+
+
+    /**
+     * @brief Unified Wi-Fi connection information.
+     *
+     * Provides runtime status, link quality, IP configuration,
+     * and peer information for the active Wi-Fi connection.
+     *
+     * This structure is valid only when Wi-Fi is started.
+     * Some fields may be unsupported on certain platforms.
+     */
+    typedef struct
+    {
+        /* -------------------------------------------------
+         * Link identity
+         * ------------------------------------------------- */
+        uint8_t ssid[BSP_WIFI_SSID_MAX_LEN];      /**< Connected SSID */
+        uint8_t ssidLength;                       /**< SSID length */
+        uint8_t bssid[BSP_WIFI_MAC_ADDR_MAX_LEN]; /**< AP BSSID */
+
+        bspWifiSecurity_t security;               /**< Security type */
+        uint8_t channel;                          /**< Operating channel */
+
+        /* -------------------------------------------------
+         * Connection state
+         * ------------------------------------------------- */
+        uint8_t staConnected;                 /**< 1 = STA connected */
+        uint8_t apStarted;                    /**< 1 = AP running */
+        bspWifiReason_t lastDisconnectReason; /**< Last disconnect reason */
+
+        /* -------------------------------------------------
+         * Signal / link quality
+         * ------------------------------------------------- */
+        bspWifiBand_t band;       /**< Current band */
+        bspWifiPhyMode_t phyMode; /**< Current PHY mode */
+        int8_t rssi;              /**< RSSI in dBm */
+        int8_t noise;             /**< Noise floor (if available) */
+
+        /* -------------------------------------------------
+         * Traffic statistics (best-effort)
+         * ------------------------------------------------- */
+        uint32_t txPackets; /**< Transmitted packets */
+        uint32_t txErrors;  /**< TX failures */
+        uint32_t rxPackets; /**< Received packets */
+        uint32_t rxErrors;  /**< RX failures */
+
+        /* -------------------------------------------------
+         * IP configuration
+         * ------------------------------------------------- */
+        bspWifiIPConfig_t ip; /**< IP configuration */
+
+        /* -------------------------------------------------
+         * AP mode info (optional)
+         * ------------------------------------------------- */
+        uint8_t connectedStations; /**< Number of connected stations (AP mode) */
+
+    } bspWifiConnectionInfo_t;
+
+
+    /**
+     * @brief Wi-Fi event context delivered to application.
+     *
+     * Carries exactly one event and its associated data.
+     * Works for STA, AP, and AP+STA modes.
+     */
     typedef struct
     {
         bspWifiEvent_t tEventType;
+
         union
         {
-            bspWifiConnectionInfo_t tConnectionInfo;
-            bspWifiScanResult_t tScanResult;
-            bspWifiNetworkProfile_t tNetworkProfile;
-            bspWifiApStaConfig_t tApStaConfig;
-            bspWifiIPConfig_t tIPConfig;
-            bspWifiStationInfo_t tStationInfo;
+            bspWifiConnectionInfo_t tConnectionInfo; /**< STA connect / disconnect / IP */
+            bspWifiApScanResult_t tScanResult; /**< Scan result */
+            bspWifiStaConfig_t tStationCfg;    /**< STA started / configured */
+            bspWifiApConfig_t tApCfg;          /**< AP started / configured */
         } tEventData;
+
     } bspWifiContext_t;
 
 
     /**
-     * @brief  Wi-Fi event callback function type.
-     * @param[in] event The Wi-Fi event type (see bspWifiEvent_t).
-     * @param[in] data Pointer to event-specific data (may be NULL).
-     * @return None
-     */
-    typedef void (*bspWifiEventCallback_t)(bspWifiEvent_t event, void* data);
-
-
-    /**
-     * @brief Register a callback for Wi-Fi events.
-     * @param[in] event The Wi-Fi event type to register for (see bspWifiEvent_t).
-     * @param[in] callback Function pointer to event callback.
-     * @return ERR_STS_OK on success.
-     * @return ERR_STS_FAIL if registration fails.
-     * @return ERR_STS_INV_PARAM if callback is invalid.
-     */
-    errStatus_t bspWifiRegisterEventCallback(bspWifiEvent_t ptEvent, bspWifiEventCallback_t pCallback)
-
-
-    /**
-     * @brief Unregister the Wi-Fi event callback.
-     * @param[in] event The Wi-Fi event type to unregister (@see bspWifiEvent_t).
-     * @return ERR_STS_OK on success.
-     * @return ERR_STS_FAIL if unregistration fails.
-     */
-    errStatus_t bspWifiUnregisterEventCallback(bspWifiEvent_t ptEvent);
-
-    /**
-     * @brief Initialize and start the Wi-Fi interface in the specified mode.
+     * @brief Generic Wi-Fi handle (platform independent).
      *
-     * This function initializes the Wi-Fi hardware and stack, sets the desired
-     * Wi-Fi operation mode, and starts the interface. Depending on the selected
-     * mode, it may also start a SoftAP or prepare the station interface for
-     * connection.
+     * This structure owns Wi-Fi state and IPC objects.
+     * Platform-specific data is stored as opaque pointer.
+     */
+    typedef struct
+    {
+        /* ---------- Platform private context ---------- */
+        void* platform_ctx; /**< Platform-specific Wi-Fi context */
+
+        /* ---------- RTOS primitives (CMSIS only) ---------- */
+        osMutexId_t lock;         /**< Wi-Fi lock */
+        osMessageQueueId_t evt_q; /**< Event queue to application */
+
+        /* ---------- Runtime state ---------- */
+        uint8_t wifi_started;
+        uint8_t sta_connected;
+        uint8_t ap_started;
+        uint8_t auth_failed;
+        uint8_t scan_in_progress;
+
+        /* ---------- Connection info ---------- */
+        bspWifiContext_t wifi_context;
+
+    } bspWifiHandle_t;
+
+    /*
+     **********************************************************************
+     *     WIFI COMMON PUBLIC API
+     **********************************************************************
+     */
+    /**
+     * @brief Initialize the BSP Wi-Fi subsystem.
      *
-     * @param[in] mode   The desired Wi-Fi mode. Can be one of:
-     *                   - eWiFiModeStation       : Station mode (connects to an AP)
-     *                   - eWiFiModeAP            : Access Point mode
-     *                   - eWiFiModeP2P           : Peer-to-peer mode
-     *                   - eWiFiModeAPStation     : Simultaneous AP + Station mode
-     *                   - eWiFiModeNotSupported  : Unsupported mode
-     * @param[in] pvParam Optional pointer to configuration parameters depending
-     *                    on the mode:
-     *                    - For AP mode: pointer to `bspWifiConfig_t`
-     *                    - For Station mode: pointer to `bspWifiNetworkParams_t` (optional)
-     *                    - For other modes: can be NULL
+     * This function initializes the generic BSP Wi-Fi handle, creates required
+     * CMSIS-RTOS synchronization primitives (mutex and event queue), and initializes
+     * the underlying platform Wi-Fi layer.
      *
-     * @return ERR_STS_OK                Wi-Fi started successfully.
-     * @return ERR_STS_INIT_FAIL         Failed to initialize Wi-Fi hardware or stack.
-     * @return ERR_STS_INV_PARAM         Invalid mode or invalid parameter provided.
-     * @return ERR_STS_FAIL              Generic failure during start-up.
+     * This API is idempotent and must be called before any other Wi-Fi operation.
      *
-     * @note The function is blocking and returns only after the Wi-Fi interface
-     *       is initialized and ready. For asynchronous connection, use
-     *       bspWifiConnectToAp after starting in Station mode.
-     */
-    errStatus_t bspWifiOn(bspWifiMode_t mode, void* pvParam);
-
-
-    /**
-     * @brief Deinitialize and stop the Wi-Fi interface.
+     * @param[in,out] handle Pointer to BSP Wi-Fi handle.
      *
-     * This function stops the Wi-Fi interface, disables the Wi-Fi hardware,
-     * and releases any resources allocated by the Wi-Fi stack. After calling
-     * this function, the Wi-Fi module will no longer be operational until
-     * `bspWifiOn()` is called again.
+     * @return BSP_ERR_STS_OK           Initialization successful.
+     * @return BSP_ERR_STS_INVALID_PARAM Handle pointer is NULL.
+     * @return BSP_ERR_STS_NO_MEM       Failed to allocate required RTOS resources.
+     */
+    bsp_err_sts_t bspWifiInit(bspWifiHandle_t* handle);
+
+
+    /**
+     * @brief Deinitialize and shut down the BSP Wi-Fi subsystem.
      *
-     * @return ERR_STS_OK    Wi-Fi module successfully deinitialized and stopped.
-     * @return ERR_STS_FAIL  Failed to stop or deinitialize the Wi-Fi hardware/stack.
+     * Stops any running Wi-Fi interfaces, unregisters platform event handlers,
+     * deinitializes the Wi-Fi driver, destroys created network interfaces, and
+     * releases internal RTOS resources.
      *
-     * @note Any ongoing connections or network operations will be terminated.
-     */
-    errStatus_t bspWifiOff(void);
-
-
-    /**
-     * @brief Connect to a Wi-Fi Access Point.
-     * @param[in] params Pointer to network parameters.
-     * @return ERR_STS_OK on success.
-     * @return ERR_STS_CONN_FAIL if connection fails.
-     * @return ERR_STS_AUTH_FAIL if authentication fails.
-     * @return ERR_STS_TIMEOUT if connection times out.
-     * @return ERR_STS_INV_PARAM if parameters are invalid.
-     */
-    errStatus_t bspWifiConnectToAp(const bspWifiNetworkParams_t* const params);
-
-
-    /**
-     * @brief Disconnect from the currently connected Wi-Fi Access Point.
-     * @return ERR_STS_OK on success.
-     * @return ERR_STS_DISCONN_FAIL if disconnection fails.
-     * @return ERR_STS_FAIL for general failure.
-     */
-    errStatus_t bspWifiDisconnectToAp(void);
-
-
-    /**
-     * @brief Reset the Wi-Fi hardware and stack.
-     * @return ERR_STS_OK on success.
-     * @return ERR_STS_FAIL for general failure.
-     */
-    errStatus_t bspWifiReset(void);
-
-
-    /**
-     * @brief Set the Wi-Fi operation mode.
-     * @param[in] mode Desired Wi-Fi mode.
-     * @return ERR_STS_OK on success.
-     * @return ERR_STS_INV_PARAM if mode is invalid.
-     * @return ERR_STS_FAIL for general failure.
-     */
-    errStatus_t bspWifiSetMode(bspWifiMode_t mode);
-
-
-    /**
-     * @brief Get the current Wi-Fi operation mode.
-     * @param[out] mode Pointer to store the current mode.
-     * @return ERR_STS_OK on success.
-     * @return ERR_STS_FAIL for general failure.
-     */
-    errStatus_t bspWifiGetMode(bspWifiMode_t* mode);
-
-
-    /**
-     * @brief Add a Wi-Fi network profile to the saved list.
-     * @param[in] ptProfile Pointer to the network profile to add.
-     * @param[in] pu16Index Pointer to the new index added.
-     * @return ERR_STS_OK on success.
-     * @return ERR_STS_FAIL for general failure.
-     * @return ERR_STS_INV_PARAM if profile is invalid or list is full.
-     */
-    errStatus_t bspWifiAddNetworkProfile(const bspWifiNetworkProfile_t* const ptProfile,
-                                         uint16_t* pu16Index);
-
-
-    /**
-     * @brief Remove a Wi-Fi network profile by SSID.
-     * @param[in] ssid Pointer to SSID string.
-     * @param[in] ssidLength Length of the SSID.
-     * @return ERR_STS_OK on success.
-     * @return ERR_STS_FAIL if profile not found or removal fails.
-     * @return ERR_STS_INV_PARAM if parameters are invalid.
-     */
-    errStatus_t bspWifiRemoveNetworkProfile(const uint8_t* const ssid, uint8_t ssidLength);
-
-
-    /**
-     * @brief Clear all saved Wi-Fi network profiles.
-     * @return ERR_STS_OK on success.
-     * @return ERR_STS_FAIL for general failure.
-     */
-    errStatus_t bspWifiClearNetworkProfiles(void);
-
-
-    /**
-     * @brief Get a saved Wi-Fi network profile by SSID.
-     * @param[in] pu8SSID Pointer to SSID string.
-     * @param[in] u8SSIDLen Length of the SSID.
-     * @param[out] ptProfile Pointer to store the retrieved profile.
-     * @return ERR_STS_OK on success.
-     * @return ERR_STS_FAIL if profile not found.
-     * @return ERR_STS_INV_PARAM if parameters are invalid.
-     */
-    errStatus_t bspWifiGetNetworkProfiles(const uint8_t* const pu8SSID,
-                                          uint8_t u8SSIDLen,
-                                          bspWifiNetworkProfile_t* const ptProfile);
-    /**
-     * @brief Send ICMP ping(s) to a remote IP address.
-     * @param[in] pu8IpAddress IP address string.
-     * @param[in] u16Count Number of pings to send.
-     * @param[in] u16IntervalMs Interval between pings in ms.
-     * @param[in] u16TimeoutMs Timeout for each ping in ms.
-     * @param[out] pu16Received Pointer to store number of replies received.
-     * @return ERR_STS_OK on success.
-     * @return ERR_STS_TIMEOUT if ping times out.
-     * @return ERR_STS_FAIL for general failure.
-     * @return ERR_STS_INV_PARAM if parameters are invalid.
-     */
-    errStatus_t bspStaWifiPing(const uint8_t* const pu8IpAddress,
-                               uint16_t u16Count,
-                               uint16_t u16IntervalMs,
-                               uint16_t u16TimeoutMs,
-                               uint16_t* pu16Received);
-
-
-    /**
-     * @brief Get the MAC address of the Wi-Fi interface.
-     * @param[out] mac Pointer to buffer for MAC address.
-     * @param[out] length Pointer to store MAC address length.
-     * @return ERR_STS_OK on success.
-     * @return ERR_STS_FAIL for general failure.
-     */
-    errStatus_t bspWifiGetMacAddress(uint8_t* mac, uint8_t* length);
-
-
-    /**
-     * @brief Resolve a hostname to an IP address.
-     * @param[in] hostname Hostname string.
-     * @param[out] ipAddress Pointer to buffer for IP address.
-     * @param[out] length Pointer to store IP address length.
-     * @return ERR_STS_OK on success.
-     * @return ERR_STS_FAIL if resolution fails.
-     * @return ERR_STS_INV_PARAM if parameters are invalid.
-     */
-    errStatus_t bspWifiGetHostIPAddress(const uint8_t* const pu8Hostname,
-                                        uint8_t* pu8IpAddress,
-                                        uint8_t* pu8Length);
-
-
-    /**
-     * @brief Start the Wi-Fi Access Point with the given configuration.
-     * @param[in] config Pointer to AP configuration structure.
-     * @return ERR_STS_OK on success.
-     * @return ERR_STS_FAIL for general failure.
-     * @return ERR_STS_INV_PARAM if configuration is invalid.
-     */
-    errStatus_t bspWifiStartAP(const bspWifiConfig_t* const ptConfig);
-
-
-    /**
-     * @brief Stop the Wi-Fi Access Point.
-     * @return ERR_STS_OK on success.
-     * @return ERR_STS_FAIL for general failure.
-     */
-    errStatus_t bspWifiStopAp(void);
-
-    /**
-     * @brief Check if the device is connected to a Wi-Fi network.
-     * @param[in] params Pointer to network parameters to check.
-     * @param[out] isConnected Pointer to store connection status (1 = connected, 0 = not connected).
-     * @return ERR_STS_OK on success.
-     * @return ERR_STS_FAIL for general failure.
-     * @return ERR_STS_INV_PARAM if parameters are invalid.
-     */
-    errStatus_t bspWifiIsConnected(const bspWifiNetworkParams_t* const ptNetwork,
-                                   uint8_t* u8IsConnected);
-
-    /**
-     * @brief Set the Wi-Fi power management mode.
-     * @param[in] pmMode Power management mode to set.
-     * @return ERR_STS_OK on success.
-     * @return ERR_STS_INV_PARAM if mode is invalid.
-     * @return ERR_STS_FAIL for general failure.
-     */
-    errStatus_t bspWifiSetPMMode(bspWifiPmMode_t pmMode);
-
-    /**
-     * @brief Get the current Wi-Fi power management mode.
-     * @param[out] pmMode Pointer to store the current mode.
-     * @return ERR_STS_OK on success.
-     * @return ERR_STS_FAIL for general failure.
-     */
-    errStatus_t bspWifiGetPMMode(bspWifiPmMode_t* pmMode);
-
-    /**
-     * @brief Start scanning for Wi-Fi networks with the given configuration.
-     * @param[in] config Pointer to scan configuration structure.
-     * @return ERR_STS_OK on success.
-     * @return ERR_STS_FAIL for general failure.
-     * @return ERR_STS_INV_PARAM if configuration is invalid.
-     */
-    errStatus_t bspWifiStartScan(const bspWifiScanResult_t* const ptScanResult,
-                                 bspWifiScanConfig_t* const ptScanConfig,
-                                 uint16_t* pu16NumNetworks, uint16_t pu16MaxNumNetworks);
-
-
-    /**
-     * @brief Get the list of connected stations (clients) when in AP mode.
+     * After this call, the handle becomes invalid until bspWifiInit() is called again.
      *
-     * @param[out] ptStations      Pointer to array where station info will be written.
-     * @param[in,out] pu8NumStations
-     *      - Input: pointer holding the maximum number of stations to fetch (array capacity).
-     *      - Output: actual number of stations copied.
-     * @param[in]  u8MaxStations   Maximum stations that can be returned in ptStations.
+     * @param[in,out] handle Pointer to BSP Wi-Fi handle.
      *
-     * @return ERR_STS_OK                  On success
-     * @return ERR_STS_INV_PARAM           If any pointer is NULL
-     * @return ERR_STS_NOT_READY           If WiFi/AP is not running
-     * @return ERR_STS_NO_MEM              If output buffer is too small
-     * @return ERR_STS_UNSUPPORTED_FEATURE If AP mode is not supported in BSP
+     * @return BSP_ERR_STS_OK            Deinitialization successful.
+     * @return BSP_ERR_STS_INVALID_PARAM Handle or platform context is NULL.
      */
-    errStatus_t bspWifiGetConnectedStations(bspWifiStationInfo_t* stations,
-                                            uint8_t* numStations,
-                                            uint8_t maxStations);
-
+    bsp_err_sts_t bspWifiDeInit(bspWifiHandle_t* handle);
 
     /**
-     * @brief Clear the list of connected stations (AP mode).
-     * @return ERR_STS_OK on success.
-     * @return ERR_STS_FAIL for general failure.
-     */
-    errStatus_t bspWifiClearConnectedStations(void);
-
-    // TODO:
-    /**
-     * @brief Start connecting to a Wi-Fi Access Point asynchronously.
-     * @param[in] params Pointer to network parameters.
-     * @return ERR_STS_OK on success.
-     * @return ERR_STS_CONN_FAIL if connection fails.
-     * @return ERR_STS_AUTH_FAIL if authentication fails.
-     * @return ERR_STS_TIMEOUT if connection times out.
-     * @return ERR_STS_INV_PARAM if parameters are invalid.
-     */
-    errStatus_t bspWifirtConnectAP(const bspWifiNetworkParams_t* const params);
-
-    // TODO:
-    /**
-     * @brief Stop the asynchronous connection attempt to a Wi-Fi AP.
-     * @return ERR_STS_OK on success.
-     * @return ERR_STS_FAIL for general failure.
-     */
-    errStatus_t bspWifiStopConnectAP(void);
-
-    // TODO:
-    /**
-     * @brief Get information about the current Wi-Fi connection.
-     * @param[out] info Pointer to store connection info.
-     * @return ERR_STS_OK on success.
-     * @return ERR_STS_FAIL for general failure.
-     */
-    errStatus_t bspWifiGetConnectionInfo(bspWifiConnectionInfo_t* info);
-
-    // TODO:
-    /**
-     * @brief Get the current IP configuration (legacy, use bspWifiGetIPConfig).
-     * @param[out] info Pointer to store IP configuration.
-     * @return ERR_STS_OK on success.
-     * @return ERR_STS_FAIL for general failure.
-     */
-    errStatus_t bspWifiGetIPInfo(bspWifiConfig_t* info);
-
-    // TODO:
-    /**
-     * @brief Set the static IP configuration for the Wi-Fi interface.
-     * @param[in] ipConfig Pointer to IP configuration structure.
-     * @return ERR_STS_OK on success.
-     * @return ERR_STS_INV_PARAM if configuration is invalid.
-     * @return ERR_STS_FAIL for general failure.
-     */
-    errStatus_t bspWifiSetIPConfig(const bspWifiIPConfig_t* const ipConfig);
-
-    /**
-     * @brief Get the current RSSI (signal strength).
+     * @brief Start Wi-Fi operation in the specified mode.
      *
-     * Reads the received signal strength of the connected AP.
-     * Valid only when STA is connected to an Access Point.
+     * Initializes Wi-Fi if not already initialized, configures the requested
+     * Wi-Fi mode, and starts the appropriate interfaces (STA, AP, or both).
      *
-     * @param[out] pi8RSSI Pointer to store RSSI value.
-     * @return ERR_STS_OK   Successfully retrieved RSSI.
-     * @return ERR_STS_FAIL Wi-Fi not connected or query failed.
-     * @return ERR_STS_INV_PARAM If output pointer is NULL.
+     * @param[in,out] handle BSP Wi-Fi handle.
+     * @param[in]     mode   Wi-Fi operation mode.
+     * @param[in]     pvParam Mode-specific configuration:
+     *                        - STA      → bspWifiStaConfig_t
+     *                        - AP       → bspWifiApConfig_t
+     *                        - AP+STA   → bspWifiApStaConfig_t
+     *
+     * @return BSP_ERR_STS_OK             Wi-Fi started successfully.
+     * @return BSP_ERR_STS_INVALID_PARAM  Invalid parameters.
+     * @return BSP_ERR_STS_UNSUPPORTED    Mode not supported.
+     * @return BSP_ERR_STS_FAIL           Platform failure.
      */
-    errStatus_t bspWifiGetRSSI(int8_t* pi8RSSI);
+    bsp_err_sts_t bspWifiOn(bspWifiHandle_t* handle, bspWifiMode_t mode, void* pvParam);
 
 
     /**
-     * @brief Get the current Wi-Fi channel.
-     * @param[out] channel Pointer to store channel number.
-     * @return ERR_STS_OK on success.
-     * @return ERR_STS_FAIL for general failure.
+     * @brief Stop and deinitialize Wi-Fi.
+     *
+     * Gracefully shuts down all Wi-Fi interfaces and releases resources.
+     *
+     * @param[in,out] handle BSP Wi-Fi handle.
+     *
+     * @return BSP_ERR_STS_OK            Wi-Fi stopped successfully.
+     * @return BSP_ERR_STS_INVALID_PARAM Handle is NULL.
      */
-    errStatus_t bspWifiGetChannel(uint8_t* pu8Channel);
+    bsp_err_sts_t bspWifiOff(bspWifiHandle_t* handle);
+
+
+    /*
+     **********************************************************************
+     *     WIFI STATION PUBLIC API
+     **********************************************************************
+     */
 
 
     /**
-     * @brief Get the MAC address of the Wi-Fi interface.
-     * @param[out] mac Pointer to buffer for MAC address.
-     * @return ERR_STS_OK on success.
-     * @return ERR_STS_FAIL for general failure.
+     * @brief Connect STA interface to an Access Point.
+     *
+     * Initiates a station connection using the configuration stored in the
+     * handle. Connection progress and result are signaled via internal event
+     * flags and application event queue.
+     *
+     * @param[in,out] handle BSP Wi-Fi handle.
+     *
+     * @return BSP_ERR_STS_OK             Connection initiated successfully.
+     * @return BSP_ERR_STS_INVALID_PARAM  Invalid handle.
+     * @return BSP_ERR_STS_INVALID_STATE  Wi-Fi not initialized.
+     * @return BSP_ERR_STS_FAIL           Platform error.
      */
-    errStatus_t bspWifiGetMAC(uint8_t* pu8MAC);
+    bsp_err_sts_t bspWifiConnectToAp(bspWifiHandle_t* handle);
 
     /**
-     * @brief Get the current Wi-Fi country code.
-     * @param[out] countryCode Pointer to buffer for country code string.
-     * @return ERR_STS_OK on success.
-     * @return ERR_STS_FAIL for general failure.
+     * @brief Disconnect STA interface from the connected Access Point.
+     *
+     * Requests the platform to disconnect the STA interface and waits for
+     * confirmation via internal event flags.
+     *
+     * @param[in,out] handle BSP Wi-Fi handle.
+     *
+     * @return BSP_ERR_STS_OK             Successfully disconnected.
+     * @return BSP_ERR_STS_INVALID_PARAM  Invalid handle.
+     * @return BSP_ERR_STS_TIMEOUT        Disconnect confirmation timeout.
      */
-    errStatus_t bspWifiGetCountryCode(uint8_t* pu8CountryCode);
-
-
-    /**
-     * @brief Set the Wi-Fi country code.
-     * @param[in] countryCode Pointer to country code string.
-     * @return ERR_STS_OK on success.
-     * @return ERR_STS_INV_PARAM if code is invalid.
-     * @return ERR_STS_FAIL for general failure.
-     */
-    errStatus_t bspWifiSetCountryCode(const uint8_t* pu8CountryCode);
-
-
-    /**
-     * @brief Get Wi-Fi statistics information.
-     * @param[out] stats Pointer to statistics info structure.
-     * @return ERR_STS_OK on success.
-     * @return ERR_STS_FAIL for general failure.
-     */
-    errStatus_t bspWifiGetStatistics(bspWifitisticInfo_t* ptStatisticInfo);
+    bsp_err_sts_t bspWifiDisconnectToAp(bspWifiHandle_t* handle);
 
 
     /**
-     * @brief Get Wi-Fi hardware and feature capability information.
-     * @param[out] capInfo Pointer to capability info structure.
-     * @return ERR_STS_OK on success.
-     * @return ERR_STS_FAIL for general failure.
+     * @brief Get list of stations connected to the Access Point.
+     *
+     * Retrieves information about stations currently associated with the AP.
+     *
+     * @param[in,out] handle       BSP Wi-Fi handle.
+     * @param[out]    stations     Output array for station info.
+     * @param[out]    numStations  Number of stations returned.
+     * @param[in]     maxStations  Maximum number of stations to return.
+     *
+     * @return BSP_ERR_STS_OK             Success.
+     * @return BSP_ERR_STS_NOT_READY      AP not running.
+     * @return BSP_ERR_STS_INVALID_PARAM  Invalid arguments.
      */
-    errStatus_t bspWifiGetCapabilityInfo(bspWifiCapabilityInfo_t* ptCapInfo);
+    bsp_err_sts_t bspWifiGetConnStations(bspWifiHandle_t* handle,
+                                         bspWifiStationInfo_t* stations,
+                                         uint8_t* numStations,
+                                         uint8_t maxStations);
 
+
+    /**
+     * @brief Disconnect a specific station from the Access Point.
+     *
+     * Forces deauthentication of a connected station identified by MAC address.
+     *
+     * @param[in,out] handle BSP Wi-Fi handle.
+     * @param[in]     mac    MAC address of the station.
+     *
+     * @return BSP_ERR_STS_OK             Station disconnected.
+     * @return BSP_ERR_STS_INVALID_STATE  AP not running.
+     * @return BSP_ERR_STS_INVALID_PARAM  Invalid parameters.
+     */
+    bsp_err_sts_t bspWifiDisconnectStation(bspWifiHandle_t* handle,
+                                           const uint8_t mac[BSP_WIFI_MAC_ADDR_MAX_LEN]);
+
+
+    /**
+     * @brief Store STA profile persistently.
+     *
+     * Saves station configuration to non-volatile storage using
+     * platform-specific mechanisms.
+     *
+     * @param[in,out] handle  BSP Wi-Fi handle.
+     * @param[in]     station STA configuration to store.
+     *
+     * @return BSP_ERR_STS_OK             Profile stored successfully.
+     * @return BSP_ERR_STS_INVALID_PARAM  Invalid arguments.
+     * @return BSP_ERR_STS_FAIL           Storage failure.
+     */
+    bsp_err_sts_t bspWifiStoreStationProfile(bspWifiHandle_t* handle,
+                                             bspWifiStaConfig_t* station);
+
+
+    /**
+     * @brief Retrieve stored STA profile by index.
+     *
+     * @param[in,out] handle  BSP Wi-Fi handle.
+     * @param[in]     index   Profile index.
+     * @param[out]    sta_cfg Output STA configuration.
+     *
+     * @return BSP_ERR_STS_OK             Profile retrieved.
+     * @return BSP_ERR_STS_INVALID_PARAM  Invalid arguments.
+     * @return BSP_ERR_STS_FAIL           Profile not found.
+     */
+    bsp_err_sts_t bspWifiGetStationProfile(bspWifiHandle_t* handle,
+                                           uint8_t index,
+                                           bspWifiStaConfig_t* sta_cfg);
+
+    /**
+     * @brief Remove stored STA profile by SSID.
+     *
+     * @param[in,out] handle   BSP Wi-Fi handle.
+     * @param[in]     ssid     SSID of profile to remove.
+     * @param[in]     ssid_len Length of SSID.
+     *
+     * @return BSP_ERR_STS_OK             Profile removed.
+     * @return BSP_ERR_STS_INVALID_PARAM  Invalid arguments.
+     * @return BSP_ERR_STS_FAIL           Removal failed.
+     */
+    bsp_err_sts_t bspWifiRemoveStationProfile(bspWifiHandle_t* handle,
+                                              const uint8_t* ssid,
+                                              uint8_t ssid_len);
+
+
+    /*
+     **********************************************************************
+     *     WIFI AP PUBLIC API
+     **********************************************************************
+     */
+    /**
+     * @brief Start Wi-Fi Access Point.
+     *
+     * Configures and starts the AP interface using the supplied configuration.
+     *
+     * @param[in,out] handle BSP Wi-Fi handle.
+     * @param[in]     apCfg  Access Point configuration.
+     *
+     * @return BSP_ERR_STS_OK             AP started successfully.
+     * @return BSP_ERR_STS_INVALID_PARAM  Invalid parameters.
+     * @return BSP_ERR_STS_FAIL           Platform failure.
+     */
+    bsp_err_sts_t bspWifiStartAP(bspWifiHandle_t* handle, const bspWifiApConfig_t* apCfg);
+
+    /**
+     * @brief Stop Wi-Fi Access Point.
+     *
+     * Stops the running AP interface.
+     *
+     * @param[in,out] handle BSP Wi-Fi handle.
+     *
+     * @return BSP_ERR_STS_OK             AP stopped successfully.
+     * @return BSP_ERR_STS_INVALID_PARAM  Invalid handle.
+     */
+    bsp_err_sts_t bspWifiStopAP(bspWifiHandle_t* handle);
+
+
+    /**
+     * @brief Get current Access Point configuration.
+     *
+     * @param[in,out] handle BSP Wi-Fi handle.
+     * @param[out]    apCfg  Output AP configuration.
+     *
+     * @return BSP_ERR_STS_OK             Success.
+     * @return BSP_ERR_STS_NOT_RUNNING    AP not active.
+     * @return BSP_ERR_STS_INVALID_PARAM  Invalid arguments.
+     */
+    bsp_err_sts_t bspWifiGetAPConfig(bspWifiHandle_t* handle, bspWifiApConfig_t* apCfg);
+
+
+    /**
+     * @brief Get Access Point runtime statistics.
+     *
+     * Retrieves traffic and radio statistics for the running AP.
+     *
+     * @param[in,out] handle BSP Wi-Fi handle.
+     * @param[out]    stats  Output statistics structure.
+     *
+     * @return BSP_ERR_STS_OK             Success.
+     * @return BSP_ERR_STS_NOT_RUNNING    AP not active.
+     * @return BSP_ERR_STS_INVALID_PARAM  Invalid arguments.
+     */
+    bsp_err_sts_t bspWifiGetAPStatistics(bspWifiHandle_t* handle, bspWifiStatistics_t* stats);
+
+
+    /*
+     **********************************************************************
+     *     WIFI SCAN PUBLIC API
+     **********************************************************************
+     */
+    /**
+     * @brief Start Wi-Fi scan (STA mode).
+     *
+     * Scan results are delivered asynchronously to the application
+     * via the Wi-Fi event queue.
+     *
+     * @param[in,out] handle BSP Wi-Fi handle.
+     * @param[out]    results  Output scan results.
+     * @param[in]     max_results  Maximum number of results to return.
+     *
+     * @return BSP_ERR_STS_OK             Scan started.
+     * @return BSP_ERR_STS_BUSY           Scan already in progress.
+     * @return BSP_ERR_STS_INVALID_STATE  Wi-Fi not started.
+     */
+    bsp_err_sts_t bspWifiStartScan(bspWifiHandle_t* handle,
+                                   bspWifiApScanResult_t* results,
+                                   uint8_t max_results);
 
 #ifdef __cplusplus
 }

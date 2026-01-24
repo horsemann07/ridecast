@@ -1,0 +1,1851 @@
+/**
+ * @file bsp_wifi.c
+ * @brief Board Support Package (BSP) for WiFi functionality.
+ *
+ * This file provides the implementation of WiFi-related functions and interfaces
+ * for the board support package. It abstracts the hardware-specific details of
+ * WiFi operations, enabling higher-level application code to interact with WiFi
+ * hardware in a platform-independent manner.
+ *
+ * The functionalities typically include initialization, configuration, connection
+ * management, and data transmission for WiFi modules supported by the board.
+ */
+
+#define ESP_BOARD_LWIP
+#define ESP_BOARD_LOGGING
+
+// Include necessary headers
+#include <string.h>
+
+// Include the corresponding header file for WiFi BSP
+#include "bsp_wifi.h"
+
+/* ESP-IDF lwip */
+#include "esp_netif.h"
+#include "lwip/netif.h"
+#include "lwip/dns.h"
+#include "lwip/icmp6.h"
+#include "lwip/ip6.h"
+
+/* ESP-IDF */
+#include "esp_wifi.h"
+#include "esp_event.h"
+#include "esp_smartconfig.h"
+#include "freertos/FreeRTOSConfig.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/event_groups.h"
+#include "esp_netif_ip_addr.h"
+#include "nvs_flash.h"
+#include "nvs.h"
+#include "esp_log.h"
+
+#include "cmsis_os2.h"
+
+
+#define WIFI_LOGI(fmt, ...) ESP_LOGI(__FILENAME__, fmt, ##__VA_ARGS__)
+#define WIFI_LOGW(fmt, ...) ESP_LOGW(__FILENAME__, fmt, ##__VA_ARGS__)
+#define WIFI_LOGE(fmt, ...) ESP_LOGE(__FILENAME__, fmt, ##__VA_ARGS__)
+#define WIFI_LOGD(fmt, ...) ESP_LOGD(__FILENAME__, fmt, ##__VA_ARGS__)
+
+#define BSP_WIFI_EVENT_QUEUE_LEN 10
+/**
+ * @brief
+ *
+ */
+#define WIFI_SET_BIT(bit)            (1U << (bit))
+#define WIFI_CLEAR_BIT(bit)          (~(1U << (bit)))
+
+#define CHECK_VALID_WIFI_SSID_LEN(x) ((x) > 0 && (x) <= BSP_WIFI_SSID_MAX_LEN)
+#define CHECK_VALID_PASSPHRASE_LEN(x) \
+    ((x) > 0 && (x) <= BSP_WIFI_PASSWORD_MAX_LEN)
+#define CHECK_IP_ADDR_LEN(x) ((x) > 0 && (x) <= BSP_WIFI_IP_ADDR_MAX_LEN)
+#define CHECK_VALID_IP_ADDR(x)                                   \
+    if(x[0] == 0 && x[1] == 0 && x[2] == 0 && x[3] == 0)         \
+        return false;                                            \
+    if(x[0] == 255 && x[1] == 255 && x[2] == 255 && x[3] == 255) \
+        return false;
+
+// Event group to signal Wi-Fi state changes
+static osEventFlagsId_t s_osWifiEventHandlerGrp = NULL;
+
+static const osEventFlagsAttr_t s_osEventGroupAttrs = { .name =
+                                                        "WiFiEventGroup",
+                                                        .attr_bits = 0,
+                                                        .cb_mem    = NULL,
+                                                        .cb_size   = 0 };
+// Wi-Fi event bits (unique bit positions)
+const uint32_t WIFI_CONNECTED_BIT    = WIFI_SET_BIT(0); // Station connected
+const uint32_t WIFI_DISCONNECTED_BIT = WIFI_SET_BIT(1); // Station disconnected
+const uint32_t WIFI_STARTED_BIT      = WIFI_SET_BIT(2); // Station started
+const uint32_t WIFI_STOPPED_BIT      = WIFI_SET_BIT(3); // Station stopped
+const uint32_t WIFI_AP_STARTED_BIT   = WIFI_SET_BIT(4); // AP started
+const uint32_t WIFI_AP_STOPPED_BIT   = WIFI_SET_BIT(5); // AP stopped
+const uint32_t ESPTOUCH_DONE_BIT     = WIFI_SET_BIT(6); // SmartConfig done
+
+// Wi-Fi state flags
+static bool bWifiConnState = false;
+static bool bWifiAPState   = false;
+static bool bWifiAuthFail  = false;
+static bool bWifiStarted   = false;
+
+
+// Network interface handles
+#ifdef ESP_BOARD_LWIP
+static esp_netif_t* esp_sta_netif_info    = NULL;
+static esp_netif_t* esp_softap_netif_info = NULL;
+#else
+static struct netif* sta_netif    = NULL; // Station (Wi-Fi client)
+static struct netif* softap_netif = NULL; // Access Point
+#endif // ESP_BOARD_LWIP
+
+// Wi-Fi NVS (flash) namespace and configuration limits
+#define WIFI_FLASH_NS         "BspWiFi"
+#define MAX_WIFI_KEY_WIDTH    (5)
+#define MAX_SECURITY_MODE_LEN (1)
+#define MAX_AP_CONNECTIONS    (4)
+
+typedef struct StorageRegistry
+{
+    uint16_t usNumNetworks;
+    uint16_t usNextStorageIdx;
+    uint16_t usStorageIdx[bspCONFIG_WIFI_MAX_SAVED_NETWORKS];
+} StorageRegistry_t;
+
+static bool bIsRegistryInit        = false;
+static StorageRegistry_t xRegistry = { 0 };
+static bspWifiNetworkParams_t xConnectedAP;
+
+/**
+ * @brief Semaphore for WiFI module.
+ */
+static osSemaphoreId_t s_osWiFiMSem = NULL;
+
+static const osMutexAttr_t s_osWiFiMSemAttrs = { .name      = "WiFiMutex",
+                                                 .attr_bits = 0,
+                                                 .cb_mem    = NULL,
+                                                 .cb_size   = 0 };
+
+/**
+ * @brief Maximum time to wait in ticks for obtaining the WiFi semaphore
+ * before failing the operation.
+ */
+static const uint32_t uMSemaWaitTicks = pdMS_TO_TICKS(BSP_WIFI_MAX_SEMAPHORE_WAIT_TIME_MS);
+
+/**
+ * @brief Array of registered Wi-Fi event handlers.
+ *
+ */
+static bspWifiEventCallback_t tWifiEventHandlers[eBSPWifiEventMax] = { 0 };
+
+/* ESP event loop state */
+static bool s_eventLoopInited = false;
+
+/* ESP event handler instances */
+static esp_event_handler_instance_t s_wifiAnyIdHandler = NULL;
+static esp_event_handler_instance_t s_wifiGotIpHandler = NULL;
+
+
+/**
+ * @brief Acquire NAL handle mutex (if valid).
+ *
+ * Used by NAL core to protect per-handle state.
+ */
+#define WIFI_LOCK()                                                   \
+    do                                                                \
+    {                                                                 \
+        if(s_osWiFiMSem)                                              \
+        {                                                             \
+            if(osMutexAcquire(s_osWiFiMSem, uMSemaWaitTicks) != osOK) \
+            {                                                         \
+                WIFI_LOGE("Failed to acquire WiFi semaphore");        \
+                return BSP_ERR_STS_TIMEOUT;                           \
+            }                                                         \
+        }                                                             \
+    } while(0)
+
+/**
+ * @brief Release NAL handle mutex (if valid).
+ */
+#define WIFI_UNLOCK()                     \
+    do                                    \
+    {                                     \
+        if(s_osWiFiMSem)                  \
+        {                                 \
+            osMutexRelease(s_osWiFiMSem); \
+        }                                 \
+    } while(0)
+
+
+/**
+ * @brief Function to set a memory block to zero.
+ * The function sets memory to zero using a volatile pointer so that compiler
+ * wont optimize out the function if the buffer to be set to zero is not used further.
+ *
+ * @param pBuf Pointer to buffer to be set to zero
+ * @param size Length of the buffer to be set zero
+ */
+static void vSetMemzero(void* pBuf, size_t size)
+{
+    volatile uint8_t* pMem = pBuf;
+    uint32_t i;
+
+    for(i = 0U; i < size; i++)
+    {
+        pMem[i] = 0U;
+    }
+    return;
+}
+
+/**
+ * @brief Internal function to invoke registered Wi-Fi event callbacks.
+ *
+ * This function checks if a callback is registered for the given event type
+ * and invokes it with the provided data.
+ *
+ * @param event The Wi-Fi event type (see bspWifiEvent_t).
+ * @param data Pointer to event-specific data (may be NULL).
+ */
+static void prvInvokeEventCallback(bspWifiEvent_t event, void* data)
+{
+    if(event < eBSPWifiEventMax)
+    {
+        if(tWifiEventHandlers[event] != NULL)
+        {
+            tWifiEventHandlers[event](event, data);
+        }
+    }
+    return;
+}
+
+
+/* ---------------------------------------------------------------------------*/
+static bspWifiReason_t convertReasonCode(uint8_t u8ReasonCode)
+{
+    bspWifiReason_t retCode;
+    switch(u8ReasonCode)
+    {
+        case WIFI_REASON_AUTH_EXPIRE:
+            retCode = eBSPWifiReasonAuthExpired;
+            break;
+        case WIFI_REASON_ASSOC_EXPIRE:
+            retCode = eBSPWifiReasonAssocExpired;
+            break;
+        case WIFI_REASON_AUTH_LEAVE:
+            retCode = eBSPWifiReasonAuthLeaveBSS;
+            break;
+        case WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT:
+            retCode = eBSPWifiReason4WayTimeout;
+            break;
+        case WIFI_REASON_BEACON_TIMEOUT:
+            retCode = eBSPWifiReasonBeaconTimeout;
+            break;
+        case WIFI_REASON_AUTH_FAIL:
+            retCode = eBSPWifiReasonAuthFailed;
+            break;
+        case WIFI_REASON_ASSOC_FAIL:
+            retCode = eBSPWifiReasonAssocFailed;
+            break;
+        case WIFI_REASON_NO_AP_FOUND:
+            retCode = eBSPWifiReasonAPNotFound;
+            break;
+        default:
+            retCode = eBSPWifiReasonUnspecified;
+            break;
+    }
+    return retCode;
+}
+
+
+/* ---------------------------------------------------------------------------*/
+
+static void
+cbWifiEventHandler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
+{
+    /* For accessing reason codes in case of disconnection */
+    EventBits_t wifiEventBit = 0;
+    bspWifiContext_t wifiEventData;
+
+    if(event_base == WIFI_EVENT)
+    {
+        switch(event_id)
+        {
+            case WIFI_EVENT_STA_START:
+                WIFI_LOGI("WIFI_EVENT_STA_START");
+                osEventFlagsClear(s_osWifiEventHandlerGrp, WIFI_STOPPED_BIT);
+                osEventFlagsSet(s_osWifiEventHandlerGrp, WIFI_STARTED_BIT);
+                break;
+            case WIFI_EVENT_STA_STOP:
+                WIFI_LOGI("WIFI_EVENT_STA_STOP");
+                osEventFlagsClear(s_osWifiEventHandlerGrp, WIFI_STARTED_BIT);
+                osEventFlagsSet(s_osWifiEventHandlerGrp, WIFI_STOPPED_BIT);
+                break;
+            case WIFI_EVENT_STA_CONNECTED:
+                WIFI_LOGI("WIFI_EVENT_STA_CONNECTED");
+                break;
+            case WIFI_EVENT_STA_DISCONNECTED:
+                wifi_event_sta_disconnected_t* disconn =
+                (wifi_event_sta_disconnected_t*)event_data;
+                WIFI_LOGW("Disconnected from AP, reason: %d", disconn->reason);
+                bWifiConnState = false;
+                bWifiAuthFail  = false;
+
+                /* Set code corresponding to the reason for disconnection */
+                switch(disconn->reason)
+                {
+                    case WIFI_REASON_AUTH_EXPIRE:
+                    case WIFI_REASON_ASSOC_EXPIRE:
+                    case WIFI_REASON_AUTH_LEAVE:
+                    case WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT:
+                    case WIFI_REASON_BEACON_TIMEOUT:
+                    case WIFI_REASON_AUTH_FAIL:
+                    case WIFI_REASON_ASSOC_FAIL:
+                    case WIFI_REASON_HANDSHAKE_TIMEOUT:
+                        WIFI_LOGI("STA Auth Error");
+                        bWifiAuthFail = true;
+                        break;
+                    case WIFI_REASON_NO_AP_FOUND:
+                        WIFI_LOGI("STA AP Not found");
+                        bWifiAuthFail = true;
+                        break;
+                    default:
+                        break;
+                }
+
+                bWifiConnState = false;
+                osEventFlagsClear(s_osWifiEventHandlerGrp, WIFI_CONNECTED_BIT);
+                osEventFlagsSet(s_osWifiEventHandlerGrp, WIFI_DISCONNECTED_BIT);
+                if(tWifiEventHandlers[eBSPWifiEventSTADisconnected] != NULL)
+                {
+                    wifiEventData.tEventType = eBSPWifiEventSTADisconnected;
+                    wifiEventData.tEventData.tConnectionInfo.disconReason =
+                    convertReasonCode(disconn->reason);
+                    tWifiEventHandlers[eBSPWifiEventSTADisconnected](&wifiEventData);
+                }
+                break;
+            case WIFI_EVENT_AP_START:
+                WIFI_LOGI("WIFI_EVENT_AP_START");
+                bWifiStarted = true;
+                osEventFlagsClear(s_osWifiEventHandlerGrp, WIFI_AP_STOPPED_BIT);
+                osEventFlagsSet(s_osWifiEventHandlerGrp, WIFI_AP_STARTED_BIT);
+                break;
+            case WIFI_EVENT_AP_STOP:
+                WIFI_LOGI("WIFI_EVENT_AP_STOP");
+                bWifiStarted = false;
+                osEventFlagsClear(s_osWifiEventHandlerGrp, WIFI_AP_STARTED_BIT);
+                osEventFlagsSet(s_osWifiEventHandlerGrp, WIFI_AP_STOPPED_BIT);
+                break;
+            case WIFI_EVENT_AP_STACONNECTED:
+                WIFI_LOGI("WIFI_EVENT_AP_STACONNECTED");
+                break;
+            case WIFI_EVENT_AP_STADISCONNECTED:
+                WIFI_LOGI("WIFI_EVENT_AP_STADISCONNECTED");
+                break;
+            default:
+                break;
+        }
+    }
+    else if(event_base == IP_EVENT)
+    {
+        switch(event_id)
+        {
+            case IP_EVENT_STA_GOT_IP:
+                WIFI_LOGI("SYSTEM_EVENT_STA_GOT_IP");
+                bWifiConnState = true;
+                osEventFlagsClear(s_osWifiEventHandlerGrp, WIFI_DISCONNECTED_BIT);
+                osEventFlagsSet(s_osWifiEventHandlerGrp, WIFI_CONNECTED_BIT);
+                ip_event_got_ip_t* event = (ip_event_got_ip_t*)event_data;
+
+                if(tWifiEventHandlers[eBSPWifiEventIPReady] != NULL)
+                {
+                    wifiEventData.tEventType = eBSPWifiEventIPReady;
+                    memcpy(wifiEventData.tEventData.tIPConfig.ipAddress.address,
+                           event->ip_info.ip.addr, 4);
+                    tWifiEventHandlers[eBSPWifiEventIPReady](&wifiEventData);
+                }
+                break;
+
+            default:
+                break;
+        }
+    }
+}
+
+/* ---------------------------------------------------------------------------*/
+bsp_err_sts_t bspWifiInit(bspWifiHandle_t* handle)
+{
+    if(handle == NULL)
+    {
+        return BSP_ERR_STS_INVALID_PARAM;
+    }
+
+    /* Clear handle */
+    memset(handle, 0, sizeof(bspWifiHandle_t));
+
+    /* -------------------------------------------------
+     * Create mutex
+     * ------------------------------------------------- */
+    handle->lock = osMutexNew(NULL);
+    if(handle->lock == NULL)
+    {
+        return BSP_ERR_STS_NO_MEM;
+    }
+
+    /* -------------------------------------------------
+     * Create Wi-Fi event queue
+     * ------------------------------------------------- */
+    handle->evt_q =
+    osMessageQueueNew(BSP_WIFI_EVENT_QUEUE_LEN, sizeof(bspWifiContext_t), NULL);
+    if(handle->evt_q == NULL)
+    {
+        osMutexDelete(handle->lock);
+        handle->lock = NULL;
+        return BSP_ERR_STS_NO_MEM;
+    }
+
+    /* -------------------------------------------------
+     * Initialize platform Wi-Fi layer
+     * ------------------------------------------------- */
+    handle->platform_ctx = bsp_platform_wifi_init(handle);
+    if(handle->platform_ctx == NULL)
+    {
+        osMessageQueueDelete(handle->evt_q);
+        osMutexDelete(handle->lock);
+
+        handle->evt_q = NULL;
+        handle->lock  = NULL;
+
+        return BSP_ERR_STS_INIT_FAIL;
+    }
+
+    /* -------------------------------------------------
+     * Initial runtime state
+     * ------------------------------------------------- */
+    handle->wifi_started     = 0U;
+    handle->sta_connected    = 0U;
+    handle->ap_started       = 0U;
+    handle->auth_failed      = 0U;
+    handle->scan_in_progress = 0U;
+
+    /* Context is empty at init */
+    memset(&handle->wifi_context, 0, sizeof(bspWifiContext_t));
+
+    return BSP_ERR_STS_OK;
+}
+
+
+/* ---------------------------------------------------------------------------*/
+bsp_err_sts_t bspWifiDeInit(void)
+{
+    esp_err_t espStatus;
+
+    if(s_osWiFiMSem == NULL)
+    {
+        WIFI_LOGE("WiFi not initialized");
+        return BSP_ERR_STS_INVALID_STATE;
+    }
+
+    WIFI_LOCK();
+
+    // 1. Unregister Wi-Fi event handlers
+    if(s_eventLoopInited)
+    {
+        if(s_wifiAnyIdHandler)
+        {
+            esp_event_handler_instance_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID,
+                                                  s_wifiAnyIdHandler);
+            s_wifiAnyIdHandler = NULL;
+        }
+        if(s_wifiGotIpHandler)
+        {
+            esp_event_handler_instance_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP,
+                                                  s_wifiGotIpHandler);
+            s_wifiGotIpHandler = NULL;
+        }
+    }
+
+    // 2. Delete event group
+    (s_osWifiEventHandlerGrp)
+    {
+        osEventFlagsDelete(s_osWifiEventHandlerGrp);
+        s_osWifiEventHandlerGrp = NULL;
+    }
+
+    // 3. Stop Wi-Fi if running
+    espStatus = esp_wifi_stop();
+    if(espStatus != ESP_OK && espStatus != ESP_ERR_WIFI_NOT_INIT)
+    {
+        WIFI_LOGW("WiFi stop failed: %d", espStatus);
+    }
+
+    // 4. Deinit Wi-Fi
+    espStatus = esp_wifi_deinit();
+    if(espStatus != ESP_OK && espStatus != ESP_ERR_WIFI_NOT_INIT)
+    {
+        WIFI_LOGW("WiFi deinit failed: %d", espStatus);
+    }
+
+    // 5. Destroy created netifs
+    if(esp_sta_netif_info)
+    {
+        esp_netif_destroy(esp_sta_netif_info);
+        esp_sta_netif_info = NULL;
+    }
+    if(esp_softap_netif_info)
+    {
+        esp_netif_destroy(esp_softap_netif_info);
+        esp_softap_netif_info = NULL;
+    }
+
+    // 6. (Optional) Deinit event loop + esp-netif if you own them
+    if(s_eventLoopInited)
+    {
+        esp_event_loop_delete_default();
+        esp_netif_deinit();
+        s_eventLoopInited = false;
+    }
+
+    osSemaphoreRelease(s_osWiFiMSem);
+    return BSP_ERR_STS_OK;
+}
+/* ---------------------------------------------------------------------------*/
+bsp_err_sts_t bspWifiOn(bspWifiMode_t mode, void* pvParam)
+{
+    bsp_err_sts_t status;
+
+    // 1. Initialize Wi-Fi stack
+    status = bspWifiInit();
+    if(status != BSP_ERR_STS_OK)
+    {
+        return BSP_ERR_STS_FAIL;
+    }
+
+    // 2. Check supported modes
+    if(mode <= eWiFiModeNotSupported)
+    {
+        return BSP_ERR_STS_INVALID_PARAM;
+    }
+
+    status = bspWifiSetMode(mode);
+    if(status != BSP_ERR_STS_OK)
+    {
+        return status;
+    }
+
+    // 3. Act based on mode
+    switch(mode)
+    {
+        case eWiFiModeStation:
+            if(pvParam == NULL)
+            {
+                return BSP_ERR_STS_INVALID_PARAM; // need network credentials
+            }
+            status = bspWifiConnectToAp((const bspWifiNetworkParams_t*)pvParam);
+            break;
+
+        case eWiFiModeAP:
+            if(pvParam == NULL)
+            {
+                return BSP_ERR_STS_INVALID_PARAM; // need AP config
+            }
+            status = bspWifirtAP((const bspWifiConfig_t*)pvParam);
+            break;
+
+        case eWiFiModeAPStation:
+            if(pvParam == NULL)
+            {
+                // Option 1: require a combined config struct
+                // Option 2: allow NULL if defaults are acceptable
+                return BSP_ERR_STS_INVALID_PARAM;
+            }
+            bspWifiApStaConfig_t* comboCfg = (bspWifiApStaConfig_t*)pvParam;
+            status                         = bspWifirtAP(&comboCfg->apConfig);
+            if(status != BSP_ERR_STS_OK)
+                return status;
+            status = bspWifiConnectToAp(&comboCfg->staConfig);
+            break;
+
+        case eWiFiModeP2P:
+            // Not supported in ESP-IDF
+            status = BSP_ERR_STS_UNSUPPORTED;
+            break;
+
+        default:
+            status = BSP_ERR_STS_INVALID_PARAM;
+            break;
+    }
+
+    return status;
+}
+
+/* ---------------------------------------------------------------------------*/
+bsp_err_sts_t bspWifiOff(void)
+{
+    if(bWifiStarted == false)
+    {
+        WIFI_LOGW("Wi-Fi is not started, nothing to stop");
+        return BSP_ERR_STS_OK;
+    }
+
+    bsp_err_sts_t status = bspWifiDeInit();
+    if(status != ESP_OK)
+    {
+        WIFI_LOGE("Failed to deinitialize Wi-Fi");
+        return status;
+    }
+
+    bWifiStarted   = false;
+    bWifiConnState = false;
+
+    WIFI_LOGI("Wi-Fi successfully stopped and deinitialized");
+    return BSP_ERR_STS_OK;
+}
+
+
+/* ---------------------------------------------------------------------------*/
+
+bsp_err_sts_t bspWifiRegisterEventCallback(bspWifiEvent_t Event, bspWifiEventCallback_t Callback)
+{
+    if((Event >= eBSPWifiEventMax) || (Callback == NULL))
+    {
+        return BSP_ERR_STS_INVALID_PARAM;
+    }
+
+    if(tWifiEventHandlers[Event] != NULL)
+    {
+        WIFI_LOGD("Callback already registered for this event.");
+        return BSP_ERR_STS_FAIL;
+    }
+
+    tWifiEventHandlers[Event] = Callback;
+    return BSP_ERR_STS_OK;
+}
+/* ---------------------------------------------------------------------------*/
+
+bsp_err_sts_t bspWifiUnregisterEventCallback(bspWifiEvent_t Event)
+{
+    if(Event >= eBSPWifiEventMax)
+    {
+        return BSP_ERR_STS_INVALID_PARAM;
+    }
+
+    tWifiEventHandlers[Event] = NULL;
+    return BSP_ERR_STS_OK;
+}
+bsp_err_sts_t bspWifiConnectToAp(const bspWifiNetworkParams_t* const pctNetwork)
+{
+    CHECK_PARAM(pctNetwork);
+
+    bspWifiConfig_t wifiConfig = { 0 };
+    bspWifiMode_t currentMode;
+    esp_err_t espStatus;
+    EventBits_t bits;
+
+    if(bWifiStarted == false)
+    {
+        WIFI_LOGE("WiFi not started");
+        return BSP_ERR_STS_INVALID_STATE;
+    }
+
+    // Configure Wi-Fi connection parameters
+    if(!CHECK_VALID_WIFI_SSID_LEN(pctNetwork->ssidLength))
+    {
+        WIFI_LOGD("Invalid SSID length");
+        return BSP_ERR_STS_INVALID_PARAM;
+    }
+
+    if(pctNetwork->security == eWiFiSecurityWEP)
+    {
+        return BSP_ERR_STS_UNSUPPORTED;
+    }
+
+    if(pctNetwork->security != eWiFiSecurityOpen &&
+       !CHECK_VALID_PASSPHRASE_LEN(pctNetwork->password.wpa.u8Length))
+    {
+        WIFI_LOGD("Invalid passphrase length");
+        return BSP_ERR_STS_INVALID_PARAM;
+    }
+
+
+    // Acquire semaphore
+    if(osMutexAcquire(s_osWiFiMSem, uMSemaWaitTicks) == osOK)
+    {
+        if(bWifiConnState == true)
+        {
+            espStatus = esp_wifi_disconnect();
+            if(espStatus != ESP_OK)
+            {
+                WIFI_LOGD("Failed to disconnect from current AP: %d", espStatus);
+            }
+
+            // Wait for disconnection to complete
+            bits = osEventFlagsWait(s_osWifiEventHandlerGrp, WIFI_DISCONNECTED_BIT,
+                                    osFlagsWaitAny, portMAX_DELAY);
+        }
+        espStatus = esp_wifi_get_mode((wifi_mode_t*)&currentMode);
+        if(espStatus != ESP_OK)
+        {
+            WIFI_LOGE("Failed to get current WiFi mode: %d", espStatus);
+            WIFI_UNLOCK();
+            return BSP_ERR_STS_FAIL;
+        }
+
+        if(currentMode != WIFI_MODE_STA && currentMode != WIFI_MODE_APSTA)
+        {
+            espStatus = esp_wifi_set_mode(WIFI_MODE_STA);
+            if(espStatus != ESP_OK)
+            {
+                WIFI_LOGE("Failed to set WiFi mode to STA: %d", espStatus);
+                WIFI_UNLOCK();
+                return BSP_ERR_STS_FAIL;
+            }
+        }
+
+        if(pctNetwork->security != eWiFiSecurityOpen)
+        {
+            strlcpy((char*)wifiConfig.password, (char*)pctNetwork->password.wpa.cPassphrase,
+                    pctNetwork->password.wpa.u8Length + 1);
+        }
+
+        espStatus = esp_wifi_set_config(ESP_IF_WIFI_STA, (wifi_config_t*)&wifiConfig);
+        if(espStatus != ESP_OK)
+        {
+            WIFI_LOGE("Failed to set WiFi configuration: %d", espStatus);
+            WIFI_UNLOCK();
+            return BSP_ERR_STS_FAIL;
+        }
+        espStatus = esp_wifi_connect();
+        if(espStatus != ESP_OK)
+        {
+            WIFI_LOGE("Failed to initiate WiFi connection: %d", espStatus);
+            WIFI_UNLOCK();
+            return BSP_ERR_STS_FAIL;
+        }
+
+        // Wait for connection or failure
+        bits = osEventFlagsWait(s_osWifiEventHandlerGrp, WIFI_CONNECTED_BIT | WIFI_DISCONNECTED_BIT,
+                                osFlagsWaitAny, portMAX_DELAY);
+        if(bits & WIFI_CONNECTED_BIT)
+        {
+            bWifiConnState = true;
+            memcpy(&xConnectedAP, pctNetwork, sizeof(bspWifiNetworkParams_t));
+            WIFI_LOGI("Connected to AP: %.*s", pctNetwork->ssidLength,
+                      pctNetwork->ssid);
+            WIFI_UNLOCK();
+            return BSP_ERR_STS_OK;
+        }
+        else if(bits & WIFI_DISCONNECTED_BIT)
+        {
+            if(bWifiAuthFail == true)
+            {
+                WIFI_LOGE("Authentication failed");
+                WIFI_UNLOCK();
+                return BSP_ERR_STS_AUTH_FAIL;
+            }
+            else
+            {
+                WIFI_LOGE("Failed to connect to AP");
+                WIFI_UNLOCK();
+                return BSP_ERR_STS_CONN_FAIL;
+            }
+        }
+        else
+        {
+            WIFI_LOGE("Unexpected event while connecting to AP");
+            WIFI_UNLOCK();
+            return BSP_ERR_STS_FAIL;
+        }
+    }
+
+    return BSP_ERR_STS_FAIL;
+}
+
+bsp_err_sts_t bspWifiDisconnectToAp(void)
+{
+    esp_err_t espStatus;
+    EventBits_t bits;
+
+    if(bWifiStarted == false)
+    {
+        WIFI_LOGE("WiFi not started");
+        return BSP_ERR_STS_INVALID_STATE;
+    }
+
+    if(bWifiConnState == false)
+    {
+        WIFI_LOGD("Not connected to any AP");
+        return BSP_ERR_STS_OK;
+    }
+
+    if(osMutexAcquire(s_osWiFiMSem, uMSemaWaitTicks) == osOK)
+    {
+        espStatus = esp_wifi_disconnect();
+        if(espStatus != ESP_OK)
+        {
+            WIFI_LOGE("Failed to disconnect from AP: %d", espStatus);
+            WIFI_UNLOCK();
+            return BSP_ERR_STS_FAIL;
+        }
+
+        // Wait for disconnection to complete
+        bits = osEventFlagsWait(s_osWifiEventHandlerGrp, WIFI_DISCONNECTED_BIT,
+                                osFlagsWaitAny, portMAX_DELAY);
+        if(bits & WIFI_DISCONNECTED_BIT)
+        {
+            bWifiConnState = false;
+            vSetMemzero(&xConnectedAP, sizeof(bspWifiNetworkParams_t));
+            WIFI_LOGI("Disconnected from AP");
+            WIFI_UNLOCK();
+            return BSP_ERR_STS_OK;
+        }
+        else
+        {
+            WIFI_LOGE("Unexpected event while disconnecting from AP");
+            WIFI_UNLOCK();
+            return BSP_ERR_STS_FAIL;
+        }
+    }
+    else
+    {
+        WIFI_LOGE("Failed to acquire WiFi semaphore");
+        return BSP_ERR_STS_TIMEOUT;
+    }
+    return BSP_ERR_STS_FAIL;
+}
+
+bsp_err_sts_t bspWifiReset(void)
+{
+    return BSP_ERR_STS_UNSUPPORTED;
+}
+
+bsp_err_sts_t bspWifiSetMode(bspWifiMode_t mode)
+{
+    esp_err_t espStatus;
+    bspWifiMode_t currentMode;
+
+    if(mode != eWiFiModeStation && mode != eWiFiModeAP && mode != eWiFiModeAPStation)
+    {
+        return BSP_ERR_STS_INVALID_PARAM;
+    }
+
+    WIFI_LOCK();
+
+    if(bWifiStarted == false)
+    {
+        WIFI_LOGE("WiFi not started");
+        WIFI_UNLOCK();
+        return BSP_ERR_STS_INVALID_STATE;
+    }
+
+    espStatus = esp_wifi_get_mode((wifi_mode_t*)&currentMode);
+    if(espStatus != ESP_OK)
+    {
+        WIFI_LOGE("Failed to get current WiFi mode: %d", espStatus);
+        WIFI_UNLOCK();
+        return BSP_ERR_STS_FAIL;
+    }
+
+    return BSP_ERR_STS_OK;
+}
+
+bsp_err_sts_t bspWifiGetMode(bspWifiMode_t* ptMode)
+{
+    CHECK_PARAM(ptMode);
+
+    bspWifiMode_t currentMode;
+    esp_err_t espStatus;
+
+    WIFI_LOCK();
+
+    if(bWifiStarted == false)
+    {
+        WIFI_LOGE("WiFi not started");
+        WIFI_UNLOCK();
+        return BSP_ERR_STS_INVALID_STATE;
+    }
+
+    espStatus = esp_wifi_get_mode((wifi_mode_t*)&currentMode);
+    if(espStatus != ESP_OK)
+    {
+        WIFI_LOGE("Failed to get current WiFi mode: %d", espStatus);
+        WIFI_UNLOCK();
+        return BSP_ERR_STS_FAIL;
+    }
+    *ptMode = currentMode;
+    WIFI_UNLOCK();
+    return BSP_ERR_STS_OK;
+}
+
+bsp_err_sts_t bspWifiAddNetworkProfile(const bspWifiNetworkProfile_t* const ptProfile,
+                                       uint16_t* pu16Index)
+{
+    CHECK_PARAM(ptProfile);
+
+    esp_err_t espStatus;
+    nvs_handle_t nvsHandle;
+    char key[MAX_WIFI_KEY_WIDTH + MAX_SECURITY_MODE_LEN + 1]; // +1 for null terminator
+
+    if(ptProfile == NULL && pu16Index == NULL)
+    {
+        return BSP_ERR_STS_INVALID_PARAM;
+    }
+
+    WIFI_LOCK();
+
+    espStatus = nvs_open(WIFI_FLASH_NS, NVS_READWRITE, &nvsHandle);
+    if(espStatus != ESP_OK)
+    {
+        WIFI_LOGE("Failed to open NVS namespace: %d", espStatus);
+        WIFI_UNLOCK();
+        return BSP_ERR_STS_FAIL;
+    }
+
+    if(bIsRegistryInit == false)
+    {
+        size_t required_size = sizeof(StorageRegistry_t);
+        espStatus = nvs_get_blob(nvsHandle, "REG", &xRegistry, &required_size);
+        if(espStatus == ESP_ERR_NVS_NOT_FOUND)
+        {
+            // Registry not found, initialize it
+            vSetMemzero(&xRegistry, sizeof(StorageRegistry_t));
+            bIsRegistryInit = true;
+        }
+        else if(espStatus != ESP_OK)
+        {
+            WIFI_LOGE("Failed to read registry from NVS: %d", espStatus);
+            nvs_close(nvsHandle);
+            WIFI_UNLOCK();
+            return BSP_ERR_STS_FAIL;
+        }
+        else
+        {
+            bIsRegistryInit = true;
+        }
+    }
+
+    if(ptProfile != NULL)
+    {
+        if(xRegistry.usNumNetworks >= BSP_WIFI_MAX_SAVED_NETWORKS)
+        {
+            WIFI_LOGE("Maximum saved networks reached");
+            nvs_close(nvsHandle);
+            WIFI_UNLOCK();
+            return BSP_ERR_STS_NO_MEM;
+        }
+
+        // Find next available index
+        uint16_t storageIdx = xRegistry.usNextStorageIdx;
+        bool found          = false;
+        for(uint16_t i = 0; i < BSP_WIFI_MAX_SAVED_NETWORKS; i++)
+        {
+            bool inUse = false;
+            for(uint16_t j = 0; j < xRegistry.usNumNetworks; j++)
+            {
+                if(xRegistry.usStorageIdx[j] == storageIdx)
+                {
+                    inUse = true;
+                    break;
+                }
+            }
+            if(!inUse)
+            {
+                found = true;
+                break;
+            }
+            storageIdx = (storageIdx + 1) % BSP_WIFI_MAX_SAVED_NETWORKS;
+        }
+
+        if(!found)
+        {
+            WIFI_LOGE("No available storage index found");
+            nvs_close(nvsHandle);
+            WIFI_UNLOCK();
+            return BSP_ERR_STS_FAIL;
+        }
+
+        // Store the profile
+        snprintf(key, sizeof(key), "N%dS", storageIdx);
+        espStatus =
+        nvs_set_blob(nvsHandle, key, ptProfile, sizeof(bspWifiNetworkProfile_t));
+        if(espStatus != ESP_OK)
+        {
+            WIFI_LOGE("Failed to store network profile: %d", espStatus);
+            nvs_close(nvsHandle);
+            WIFI_UNLOCK();
+            return BSP_ERR_STS_FAIL;
+        }
+
+        // Update registry
+        xRegistry.usStorageIdx[xRegistry.usNumNetworks] = storageIdx;
+        xRegistry.usNumNetworks++;
+        xRegistry.usNextStorageIdx = (storageIdx + 1) % bspCONFIG_WIFI_MAX_SAVED_NETWORKS;
+
+        espStatus = nvs_set_blob(nvsHandle, "REG", &xRegistry, sizeof(StorageRegistry_t));
+        if(espStatus != ESP_OK)
+        {
+            WIFI_LOGE("Failed to update registry: %d", espStatus);
+            nvs_close(nvsHandle);
+            WIFI_UNLOCK();
+            return BSP_ERR_STS_FAIL;
+        }
+
+        if(pu16Index != NULL)
+        {
+            *pu16Index = storageIdx;
+        }
+
+        espStatus = nvs_commit(nvsHandle);
+        if(espStatus != ESP_OK)
+        {
+            WIFI_LOGE("Failed to commit changes to NVS: %d", espStatus);
+            nvs_close(nvsHandle);
+            WIFI_UNLOCK();
+            return BSP_ERR_STS_FAIL;
+        }
+    }
+
+    nvs_close(nvsHandle);
+    WIFI_UNLOCK();
+    return BSP_ERR_STS_OK;
+}
+
+bsp_err_sts_t bspWifiRemoveNetworkProfile(const uint8_t* const pu8SSID, uint8_t u8SSIDLen)
+{
+    CHECK_PARAM(pu8SSID);
+    CHECK_PARAM(CHECK_VALID_WIFI_SSID_LEN(u8SSIDLen));
+
+    esp_err_t espStatus;
+    nvs_handle_t nvsHandle;
+    char key[MAX_WIFI_KEY_WIDTH + MAX_SECURITY_MODE_LEN + 1]; // +1 for null terminator
+    bool profileFound   = false;
+    uint16_t profileIdx = 0;
+    bspWifiNetworkProfile_t storedProfile;
+    size_t required_size = sizeof(bspWifiNetworkProfile_t);
+
+
+    WIFI_LOCK();
+
+    espStatus = nvs_open(WIFI_FLASH_NS, NVS_READWRITE, &nvsHandle);
+    if(espStatus != ESP_OK)
+    {
+        WIFI_LOGE("Failed to open NVS namespace: %d", espStatus);
+        WIFI_UNLOCK();
+        return BSP_ERR_STS_FAIL;
+    }
+
+    if(bIsRegistryInit == false)
+    {
+        espStatus = nvs_get_blob(nvsHandle, "REG", &xRegistry, &required_size);
+        if(espStatus == ESP_ERR_NVS_NOT_FOUND)
+        {
+            // Registry not found, nothing to remove
+            WIFI_LOGD("No saved networks found");
+            nvs_close(nvsHandle);
+            WIFI_UNLOCK();
+            return BSP_ERR_STS_OK;
+        }
+        else if(espStatus != ESP_OK)
+        {
+            WIFI_LOGE("Failed to read registry from NVS: %d", espStatus);
+            nvs_close(nvsHandle);
+            WIFI_UNLOCK();
+            return BSP_ERR_STS_FAIL;
+        }
+        else
+        {
+            bIsRegistryInit = true;
+        }
+    }
+
+    // Search for the profile by SSID
+    for(uint16_t i = 0; i < xRegistry.usNumNetworks; i++)
+    {
+        uint16_t storageIdx = xRegistry.usStorageIdx[i];
+        snprintf(key, sizeof(key), "N%dS", storageIdx);
+        required_size = sizeof(bspWifiNetworkProfile_t);
+        espStatus = nvs_get_blob(nvsHandle, key, &storedProfile, &required_size);
+        if(espStatus == ESP_OK)
+        {
+            if(storedProfile.ssidLength == u8SSIDLen &&
+               strncmp((char*)storedProfile.ssid, (char*)pu8SSID, u8SSIDLen) == 0)
+            {
+                profileFound = true;
+                profileIdx   = i;
+                break;
+            }
+        }
+    }
+
+    if(!profileFound)
+    {
+        WIFI_LOGD("Network profile not found");
+        nvs_close(nvsHandle);
+        WIFI_UNLOCK();
+        return BSP_ERR_STS_NOT_FOUND;
+    }
+
+    // Remove the profile
+    uint16_t storageIdx = xRegistry.usStorageIdx[profileIdx];
+    snprintf(key, sizeof(key), "N%dS", storageIdx);
+    espStatus = nvs_erase_key(nvsHandle, key);
+    if(espStatus != ESP_OK)
+    {
+        WIFI_LOGE("Failed to erase network profile: %d", espStatus);
+        nvs_close(nvsHandle);
+        WIFI_UNLOCK();
+        return BSP_ERR_STS_FAIL;
+    }
+
+    // Update registry
+    for(uint16_t i = profileIdx; i < xRegistry.usNumNetworks - 1; i++)
+    {
+        xRegistry.usStorageIdx[i] = xRegistry.usStorageIdx[i + 1];
+    }
+
+    xRegistry.usNumNetworks--;
+
+    espStatus = nvs_set_blob(nvsHandle, "REG", &xRegistry, sizeof(StorageRegistry_t));
+    if(espStatus != ESP_OK)
+    {
+        WIFI_LOGE("Failed to update registry: %d", espStatus);
+        nvs_close(nvsHandle);
+        WIFI_UNLOCK();
+        return BSP_ERR_STS_FAIL;
+    }
+
+    espStatus = nvs_commit(nvsHandle);
+    if(espStatus != ESP_OK)
+    {
+        WIFI_LOGE("Failed to commit changes to NVS: %d", espStatus);
+        nvs_close(nvsHandle);
+        WIFI_UNLOCK();
+        return BSP_ERR_STS_FAIL;
+    }
+
+    nvs_close(nvsHandle);
+    WIFI_UNLOCK();
+    return BSP_ERR_STS_OK;
+}
+
+bsp_err_sts_t bspWifiClearNetworkProfiles(void)
+{
+    esp_err_t espStatus;
+    nvs_handle_t nvsHandle;
+    char key[MAX_WIFI_KEY_WIDTH + MAX_SECURITY_MODE_LEN + 1]; // +1 for null terminator
+
+    WIFI_LOCK();
+
+    espStatus = nvs_open(WIFI_FLASH_NS, NVS_READWRITE, &nvsHandle);
+    if(espStatus != ESP_OK)
+    {
+        WIFI_LOGE("Failed to open NVS namespace: %d", espStatus);
+        WIFI_UNLOCK();
+        return BSP_ERR_STS_FAIL;
+    }
+
+    if(bIsRegistryInit == false)
+    {
+        size_t required_size = sizeof(StorageRegistry_t);
+        espStatus = nvs_get_blob(nvsHandle, "REG", &xRegistry, &required_size);
+        if(espStatus == ESP_ERR_NVS_NOT_FOUND)
+        {
+            // Registry not found, nothing to clear
+            WIFI_LOGD("No saved networks found");
+            nvs_close(nvsHandle);
+            WIFI_UNLOCK();
+            return BSP_ERR_STS_OK;
+        }
+        else if(espStatus != ESP_OK)
+        {
+            WIFI_LOGE("Failed to read registry from NVS: %d", espStatus);
+            nvs_close(nvsHandle);
+            WIFI_UNLOCK();
+            return BSP_ERR_STS_FAIL;
+        }
+        else
+        {
+            bIsRegistryInit = true;
+        }
+    }
+
+    // Erase all stored profiles
+    for(uint16_t i = 0; i < xRegistry.usNumNetworks; i++)
+    {
+        uint16_t storageIdx = xRegistry.usStorageIdx[i];
+        snprintf(key, sizeof(key), "N%dS", storageIdx);
+        espStatus = nvs_erase_key(nvsHandle, key);
+        if(espStatus != ESP_OK)
+        {
+            WIFI_LOGE("Failed to erase network profile: %d", espStatus);
+            nvs_close(nvsHandle);
+            WIFI_UNLOCK();
+            return BSP_ERR_STS_FAIL;
+        }
+    }
+
+    // Clear registry
+    vSetMemzero(&xRegistry, sizeof(StorageRegistry_t));
+    espStatus = nvs_set_blob(nvsHandle, "REG", &xRegistry, sizeof(StorageRegistry_t));
+    if(espStatus != ESP_OK)
+    {
+        WIFI_LOGE("Failed to update registry: %d", espStatus);
+        nvs_close(nvsHandle);
+        WIFI_UNLOCK();
+        return BSP_ERR_STS_FAIL;
+    }
+
+    espStatus = nvs_commit(nvsHandle);
+    if(espStatus != ESP_OK)
+    {
+        WIFI_LOGE("Failed to commit changes to NVS: %d", espStatus);
+        nvs_close(nvsHandle);
+        WIFI_UNLOCK();
+        return BSP_ERR_STS_FAIL;
+    }
+
+    nvs_close(nvsHandle);
+    WIFI_UNLOCK();
+    return BSP_ERR_STS_OK;
+}
+
+
+bsp_err_sts_t bspWifiGetNetworkProfiles(const uint8_t* const pu8SSID,
+                                        uint8_t u8SSIDLen,
+                                        bspWifiNetworkProfile_t* const ptProfile)
+{
+    CHECK_PARAM(pu8SSID);
+    CHECK_PARAM(ptProfile);
+    CHECK_PARAM(CHECK_VALID_WIFI_SSID_LEN(u8SSIDLen));
+
+    esp_err_t espStatus;
+    nvs_handle_t nvsHandle;
+    char key[MAX_WIFI_KEY_WIDTH + MAX_SECURITY_MODE_LEN + 1]; // +1 for null terminator
+    bool profileFound = false;
+    bspWifiNetworkProfile_t storedProfile;
+    size_t required_size = sizeof(bspWifiNetworkProfile_t);
+
+    WIFI_LOCK();
+
+    espStatus = nvs_open(WIFI_FLASH_NS, NVS_READONLY, &nvsHandle);
+    if(espStatus != ESP_OK)
+    {
+        WIFI_LOGE("Failed to open NVS namespace: %d", espStatus);
+        WIFI_UNLOCK();
+        return BSP_ERR_STS_FAIL;
+    }
+
+    if(bIsRegistryInit == false)
+    {
+        espStatus = nvs_get_blob(nvsHandle, "REG", &xRegistry, &required_size);
+        if(espStatus == ESP_ERR_NVS_NOT_FOUND)
+        {
+            // Registry not found, nothing to get
+            WIFI_LOGD("No saved networks found");
+            nvs_close(nvsHandle);
+            WIFI_UNLOCK();
+            return BSP_ERR_STS_NOT_FOUND;
+        }
+        else if(espStatus != ESP_OK)
+        {
+            WIFI_LOGE("Failed to read registry from NVS: %d", espStatus);
+            nvs_close(nvsHandle);
+            WIFI_UNLOCK();
+            return BSP_ERR_STS_FAIL;
+        }
+        else
+        {
+            bIsRegistryInit = true;
+        }
+    }
+
+    // Search for the profile by SSID
+    for(uint16_t i = 0; i < xRegistry.usNumNetworks; i++)
+    {
+        uint16_t storageIdx = xRegistry.usStorageIdx[i];
+        snprintf(key, sizeof(key), "N%dS", storageIdx);
+        required_size = sizeof(bspWifiNetworkProfile_t);
+        espStatus = nvs_get_blob(nvsHandle, key, &storedProfile, &required_size);
+        if(espStatus == ESP_OK)
+        {
+            if(storedProfile.ssidLength == u8SSIDLen &&
+               strncmp((char*)storedProfile.ssid, (char*)pu8SSID, u8SSIDLen) == 0)
+            {
+                profileFound = true;
+                break;
+            }
+        }
+    }
+
+    if(!profileFound)
+    {
+        WIFI_LOGD("Network profile not found");
+        nvs_close(nvsHandle);
+        WIFI_UNLOCK();
+        return BSP_ERR_STS_NOT_FOUND;
+    }
+
+    // Copy the found profile to the output parameter
+    memcpy(ptProfile, &storedProfile, sizeof(bspWifiNetworkProfile_t));
+    nvs_close(nvsHandle);
+    WIFI_UNLOCK();
+    return BSP_ERR_STS_OK;
+}
+
+bsp_err_sts_t bspStaWifiPing(const uint8_t* const pu8IpAddress,
+                             uint16_t u16Count,
+                             uint16_t u16IntervalMs,
+                             uint16_t u16TimeoutMs,
+                             uint16_t* pu16Received)
+
+{
+    return BSP_ERR_STS_UNSUPPORTED;
+}
+
+bsp_err_sts_t bspWifiGetMacAddress(uint8_t* pu8Mac, uint8_t* pu8Length)
+{
+    CHECK_PARAM(pu8Mac);
+    CHECK_PARAM(pu8Length);
+
+    if(bWifiStarted == false)
+    {
+        WIFI_LOGE("WiFi not started");
+        return BSP_ERR_STS_INVALID_STATE;
+    }
+
+    if(*pu8Length < 6)
+    {
+        WIFI_LOGE("Insufficient buffer length for MAC address");
+        return BSP_ERR_STS_INVALID_PARAM;
+    }
+
+    esp_err_t espStatus = esp_wifi_get_mac(WIFI_IF_STA, pu8Mac);
+    if(espStatus != ESP_OK)
+    {
+        WIFI_LOGE("Failed to get MAC address: %d", espStatus);
+        return BSP_ERR_STS_FAIL;
+    }
+    *pu8Length = BSP_WIFI_MAC_ADDR_SIZE; // Standard MAC address length
+    return BSP_ERR_STS_OK;
+}
+
+
+bsp_err_sts_t bspWifiGetHostIPAddress(const uint8_t* const pu8Hostname,
+                                      uint8_t* pu8IpAddress,
+                                      uint8_t* pu8Length)
+
+{
+    CHECK_PARAM(pu8Hostname);
+    CHECK_PARAM(pu8IpAddress);
+    CHECK_PARAM(pu8Length);
+
+    if(bWifiStarted == false)
+    {
+        WIFI_LOGE("WiFi not started");
+        return BSP_ERR_STS_INVALID_STATE;
+    }
+
+    if(bWifiConnState == false)
+    {
+        WIFI_LOGE("Not connected to any AP");
+        return BSP_ERR_STS_INVALID_STATE;
+    }
+
+    if(*pu8Length < BSP_WIFI_IP4_ADDR_SIZE)
+    {
+        WIFI_LOGE("Insufficient buffer length for IP address");
+        return BSP_ERR_STS_INVALID_PARAM;
+    }
+
+    WIFI_LOCK();
+
+    struct addrinfo hints = {
+        .ai_family   = AF_INET,
+        .ai_socktype = SOCK_STREAM,
+    };
+    struct addrinfo* res;
+    int err = getaddrinfo((const char*)pu8Hostname, NULL, &hints, &res);
+    if(err != 0 || res == NULL)
+    {
+        WIFI_LOGE("DNS lookup failed for %s: %d", pu8Hostname, err);
+        return BSP_ERR_STS_FAIL;
+    }
+
+    struct sockaddr_in* addr = (struct sockaddr_in*)res->ai_addr;
+    memcpy(pu8IpAddress, &addr->sin_addr.s_addr, BSP_WIFI_IP4_ADDR_SIZE);
+    *pu8Length = BSP_WIFI_IP4_ADDR_SIZE;
+
+    freeaddrinfo(res);
+    return BSP_ERR_STS_OK;
+}
+
+bsp_err_sts_t bspWifiStartAP(const bspWifiConfig_t* const ptConfig)
+{
+    CHECK_PARAM(ptConfig);
+
+    esp_err_t espStatus;
+
+    WIFI_LOCK();
+
+    if(bWifiStarted == false)
+    {
+        WIFI_LOGE("WiFi not started");
+        WIFI_UNLOCK();
+        return BSP_ERR_STS_INVALID_STATE;
+    }
+
+    if(bWifiStarted == true)
+    {
+        WIFI_LOGD("AP already started");
+        WIFI_UNLOCK();
+        return BSP_ERR_STS_OK;
+    }
+
+    wifi_config_t apConfig = { 0 };
+    if(!CHECK_VALID_WIFI_SSID_LEN(ptConfig->ap.ssidLength))
+    {
+        WIFI_LOGE("Invalid SSID length");
+        WIFI_UNLOCK();
+        return BSP_ERR_STS_INVALID_PARAM;
+    }
+
+    strlcpy((char*)apConfig.ap.ssid, (char*)ptConfig->ap.ssid, ptConfig->ap.ssidLength + 1);
+    apConfig.ap.ssid_len = ptConfig->ap.ssidLength;
+
+    if(ptConfig->ap.security != eWiFiSecurityOpen)
+    {
+        if(!CHECK_VALID_PASSPHRASE_LEN(ptConfig->ap.password.wpa.u8Length))
+        {
+            WIFI_LOGE("Invalid passphrase length");
+            WIFI_UNLOCK();
+            return BSP_ERR_STS_INVALID_PARAM;
+        }
+        strlcpy((char*)apConfig.ap.password, (char*)ptConfig->ap.password.wpa.cPassphrase,
+                ptConfig->ap.password.wpa.u8Length + 1);
+
+        if(ptConfig->ap.security == eWiFiSecurityWPA2)
+        {
+            apConfig.ap.authmode = WIFI_AUTH_WPA2_PSK;
+        }
+        else if(ptConfig->ap.security == eWiFiSecurityWPA3)
+        {
+            apConfig.ap.authmode = WIFI_AUTH_WPA3_PSK;
+        }
+        else
+        {
+            WIFI_UNLOCK();
+            return BSP_ERR_STS_INVALID_PARAM;
+        }
+    }
+    else
+    {
+        apConfig.ap.authmode = WIFI_AUTH_OPEN;
+    }
+
+    apConfig.ap.max_connection       = ptConfig->ap.maxConnections;
+    apConfig.ap.channel              = ptConfig->ap.channel;
+    apConfig.ap.beacon_interval      = ptConfig->ap.beaconIntervalMs;
+    apConfig.ap.hidden               = ptConfig->ap.isHidden;
+    apConfig.bss_max_idle_cfg.period = ptConfig->ap.maxIdlePeriodSec;
+    apConfig.bss_max_idle_cfg.protected_keep_alive = 1;
+
+    espStatus = esp_wifi_set_mode(WIFI_MODE_AP);
+    if(espStatus != ESP_OK)
+    {
+        WIFI_LOGE("Failed to set WiFi mode to AP: %d", espStatus);
+        WIFI_UNLOCK();
+        return BSP_ERR_STS_FAIL;
+    }
+
+    espStatus = esp_wifi_set_config(WIFI_IF_AP, &apConfig);
+    if(espStatus != ESP_OK)
+    {
+        WIFI_LOGE("Failed to set AP configuration: %d", espStatus);
+        WIFI_UNLOCK();
+        return BSP_ERR_STS_FAIL;
+    }
+
+    espStatus = esp_wifi_start();
+    if(espStatus != ESP_OK)
+    {
+        WIFI_LOGE("Failed to start AP: %d", espStatus);
+        WIFI_UNLOCK();
+        return BSP_ERR_STS_FAIL;
+    }
+
+    osEventFlagsWait(s_osWifiEventHandlerGrp, WIFI_AP_STARTED_BIT, osFlagsWaitAny, portMAX_DELAY);
+
+    bWifiStarted = true;
+    bWifiAPState = true;
+    WIFI_UNLOCK();
+    return BSP_ERR_STS_OK;
+}
+
+
+bsp_err_sts_t bspWifiStop(void)
+{
+    // Acquire mutex
+    WIFI_LOCK();
+
+
+    if(bWifiStarted == false)
+    {
+        WIFI_LOGD("WiFi not started");
+        WIFI_UNLOCK();
+        return BSP_ERR_STS_OK;
+    }
+
+    esp_err_t espStatus = esp_wifi_stop();
+    if(espStatus != ESP_OK)
+    {
+        WIFI_LOGE("Failed to stop AP: %d", espStatus);
+        WIFI_UNLOCK();
+        return BSP_ERR_STS_FAIL;
+    }
+
+    osEventFlagsWait(s_osWifiEventHandlerGrp, WIFI_AP_STOPPED_BIT, osFlagsWaitAny, portMAX_DELAY);
+
+    bWifiAPState = false;
+    WIFI_UNLOCK();
+    return BSP_ERR_STS_OK;
+}
+
+bsp_err_sts_t bspWifiIsConnected(const bspWifiNetworkParams_t* const ptNetwork,
+                                 uint8_t* u8IsConnected)
+{
+    CHECK_PARAM(ptNetwork);
+    CHECK_PARAM(u8IsConnected);
+
+    if(bWifiStarted == false)
+    {
+        WIFI_LOGE("WiFi not started");
+        return BSP_ERR_STS_INVALID_STATE;
+    }
+
+    if(bWifiConnState == false)
+    {
+        *u8IsConnected = false;
+        return BSP_ERR_STS_OK;
+    }
+
+    if(xConnectedAP.ssidLength == ptNetwork->ssidLength &&
+       strncmp((char*)xConnectedAP.ssid, (char*)ptNetwork->ssid, ptNetwork->ssidLength) == 0)
+    {
+        *u8IsConnected = true;
+    }
+    else
+    {
+        *u8IsConnected = false;
+    }
+    return BSP_ERR_STS_OK;
+}
+
+bsp_err_sts_t bspWifiStartScan(const bspWifiScanResult_t* const ptScanResult,
+                               bspWifiScanConfig_t* const ptScanConfig,
+                               uint16_t* pu16NumNetworks,
+                               uint16_t pu16MaxNumNetworks)
+{
+    CHECK_PARAM(ptScanConfig);
+    CHECK_PARAM(ptScanResult);
+
+    esp_err_t espStatus;
+    wifi_config_t wifiConfig = { 0 };
+
+    if(bWifiStarted == false)
+    {
+        WIFI_LOGE("WiFi not started");
+        return BSP_ERR_STS_INVALID_STATE;
+    }
+
+    wifi_scan_config_t scanConfig = { .ssid        = NULL,
+                                      .bssid       = NULL,
+                                      .channel     = ptScanConfig->channel,
+                                      .show_hidden = ptScanConfig->showHidden };
+
+    wifiConfig.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;
+
+
+    WIFI_LOCK();
+
+    espStatus = esp_wifi_set_mode(WIFI_MODE_STA);
+    if(espStatus != ESP_OK)
+    {
+        WIFI_LOGE("Failed to set WiFi mode to STA: %d", espStatus);
+        WIFI_UNLOCK();
+        return BSP_ERR_STS_FAIL;
+    }
+
+    espStatus = esp_wifi_set_config(ESP_IF_WIFI_STA, &wifiConfig);
+    if(espStatus != ESP_OK)
+    {
+        WIFI_LOGE("Failed to set WiFi configuration: %d", espStatus);
+        WIFI_UNLOCK();
+        return BSP_ERR_STS_FAIL;
+    }
+
+    if(bWifiStarted == false)
+    {
+        espStatus = esp_wifi_start();
+        if(espStatus != ESP_OK)
+        {
+            WIFI_LOGE("Failed to start WiFi: %d", espStatus);
+            WIFI_UNLOCK();
+            return BSP_ERR_STS_FAIL;
+        }
+
+        osEventFlagsWait(s_osWifiEventHandlerGrp, WIFI_STARTED_BIT,
+                         osFlagsWaitAny, portMAX_DELAY);
+        bWifiStarted = true;
+    }
+
+    if(bWifiConnState == true)
+    {
+        espStatus = esp_wifi_disconnect();
+        if(espStatus != ESP_OK)
+        {
+            WIFI_LOGE("Failed to disconnect from AP: %d", espStatus);
+            WIFI_UNLOCK();
+            return BSP_ERR_STS_FAIL;
+        }
+
+        // Wait for disconnection to complete
+        osEventFlagsWait(s_osWifiEventHandlerGrp, WIFI_DISCONNECTED_BIT,
+                         osFlagsWaitAny, portMAX_DELAY);
+        bWifiConnState = false;
+        vSetMemzero(&xConnectedAP, sizeof(bspWifiNetworkParams_t));
+    }
+
+    // Start scan
+    espStatus = esp_wifi_scan_start(&scanConfig, true);
+    if(espStatus != ESP_OK)
+    {
+        WIFI_LOGE("Failed to start WiFi scan: %d", espStatus);
+        WIFI_UNLOCK();
+        return BSP_ERR_STS_FAIL;
+    }
+
+    uint16_t apCount = 0;
+    espStatus        = esp_wifi_scan_get_ap_num((uint16_t*)&apCount);
+    if(espStatus != ESP_OK)
+    {
+        WIFI_LOGE("Failed to get number of APs found: %d", espStatus);
+        WIFI_UNLOCK();
+        return BSP_ERR_STS_FAIL;
+    }
+
+    if(apCount > pu16MaxNumNetworks)
+    {
+        apCount = pu16MaxNumNetworks;
+    }
+
+    uint16_t number = pu16MaxNumNetworks;
+    wifi_ap_record_t apInfo[pu16MaxNumNetworks];
+
+    espStatus = esp_wifi_scan_get_ap_records(&number, apInfo);
+    if(espStatus != ESP_OK)
+    {
+        WIFI_LOGE("Failed to get number of APs record: %d", espStatus);
+        WIFI_UNLOCK();
+        return BSP_ERR_STS_FAIL;
+    }
+
+    WIFI_LOGI("Total APs scanned = %u, actual AP number ap_info holds = %u", apCount, number);
+    memset((void*)&ptScanResult, 00, sizeof(ptScanResult));
+
+    for(int i = 0; i < number; i++)
+    {
+        WIFI_LOGI("SSID \t\t%s", apInfo[i].ssid);
+        WIFI_LOGI("RSSI \t\t%d", apInfo[i].rssi);
+        print_auth_mode(apInfo[i].authmode);
+        if(apInfo[i].authmode != WIFI_AUTH_WEP)
+        {
+            print_cipher_type(apInfo[i].pairwise_cipher, apInfo[i].group_cipher);
+        }
+        WIFI_LOGI("Channel \t\t%d", apInfo[i].primary);
+
+        strlcpy(ptScanResult[i]->ssid, apInfo[i].ssid, apInfo[i].ssid_len);
+        ptScanConfig[i]->ssidLength = apInfo[i].ssid_len;
+        ptScanResult[i]->rssi       = apInfo[i].rssi;
+        ptScanConfig[i]->channel    = apInfo[i].primary;
+        ptScanConfig[i]->security   = apInfo[i].authmode;
+    }
+
+    *pu16NumNetworks = number;
+
+    return BSP_ERR_STS_OK;
+}
+
+
+bsp_err_sts_t bspWifiGetConnectedStations(bspWifitionInfo_t* ptStations,
+                                          uint8_t* pu8NumStations,
+                                          uint8_t u8MaxStations)
+{
+    CHECK_PARAM(ptStations);
+    CHECK_PARAM(pu8NumStations);
+
+    WIFI_LOCK();
+
+    // 1. Ensure WiFi is initialized and in AP mode
+    bspWifiMode_t mode;
+    bsp_err_sts_t espStatus = bspWifiGetMode(&mode);
+    if(espStatus != BSP_ERR_STS_OK)
+    {
+        WIFI_LOGE("Failed to get WiFi mode: %d", espStatus);
+
+        return espStatus;
+    }
+
+    if(espStatus != WIFI_MODE_AP)
+    {
+        WIFI_UNLOCK();
+        return BSP_ERR_STS_NOT_READY;
+    }
+
+    // 2. Query underlying driver (ESP-IDF: esp_wifi_ap_get_sta_list())
+    wifi_sta_list_t staList;
+    esp_err_t espStatus = esp_wifi_ap_get_sta_list(&staList);
+    if(espStatus != ESP_OK)
+    {
+        WIFI_UNLOCK();
+        return BSP_ERR_STS_FAIL;
+    }
+
+    // 3. Check how many stations we can copy
+    uint8_t available = staList.num;
+    uint8_t toCopy    = (available > u8MaxStations) ? u8MaxStations : available;
+
+    for(uint8_t i = 0; i < toCopy; i++)
+    {
+        memcpy(ptStations[i].mac, staList.sta[i].mac, 6);
+        ptStations[i].rssi = staList.sta[i].rssi; // if supported in your struct
+    }
+
+    *pu8NumStations = toCopy;
+
+    WIFI_UNLOCK();
+
+    // If caller’s buffer too small, signal partial copy
+    return (available > u8MaxStations) ? BSP_ERR_STS_NO_MEM : BSP_ERR_STS_OK;
+}
+
+
+bsp_err_sts_t bspWifiGetMAC(uint8_t* mac)
+{
+    if(mac == NULL)
+    {
+        return BSP_ERR_STS_INVALID_PARAM;
+    }
+
+    if(bWifiStarted == false)
+    {
+        WIFI_LOGE("WiFi not started");
+        return BSP_ERR_STS_INVALID_STATE;
+    }
+    esp_err_t espStatus = esp_wifi_get_mac(WIFI_IF_STA, mac);
+    if(espStatus != ESP_OK)
+    {
+        WIFI_LOGE("Failed to get MAC address: %d", espStatus);
+        return BSP_ERR_STS_FAIL;
+    }
+    return BSP_ERR_STS_OK;
+}
+
+
+bsp_err_sts_t bspWifiGetRSSI(int8_t* pi8RSSI)
+{
+    CHECK_PARAM(pi8RSSI);
+
+    WIFI_LOCK();
+
+    wifi_ap_record_t ap_info;
+    esp_err_t espStatus = esp_wifi_sta_get_ap_info(&ap_info);
+    if(espStatus != ESP_OK)
+    {
+        WIFI_LOGE("Failed to get AP info: %d", espStatus);
+        return BSP_ERR_STS_FAIL;
+    }
+
+    *pi8RSSI = ap_info.rssi;
+    WIFI_UNLOCK();
+    return BSP_ERR_STS_OK;
+}
+
+bsp_err_sts_t bspWifiGetChannel(uint8_t* pu8Channel)
+{
+    CHECK_PARAM(pu8Channel);
+
+    WIFI_LOCK();
+
+    wifi_config_t wifiConfig;
+    esp_err_t espStatus = esp_wifi_get_config(WIFI_IF_STA, &wifiConfig);
+    if(espStatus != ESP_OK)
+    {
+        WIFI_LOGE("Failed to get WiFi configuration: %d", espStatus);
+        WIFI_UNLOCK();
+        return BSP_ERR_STS_FAIL;
+    }
+
+    *pu8Channel = wifiConfig.sta.channel;
+    WIFI_UNLOCK();
+    return BSP_ERR_STS_OK;
+}
+
+
+bsp_err_sts_t bspWifiGetCountryCode(uint8_t* pu8CountryCode)
+{
+    CHECK_PARAM(pu8CountryCode);
+
+    WIFI_LOCK();
+
+    wifi_country_t country;
+    esp_err_t espStatus = esp_wifi_get_country(&country);
+    if(espStatus != ESP_OK)
+    {
+        WIFI_LOGE("Failed to get WiFi country: %d", espStatus);
+        WIFI_UNLOCK();
+        return BSP_ERR_STS_FAIL;
+    }
+
+
+    // Copy 2-char ISO country code
+    pu8CountryCode[0] = country.cc[0];
+    pu8CountryCode[1] = country.cc[1];
+    pu8CountryCode[2] = '\0'; // null-terminated
+
+    WIFI_UNLOCK();
+    return BSP_ERR_STS_OK;
+}
+
+
+bsp_err_sts_t bspWifiSetCountryCode(const uint8_t* pu8CountryCode)
+{
+    CHECK_PARAM(pu8CountryCode);
+    if(strlen((const char*)pu8CountryCode) != 2)
+    {
+        return BSP_ERR_STS_INVALID_PARAM;
+    }
+
+    WIFI_LOCK();
+
+    wifi_country_t country = { .cc = { pu8CountryCode[0], pu8CountryCode[1] },
+                               .schan  = 1,
+                               .nchan  = 13,
+                               .policy = WIFI_COUNTRY_POLICY_MANUAL };
+
+    esp_err_t espStatus = esp_wifi_set_country(&country);
+    WIFI_UNLOCK();
+
+    return (espStatus == ESP_OK) ? BSP_ERR_STS_OK : BSP_ERR_STS_FAIL;
+}
+
+bsp_err_sts_t bspWifiGetStatistics(bspWifitisticInfo_t* ptStatisticInfo,
+                                   uint8_t* pu8NumStations,
+                                   uint8_t u8MaxStations)
+{
+    return BSP_ERR_STS_NOT_RUNNING;
+}
+
+bsp_err_sts_t bspWifiGetCapabilityInfo(bspWifitisticInfo_t* ptStatisticInfo,
+                                       uint8_t* pu8NumStations,
+                                       uint8_t u8MaxStations)
+{
+    return BSP_ERR_STS_NOT_RUNNING;
+}
