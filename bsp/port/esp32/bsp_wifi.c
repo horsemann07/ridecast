@@ -92,6 +92,7 @@
 #define BSP_WIFI_F_WIFI_STOPPED     (1 << 9)
 #define BSP_WIFI_F_AUTH_FAILED      (1 << 10)
 #define BSP_WIFI_F_SCAN_DONE        (1 << 11)
+#define BSP_WIFI_F_IP_READY         (1 << 12)
 
 
 /**
@@ -312,8 +313,6 @@ static void
 espWifiEventHandler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
 {
     bspWifiHandle_t* handle = (bspWifiHandle_t*)arg;
-    bspWifiContext_t evt    = { 0 };
-
     if(handle == NULL || handle->evt_q == NULL)
         return;
 
@@ -326,7 +325,6 @@ espWifiEventHandler(void* arg, esp_event_base_t event_base, int32_t event_id, vo
             case WIFI_EVENT_STA_START:
                 WIFI_LOGI("WIFI_EVENT_STA_START");
                 handle->wifi_started = 1;
-                evt.tEventType       = eBSPWifiEventSTAStarted;
                 osEventFlagsClear(wifiContext->evt_flags, BSP_WIFI_F_STA_STOPPED);
                 osEventFlagsClear(wifiContext->evt_flags, BSP_WIFI_F_STA_DISCONNECTED);
                 osEventFlagsSet(wifiContext->evt_flags, BSP_WIFI_F_STA_STARTED);
@@ -335,7 +333,6 @@ espWifiEventHandler(void* arg, esp_event_base_t event_base, int32_t event_id, vo
             case WIFI_EVENT_STA_STOP:
                 WIFI_LOGI("WIFI_EVENT_STA_STOP");
                 handle->wifi_started = 0;
-                evt.tEventType       = eBSPWifiEventSTAStopped;
                 osEventFlagsSet(wifiContext->evt_flags, BSP_WIFI_F_STA_STOPPED);
                 break;
 
@@ -372,16 +369,11 @@ espWifiEventHandler(void* arg, esp_event_base_t event_base, int32_t event_id, vo
                         handle->auth_failed = 1;
                         break;
                 }
-
-                evt.tEventType = eBSPWifiEventSTADisconnected;
-                evt.tEventData.tConnectionInfo.lastDisconnectReason =
-                convertReasonCode(disconn->reason);
                 break;
             }
 
             case WIFI_EVENT_SCAN_DONE:
                 WIFI_LOGI("WIFI_EVENT_SCAN_DONE");
-                evt.tEventType = eBSPWifiEventScanDone;
                 osEventFlagsClear(wifiContext->evt_flags, BSP_WIFI_F_STA_STARTED);
                 osEventFlagsSet(wifiContext->evt_flags, BSP_WIFI_F_SCAN_DONE);
                 break;
@@ -389,7 +381,6 @@ espWifiEventHandler(void* arg, esp_event_base_t event_base, int32_t event_id, vo
             case WIFI_EVENT_AP_START:
                 WIFI_LOGI("WIFI_EVENT_AP_START");
                 handle->ap_started = 1;
-                evt.tEventType     = eBSPWifiEventAPStarted;
                 osEventFlagsClear(wifiContext->evt_flags, BSP_WIFI_F_AP_STOPPED);
                 osEventFlagsSet(wifiContext->evt_flags, BSP_WIFI_F_AP_STARTED);
                 break;
@@ -397,13 +388,11 @@ espWifiEventHandler(void* arg, esp_event_base_t event_base, int32_t event_id, vo
             case WIFI_EVENT_AP_STOP:
                 WIFI_LOGI("WIFI_EVENT_AP_STOP");
                 handle->ap_started = 0;
-                evt.tEventType     = eBSPWifiEventAPStopped;
                 osEventFlagsClear(wifiContext->evt_flags, BSP_WIFI_F_AP_STARTED);
                 osEventFlagsSet(wifiContext->evt_flags, BSP_WIFI_F_AP_STOPPED);
                 break;
 
             default:
-                evt.tEventType = eBSPWifiEventUnknown;
                 break;
         }
     }
@@ -416,31 +405,24 @@ espWifiEventHandler(void* arg, esp_event_base_t event_base, int32_t event_id, vo
             WIFI_LOGI("IP_EVENT_STA_GOT_IP");
 
             handle->sta_connected = 1;
-            evt.tEventType        = eBSPWifiEventIPReady;
             osEventFlagsClear(wifiContext->evt_flags, BSP_WIFI_F_STA_DISCONNECTED);
             osEventFlagsSet(wifiContext->evt_flags, BSP_WIFI_F_STA_CONNECTED);
-
-            memcpy(evt.tEventData.tConnectionInfo.ip.ipAddress.address,
-                   &ip->ip_info.ip.addr, 4);
+            osEventFlagsSet(wifiContext->evt_flags, BSP_WIFI_F_IP_READY);
         }
         else
         {
-            evt.tEventType = eBSPWifiEventIPFailed;
             osEventFlagsClear(wifiContext->evt_flags, BSP_WIFI_F_STA_CONNECTED);
+            osEventFlagsClear(wifiContext->evt_flags, BSP_WIFI_F_IP_READY);
             osEventFlagsSet(wifiContext->evt_flags, BSP_WIFI_F_STA_DISCONNECTED);
         }
     }
     else
     {
-        evt.tEventType = eBSPWifiEventUnknown;
         osEventFlagsClear(wifiContext->evt_flags, BSP_WIFI_F_STA_CONNECTED);
+        osEventFlagsClear(wifiContext->evt_flags, BSP_WIFI_F_IP_READY);
         osEventFlagsSet(wifiContext->evt_flags, BSP_WIFI_F_STA_DISCONNECTED);
     }
-
-    // /* Push event to application */
-    // osMessageQueuePut(&handle->evt_q, &evt, 0, 0);
 }
-
 /*
  ***********************************************************************
  *    BSP PLATFORM DEPENDENT API
@@ -634,12 +616,12 @@ static bsp_err_sts_t bsp_platform_wifi_start_sta(bspWifiHandle_t* handle,
     if(flags & BSP_WIFI_F_STA_DISCONNECTED)
     {
         WIFI_LOGE("STA disconnected");
-        return BSP_ERR_STS_FAIL;
+        return BSP_ERR_STS_CONN_FAILED;
     }
     else if(flags & BSP_WIFI_F_AUTH_FAILED)
     {
         WIFI_LOGE("STA auth failed");
-        return BSP_ERR_STS_FAIL;
+        return BSP_ERR_STS_AUTH_FAIL;
     }
     else if(flags & BSP_WIFI_F_STA_CONNECTED)
     {

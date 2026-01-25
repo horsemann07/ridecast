@@ -16,3 +16,6 @@
 [submodule "external/os/cmsis"]
 	path = external/os/cmsis
 	url = https://github.com/ARM-software/CMSIS_6.git
+[submodule "external/component/backoffAlgorithm"]
+	path = external/component/backoffAlgorithm
+	url = https://github.com/FreeRTOS/backoffAlgorithm.git

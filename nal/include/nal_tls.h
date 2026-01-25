@@ -13,8 +13,6 @@
 #include "bsp_err_sts.h"
 
 
-
-
 #ifdef __cplusplus
 extern "C"
 {
@@ -22,7 +20,7 @@ extern "C"
 
 #if defined(NAL_USE_TLS)
 
-#define NAL_MAX_TLS_SESSIONS 2
+    #define NAL_MAX_TLS_SESSIONS bspNAL_MAX_CONNCETION_SUPPORT
 
     /**
      * @brief Opaque TLS context used by NAL.
@@ -74,7 +72,7 @@ extern "C"
      *  - BSP_ERR_STS_HANDSHAKE_FAIL  TLS handshake failed
      *  - BSP_ERR_STS_FAIL            Generic TLS error
      */
-    bsp_err_sts_t nalTlsHandshake(nalHandle_t* handle);
+    bsp_err_sts_t nalTlsHandshake(nalTlsCtx_t* handle);
 
     /**
      * @brief Gracefully shutdown a TLS session.
@@ -228,8 +226,9 @@ extern "C"
                                 uint8_t* plaintext,
                                 size_t* plain_len);
 
+    bsp_err_sts_t nalTlsNetworkAccept(nalHandle_t* handle, uint32_t timeout_ms);
 
-                                
+
 #endif /* NAL_USE_TLS */
 
 #ifdef __cplusplus

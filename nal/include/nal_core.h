@@ -91,8 +91,75 @@ extern "C"
         NAL_IOCTL_IS_CONNECTED,
     } nalIoctlReq_t;
 
-    /* Forward declare struct so pointers can be used before full definition */
-    typedef struct nalHandle nalHandle_t;
+    typedef enum
+    {
+        NAL_ROLE_NONE = 0,
+        NAL_ROLE_CLIENT,
+        NAL_ROLE_SERVER
+    } nalRole_t;
+
+    typedef struct
+    {
+        const uint8_t* ca_cert;
+        size_t ca_cert_len;
+    } nalTlsClientCreds_t;
+
+
+    typedef struct
+    {
+        const uint8_t* cert_pem; /**< Server certificate (PEM) */
+        size_t cert_len;
+
+        const uint8_t* key_pem;  /**< Server private key (PEM) */
+        size_t key_len;
+
+        /* Optional certificate chain */
+        const uint8_t* chain_pem;
+        size_t chain_len;
+
+    } nalTlsServerCreds_t;
+
+    /**
+     * @brief Opaque NAL handle structure.
+     *
+     * The nalHandle_t structure encapsulates all state needed for a single
+     * network connection. Callers should treat it as an opaque container
+     * allocated on the stack or statically.
+     *
+     * @note This structure should be initialized via nal_init() before use.
+     * @warning Do not access members directly; use NAL API functions instead.
+     */
+    typedef struct
+    {
+        nalScheme_t scheme; /**< Configured transport scheme (TCP or TLS) */
+        nalRole_t role;
+        int sockfd;    /**< Underlying socket file descriptor (-1 if unused) */
+        int keepAlive;
+        int keepIdle;
+        int keepInterval;
+        int keepCount;
+        int broadcast;
+
+#if defined(NAL_USE_TLS)
+        void* tls_ctx; /* opaque TLS context */
+        char server_name[128];
+
+        /* ---- TLS configuration (core-owned) ---- */
+        union
+        {
+            const nalTlsClientCreds_t* client;
+            const nalTlsServerCreds_t* server;
+        } tls_creds;
+
+        /* CA certificate reference (no ownership) */
+        const uint8_t* ca_cert;
+        size_t ca_cert_len;
+#endif                    // #if defined(NAL_USE_TLS)
+
+        osMutexId_t lock; /**< CMSIS-RTOS mutex for thread-safe operations */
+        int8_t id;        /**< Unique session ID (for internal use) */
+    } nalHandle_t;
+
 
     /**
      * @brief Callback function prototype for receiving asynchronous NAL events.
@@ -126,43 +193,6 @@ extern "C"
                                        void* data,
                                        size_t length);
 
-
-    /**
-     * @brief Opaque NAL handle structure.
-     *
-     * The nalHandle_t structure encapsulates all state needed for a single
-     * network connection. Callers should treat it as an opaque container
-     * allocated on the stack or statically.
-     *
-     * @note This structure should be initialized via nal_init() before use.
-     * @warning Do not access members directly; use NAL API functions instead.
-     */
-    struct nalHandle
-    {
-        nalScheme_t scheme; /**< Configured transport scheme (TCP or TLS) */
-        int sockfd;    /**< Underlying socket file descriptor (-1 if unused) */
-
-#if defined(NAL_USE_TLS)
-        void* tls_ctx; /* opaque TLS context */
-        char server_name[128];
-
-        /* CA certificate reference (no ownership) */
-        const uint8_t* ca_cert;
-        size_t ca_cert_len;
-#endif                    // #if defined(NAL_USE_TLS)
-
-        osMutexId_t lock; /**< CMSIS-RTOS mutex for thread-safe operations */
-
-    }; // nalHandle_t
-
-
-    /* -------------------------------------------------------------------------
-     *  Public API (High-Level Contract)
-     * -------------------------------------------------------------------------
-     *  - All functions return bsp_err_sts_t for error reporting (see bsp_err_sts.h).
-     *  - Synchronous APIs block until completion or timeout.
-     *  - Event callbacks are global and optional (registered per event type).
-     * ------------------------------------------------------------------------- */
 
     /* ========================================================================
      *  NAL Subsystem Lifecycle
@@ -200,30 +230,58 @@ extern "C"
     bsp_err_sts_t nalNetworkDeinit(nalHandle_t* handle);
 
     /* ========================================================================
-     *  Connection Management (Synchronous)
+     *   CLIENT CONNECTION API
      * ======================================================================== */
 
-    /**
-     * @brief Establish a TCP or TLS connection to a remote host.
+
+    /*
+     * @brief Establish a TCP or TLS connection with timeout support.
      *
-     * Creates a socket, optionally performs a TLS handshake, and blocks
-     * until the connection succeeds or the timeout expires.
+     * This function connects to a remote host using a blocking-style API,
+     * but internally implements a connection timeout using a non-blocking
+     * socket and select().
      *
-     * Connection state change events (CONNECTED / ERROR) are reported
-     * via registered event callbacks, if any.
+     * Why this function exists:
+     *  - Standard connect() may block forever on embedded systems.
+     *  - Embedded applications must not hang if the network is unstable.
+     *  - This function guarantees the call either succeeds or fails
+     *    within the given timeout.
      *
-     * @param[in,out] handle     Pointer to an initialized nalHandle_t
-     * @param[in]     host       Remote hostname or IP address (null-terminated)
-     * @param[in]     port       Remote TCP port
-     * @param[in]     scheme     Transport scheme (NAL_SCHEME_PLAIN or NAL_SCHEME_TLS)
-     * @param[in]     timeout_ms Connection timeout in milliseconds
+     * How it works (high level):
+     *  1. Create a TCP socket.
+     *  2. Resolve hostname to IP address.
+     *  3. Set the socket to non-blocking mode.
+     *  4. Start connect() and wait using select() until:
+     *        - connection succeeds,
+     *        - connection fails, or
+     *        - timeout expires.
+     *  5. Restore socket to blocking mode.
+     *  6. Optionally perform TLS handshake if enabled.
      *
-     * @return
-     *  - BSP_ERR_STS_OK              Connection established
-     *  - BSP_ERR_STS_TIMEOUT         Connection attempt timed out
-     *  - BSP_ERR_STS_INVALID_PARAM   Invalid arguments
-     *  - BSP_ERR_STS_FAIL            Socket or TLS handshake failure
+     * On success:
+     *  - The socket is stored inside the nalHandle_t.
+     *  - The handle is ready for send/receive operations.
+     *
+     * On failure:
+     *  - The socket is closed.
+     *  - The handle remains in a clean, disconnected state.
+     *
+     * This API is safe to call from a task/thread context.
+     * It does not block longer than timeout_ms.
+     *
+     * @param[in,out] handle     Initialized NAL handle.
+     * @param[in]     host       Remote hostname or IPv4 string.
+     * @param[in]     port       Remote TCP port.
+     * @param[in]     scheme     Connection type (NAL_SCHEME_PLAIN or NAL_SCHEME_TLS).
+     * @param[in]     timeout_ms Maximum time to wait for connection.
+     *
+     * @return BSP_ERR_STS_OK           Connection successful
+     * @return BSP_ERR_STS_TIMEOUT      Connection timed out
+     * @return BSP_ERR_STS_CONN_FAILED  Connection failed
+     * @return BSP_ERR_STS_BUSY         Handle already connected
+     * @return BSP_ERR_STS_NO_MEM       Socket allocation failed
      */
+
     bsp_err_sts_t nalNetworkConnect(nalHandle_t* handle,
                                     const char* host,
                                     uint16_t port,
@@ -272,23 +330,53 @@ extern "C"
                                      uint32_t timeout_ms);
 
     /**
-     * @brief Receive data synchronously from the active connection.
+     * @brief Receive data synchronously from an active NAL connection.
      *
-     * Blocks until data is received, the peer closes the connection,
-     * or the timeout expires.
+     * This function reads data from a previously established network connection
+     * (plain TCP or TLS) and blocks until one of the following occurs:
      *
-     * @param[in,out] handle       Pointer to active nalHandle_t
-     * @param[out]    buf          Receive buffer
-     * @param[in]     buf_len      Size of receive buffer
+     *  - At least one byte of data is received
+     *  - The remote peer closes the connection
+     *  - The specified timeout expires
+     *  - A socket or transport error occurs
+     *
+     * Transport handling model:
+     *  - For plain TCP connections, the function directly uses the underlying
+     *    socket (lwIP / BSD-style recv) with a configured receive timeout.
+     *  - For TLS connections, the function delegates the receive operation to
+     *    the TLS layer (nal_tls.c), keeping this core logic TLS-agnostic.
+     *
+     * Connection semantics:
+     *  - A return value of BSP_ERR_STS_OK indicates that data was successfully
+     *    received and stored in the user-provided buffer.
+     *  - If the remote peer performs an orderly shutdown, the connection is
+     *    marked as disconnected and BSP_ERR_STS_CONN_LOST is returned.
+     *  - Timeouts are treated explicitly and reported as BSP_ERR_STS_TIMEOUT.
+     *
+     * Threading and blocking:
+     *  - This API is synchronous and blocking.
+     *  - It is safe to call from a task/thread context.
+     *  - It must not be called from ISR context.
+     *
+     * Ownership rules:
+     *  - The receive buffer is owned by the caller.
+     *  - The function does not retain or reference the buffer after returning.
+     *
+     * @param[in,out] handle       Pointer to an initialized and connected nalHandle_t
+     * @param[out]    buf          Buffer to store received data
+     * @param[in]     buf_len      Size of the receive buffer in bytes
      * @param[out]    bytes_recv   Number of bytes actually received
-     * @param[in]     timeout_ms   Receive timeout in milliseconds
+     * @param[in]     timeout_ms   Receive timeout in milliseconds (0 = block indefinitely)
      *
      * @return
-     *  - BSP_ERR_STS_OK              Data received successfully
-     *  - BSP_ERR_STS_TIMEOUT         Receive timed out
-     *  - BSP_ERR_STS_INVALID_PARAM   Invalid arguments
-     *  - BSP_ERR_STS_FAIL            Receive error or connection closed
+     *  - BSP_ERR_STS_OK            Data received successfully
+     *  - BSP_ERR_STS_TIMEOUT       No data received within timeout
+     *  - BSP_ERR_STS_CONN_LOST     Peer closed the connection
+     *  - BSP_ERR_STS_INVALID_PARAM Invalid arguments
+     *  - BSP_ERR_STS_NOT_CONNECTED Handle is not connected
+     *  - BSP_ERR_STS_FAIL          Transport or socket error
      */
+
     bsp_err_sts_t nalNetworkRecvSync(nalHandle_t* handle,
                                      void* buf,
                                      size_t buf_len,
@@ -338,86 +426,50 @@ extern "C"
      */
     bsp_err_sts_t nalEnableAsyncEvents(nalHandle_t* handle, osMessageQueueId_t queue);
 
-
     /* ========================================================================
-     *  Asynchronous
+     *  Server-side APIs
      * ======================================================================== */
 
     /**
-     * @brief Queue an asynchronous send operation.
+     * @brief Start a TCP/TLS server.
      *
-     * Copies user data into an internal buffer and schedules it for sending by the async worker thread.
-     * Only one outstanding send operation is allowed per connection in this implementation.
+     * Creates a listening socket bound to the given port.
+     * For TLS, initializes server TLS context but does NOT perform handshake.
      *
-     * @param[in] handle Pointer to an active @ref nalHandle_t structure.
-     * @param[in] data   Pointer to the data buffer to send.
-     * @param[in] len    Length of the data in bytes.
+     * @param[in,out] handle   NAL handle (role must be SERVER)
+     * @param[in]     port     Local port to listen on
+     * @param[in]     scheme   NAL_SCHEME_PLAIN or NAL_SCHEME_TLS
+     * @param[in]     backlog  Max pending connections
      *
-     * @return
-     *  - BSP_ERR_STS_OK              : Send queued successfully.
-     *  - BSP_ERR_STS_INVALID_PARAM   : Null handle or invalid length.
-     *  - BSP_ERR_STS_NOT_INITIALIZED : Async worker not running.
-     *  - BSP_ERR_STS_BUSY   : Previous send still pending.
-     *  - BSP_ERR_STS_INTERNAL_ERROR  : Memory allocation failure.
+     * @return BSP_ERR_STS_OK on success
      */
-    bsp_err_sts_t nalNetworkSendAsync(nalHandle_t* handle, const void* data, size_t len);
+    bsp_err_sts_t
+    nalNetworkStartServer(nalHandle_t* handle, uint16_t port, nalScheme_t scheme, uint32_t backlog);
 
     /**
-     * @brief Register a receive buffer for asynchronous data notifications.
+     * @brief Accept an incoming client connection.
      *
-     * If the user provides a buffer, incoming data is copied into it before invoking
-     * the callback with @ref NAL_EVENT_DATA_RECEIVED. If a NULL buffer is given, an
-     * internal buffer is used, and its pointer is provided directly in the callback data.
+     * This call blocks until:
+     *  - a client connects
+     *  - timeout expires
      *
-     * @param[in] handle     Pointer to the active @ref nalHandle_t structure.
-     * @param[in] recv_buf   Pointer to user-provided receive buffer (optional, can be NULL).
-     * @param[in] recv_len   Size of the provided buffer in bytes.
+     * On success, a NEW nalHandle_t is populated for the client.
      *
-     * @return
-     *  - BSP_ERR_STS_OK              : Receive buffer registered successfully.
-     *  - BSP_ERR_STS_INVALID_PARAM   : Null handle.
-     *  - BSP_ERR_STS_NOT_INITIALIZED : Async worker not active for this handle.
-     */
-    bsp_err_sts_t nalNetworkRecvAsync(nalHandle_t* handle, void* recv_buf, size_t recv_len);
-
-    /* ========================================================================
-     *  TLS Certificate Management
-     * ======================================================================== */
-    /**
-     * @brief Load and store a CA certificate for TLS server verification.
-     *
-     * The function copies the provided PEM certificate buffer internally so the caller
-     * may free or reuse the input buffer afterward. It is required for authenticating
-     * servers during TLS connections if certificate verification is enabled.
-     *
-     * @param[in] handle  Pointer to the initialized @ref nalHandle_t structure.
-     * @param[in] ca_pem  Pointer to the CA certificate in PEM format.
-     * @param[in] len     Length of the PEM data (in bytes).
+     * @param[in]  server     Listening server handle
+     * @param[out] client     Client connection handle
+     * @param[in]  timeout_ms Accept timeout (0 = block forever)
      *
      * @return
-     *  - BSP_ERR_STS_OK              : Certificate successfully stored.
-     *  - BSP_ERR_STS_INVALID_PARAM   : Null handle or invalid length.
-     *  - BSP_ERR_STS_INTERNAL_ERROR  : Memory allocation failure.
+     *  - BSP_ERR_STS_OK
+     *  - BSP_ERR_STS_TIMEOUT
+     *  - BSP_ERR_STS_FAIL
      */
-    bsp_err_sts_t nalSetCaCert(nalHandle_t* handle, const uint8_t* ca_pem, size_t len);
+    bsp_err_sts_t nalNetworkAccept(nalHandle_t* server, nalHandle_t* client, uint32_t timeout_ms);
 
     /**
-     * @brief Retrieve the currently stored CA certificate for TLS verification.
-     *
-     * Returns a pointer to the internally stored CA certificate (if previously set via
-     * @ref nalSetCaCert). The data remains valid as long as the handle is initialized.
-     *
-     * @param[in]  handle      Pointer to the initialized @ref nalHandle_t structure.
-     * @param[out] out_ca_pem  Pointer to receive the internal CA PEM data pointer.
-     * @param[out] out_len     Pointer to receive the certificate length (in bytes).
-     *
-     * @return
-     *  - BSP_ERR_STS_OK              : Certificate returned successfully.
-     *  - BSP_ERR_STS_INVALID_PARAM   : Null argument(s) passed.
-     *  - BSP_ERR_STS_NOT_INITIALIZED : No certificate has been set.
+     * @brief Stop server and close listening socket.
      */
-    bsp_err_sts_t nalGetCaCert(nalHandle_t* handle, const uint8_t** out_ca_pem, size_t* out_len);
-
+    bsp_err_sts_t nalNetworkStopServer(nalHandle_t* handle);
     /* ------------------------------------------------------------------------- */
 
 #ifdef __cplusplus

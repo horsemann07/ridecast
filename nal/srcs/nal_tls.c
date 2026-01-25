@@ -21,45 +21,8 @@
         #define NAL_TLS_ALLOC_MODE NAL_TLS_ALLOC_STATIC
     #endif
 
-
-    /*
-     * =========================================================================
-     *  Internal Macros
-     * =========================================================================
-     */
-
-    /**
-     * @brief Acquire NAL handle mutex (if valid).
-     *
-     * Used by NAL core to protect per-handle state.
-     */
-    #define NAL_LOCK(h)                                   \
-        do                                                \
-        {                                                 \
-            if((h) && (h)->lock)                          \
-            {                                             \
-                osMutexAcquire((h)->lock, osWaitForever); \
-            }                                             \
-        } while(0)
-
-    /**
-     * @brief Release NAL handle mutex (if valid).
-     */
-    #define NAL_UNLOCK(h)                  \
-        do                                 \
-        {                                  \
-            if((h) && (h)->lock)           \
-            {                              \
-                osMutexRelease((h)->lock); \
-            }                              \
-        } while(0)
-
-
-    #define NAL_MS_TO_TICKS(ms)    (((ms) * osKernelGetTickFreq()) / 1000U)
-
-    #define NAL_TICKS_TO_MS(ticks) (((ticks) * 1000U) / osKernelGetTickFreq())
 /* =========================================================================
- *  TLS Context (opaque to users)
+ *  TLS Context Private
  * ========================================================================= */
 
 /*
@@ -73,18 +36,19 @@ typedef struct nalTlsCtx
     #endif
 
     void* platform_ctx; /* TLS backend (mbedTLS / wolfSSL / etc.) */
+    int sockfd;
 
 } nalTlsCtx_t;
 
+
+
+
 /* =========================================================================
- *  Allocation policy abstraction
+ *  Private Functions
  * ========================================================================= */
 
 static nalTlsCtx_t* nalTlsAlloc(void);
 static void nalTlsFree(nalTlsCtx_t* ctx);
-
-static nalTlsCtx_t g_tls_pool[NAL_MAX_TLS_SESSIONS];
-static osMutexId_t g_tls_pool_lock;
 
 /*
  * Initialize TLS pool once.
@@ -160,6 +124,7 @@ static void nalTlsFree(nalTlsCtx_t* ctx)
     #if (NAL_TLS_ALLOC_MODE == NAL_TLS_ALLOC_HEAP)
 
     free(ctx);
+    ctx = NULL;
 
     #else /* NAL_TLS_ALLOC_STATIC */
 
@@ -330,8 +295,7 @@ nalTlsSend(nalHandle_t* handle, const void* data, size_t len, size_t* bytes_sent
 
     NAL_LOCK(handle);
 
-    nalTlsCtx_t* ctx    = (nalTlsCtx_t*)handle->tls_ctx;
-    uint32_t start_tick = osKernelGetTickCount();
+    nalTlsCtx_t* ctx = (nalTlsCtx_t*)handle->tls_ctx;
 
     /*
      * Validate TLS state
@@ -342,6 +306,8 @@ nalTlsSend(nalHandle_t* handle, const void* data, size_t len, size_t* bytes_sent
         return BSP_ERR_STS_UNSUPPORTED;
     }
 
+    uint32_t start_tick = osKernelGetTickCount();
+
     /*
      * Blocking-style send loop
      */
@@ -351,10 +317,9 @@ nalTlsSend(nalHandle_t* handle, const void* data, size_t len, size_t* bytes_sent
 
         if(timeout_ms > 0)
         {
-            uint32_t now = osKernelGetTickCount();
-            elapsed_ms   = NAL_MS_TO_TICKS(now - start_tick);
+            elapsed_ms = osKernelGetTickCount() - start_tick;
 
-            if(elapsed_ms >= timeout_ms)
+            if(NAL_TIMEOUT_EXPIRED(elapsed_ms, timeout_ms))
             {
                 NAL_UNLOCK(handle);
                 return BSP_ERR_STS_TIMEOUT;
@@ -428,10 +393,9 @@ nalTlsRecv(nalHandle_t* handle, void* buf, size_t buf_len, size_t* bytes_recv, u
 
         if(timeout_ms > 0)
         {
-            uint32_t now = osKernelGetTickCount();
-            elapsed_ms   = NAL_MS_TO_TICKS(now - start_tick);
+            elapsed_ms = osKernelGetTickCount() - start_tick;
 
-            if(elapsed_ms >= timeout_ms)
+            if(NAL_TIMEOUT_EXPIRED(elapsed_ms, timeout_ms))
             {
                 NAL_UNLOCK(handle);
                 return BSP_ERR_STS_TIMEOUT;
@@ -444,6 +408,12 @@ nalTlsRecv(nalHandle_t* handle, void* buf, size_t buf_len, size_t* bytes_recv, u
 
         bsp_err_sts_t rc = nal_platform_tls_recv(ctx->platform_ctx, (uint8_t*)buf,
                                                  buf_len, &read, remaining_timeout);
+
+        if(rc == BSP_ERR_STS_TIMEOUT)
+        {
+            /* retry until overall timeout expires */
+            continue;
+        }
 
         if(rc != BSP_ERR_STS_OK)
         {
@@ -565,10 +535,59 @@ bsp_err_sts_t nalTlsDecrypt(nalHandle_t* handle,
 }
 
 /* ------------------------------------------------------------------------- */
+bsp_err_sts_t nalTlsServerStart(nalHandle_t* handle, nalTlsServerCreds_t* creds)
+{
+    if(!handle || !handle->tls_ctx || !creds)
+        return BSP_ERR_STS_INVALID_PARAM;
+
+    uint8_t id = handle->id;
+
+    bsp_err_sts_t sts =
+    nal_platform_tls_server_init(((nalTlsCtx_t*)handle->tls_ctx)->platform_ctx, creds);
+
+    if(sts != BSP_ERR_STS_OK)
+    {
+        nal_platform_tls_free(((nalTlsCtx_t*)handle->tls_ctx)->platform_ctx);
+        nalTlsFree(handle->tls_ctx);
+        return sts;
+    }
+}
+
+
+/* ------------------------------------------------------------------------- */
+bsp_err_sts_t nalTlsHandshakeServer(nalTlsCtx_t* ctx)
+{
+    if(!ctx || ctx->sockfd < 0)
+        return BSP_ERR_STS_INVALID_PARAM;
+
+    bsp_err_sts_t sts = nal_platform_tls_server_handshake(ctx->platform_ctx);
+
+    return sts;
+}
+
+
+bsp_err_sts_t nalTlsNetworkAccept(nalHandle_t* handle, uint32_t timeout_ms)
+{
+    if(!handle || !handle->tls_ctx)
+        return BSP_ERR_STS_INVALID_PARAM;
+
+    int fd = nal_platform_tls_network_accept(handle->tls_ctx, timeout_ms);
+    if(fd < 0)
+    {
+        return BSP_ERR_STS_TIMEOUT;
+    }
+
+    handle->sockfd = fd;
+
+    nalTlsCtx_t* ctx = (nalTlsCtx_t*)handle->tls_ctx;
+    ctx->sockfd      = fd;
+    return BSP_ERR_STS_OK;
+}
+/* ------------------------------------------------------------------------- */
 #endif /* NAL_USE_TLS */
 
-//
+       //
 // =========================================================================
 //  End of nal_tls.c
 // =========================================================================
-///
+///|editable_region_end|>

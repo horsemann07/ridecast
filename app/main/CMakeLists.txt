@@ -1,4 +1,6 @@
 
+# Current File Path
+# ${CAMAKE_SOURCE_DIR}/app/main/CMakeLists.txt
 
 message(STATUS "app/main/CMakeLists.txt")
 
@@ -16,6 +18,11 @@ set(demo_wifi
     "${CMAKE_SOURCE_DIR}/app/demo/wifi/demo_wifi_sta_ap.c"
 )
 
+set(demo_conn_mgnr
+
+    "${CMAKE_SOURCE_DIR}/app/conn_mgnr/conn_mgnr.c"
+)
+
 # set(ridecast_app
 # "${CMAKE_SOURCE_DIR}/app/demo/wifi/demo_wifi_sta_ap.c"
 # )
@@ -25,9 +32,8 @@ idf_component_register(
 
     # "${CMAKE_SOURCE_DIR}/app/demo_config/app_bsp_config.c"
     ${demo_uart}
-    ${demo_nal}
     ${demo_wifi}
-    # ${ridecast_app}
+    ${demo_conn_mgnr}
 
     INCLUDE_DIRS "."
     "${CMAKE_SOURCE_DIR}/external/os/cmsis_esp/Include"
@@ -52,4 +58,5 @@ idf_component_register(
     nal
     cli
     nvs_flash
+    backoffAlgorithmWrapper
 )

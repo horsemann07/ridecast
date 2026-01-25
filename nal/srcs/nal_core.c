@@ -13,6 +13,7 @@
 #include <errno.h>
 
 #include "nal_config.h"
+#include "nal_internal.h"
 #include "nal_tls.h"
 #include "nal_log.h"
 
@@ -42,41 +43,7 @@
     #define NAL_TLS_ALLOC_MODE NAL_TLS_ALLOC_STATIC
 #endif
 
-#define NAL_MS_TO_TICKS(ms)    (((ms) * osKernelGetTickFreq()) / 1000U)
-
-#define NAL_TICKS_TO_MS(ticks) (((ticks) * 1000U) / osKernelGetTickFreq())
-
-/*
- * =========================================================================
- *  Internal Macros
- * =========================================================================
- */
-
-/**
- * @brief Acquire NAL handle mutex (if valid).
- *
- * Used by NAL core to protect per-handle state.
- */
-#define NAL_LOCK(h)                                   \
-    do                                                \
-    {                                                 \
-        if((h) && (h->lock))                          \
-        {                                             \
-            osMutexAcquire((h)->lock, osWaitForever); \
-        }                                             \
-    } while(0)
-
-/**
- * @brief Release NAL handle mutex (if valid).
- */
-#define NAL_UNLOCK(h)                  \
-    do                                 \
-    {                                  \
-        if((h) && (h->lock))           \
-        {                              \
-            osMutexRelease((h)->lock); \
-        }                              \
-    } while(0)
+#define NAL_MAX_CONNECTIONS (bspNAL_MAX_CONNCETION_SUPPORT)
 
 /*
  * =========================================================================
@@ -126,11 +93,31 @@ typedef struct
  * This singleton context manages the asynchronous event subsystem
  * for the NAL module.
  */
-static nalAsyncCtx_t g_nal_async = { 0 };
+static nalAsyncCtx_t g_nal_async[NAL_MAX_CONNECTIONS] = { 0 };
+
+
+/**
+ * @brief Flag to indicate if a session is in use.
+ *
+ */
+static int8_t g_nal_session_id[NAL_MAX_CONNECTIONS] = { 0 };
 
 /* ============================================================
  * Internal Helper Functions
  * ============================================================ */
+
+static int8_t get_free_session_id(void)
+{
+    for(int i = 0; i < NAL_MAX_CONNECTIONS; i++)
+    {
+        if(g_nal_session_id[i] == false)
+        {
+            g_nal_session_id[i] = true;
+            return i;
+        }
+    }
+    return -1;
+}
 
 /**
  * @brief Internal NAL network event worker task.
@@ -162,7 +149,7 @@ static void nalNetEventTask(void* arg)
             msg.length = rx_len;
 
             /* Send event to application */
-            osMessageQueuePut(g_nal_async.evt_queue, &msg, 0, 0);
+            osMessageQueuePut(g_nal_async[handle->id].evt_queue, &msg, 0, 0);
         }
         else if(ret == BSP_ERR_STS_OK && rx_len == 0)
         {
@@ -172,7 +159,7 @@ static void nalNetEventTask(void* arg)
             msg.length = 0;
 
             /* Send event to application */
-            osMessageQueuePut(g_nal_async.evt_queue, &msg, 0, 0);
+            osMessageQueuePut(g_nal_async[handle->id].evt_queue, &msg, 0, 0);
         }
         else if(ret == BSP_ERR_STS_TIMEOUT)
         {
@@ -182,7 +169,7 @@ static void nalNetEventTask(void* arg)
             msg.length = 0;
 
             /* Send event to application */
-            osMessageQueuePut(g_nal_async.evt_queue, &msg, 0, 0);
+            osMessageQueuePut(g_nal_async[handle->id].evt_queue, &msg, 0, 0);
         }
         else
         {
@@ -192,7 +179,7 @@ static void nalNetEventTask(void* arg)
             msg.length = 0;
 
             /* Send event to application */
-            osMessageQueuePut(g_nal_async.evt_queue, &msg, 0, 0);
+            osMessageQueuePut(g_nal_async[handle->id].evt_queue, &msg, 0, 0);
         }
     }
 }
@@ -216,10 +203,22 @@ bsp_err_sts_t nalNetworkInit(nalHandle_t* handle)
      * This prevents undefined behavior if the handle
      * was stack-allocated or reused.
      */
-    memset(handle, 0, sizeof(*handle));
+    memset(handle, 0, sizeof(nalHandle_t));
 
     handle->sockfd = -1;
     handle->scheme = NAL_SCHEME_PLAIN;
+
+    int8_t session_id = get_free_session_id();
+    if(session_id >= 0)
+    {
+        handle->id = session_id;
+    }
+    else
+    {
+        handle->id = -1;
+        return BSP_ERR_STS_NO_MEM;
+    }
+    NAL_LOGI("Session ID: %d", handle->id);
 
     /*
      * Create per-handle mutex.
@@ -231,6 +230,7 @@ bsp_err_sts_t nalNetworkInit(nalHandle_t* handle)
         handle->lock = osMutexNew(NULL);
         if(handle->lock == NULL)
         {
+            NAL_LOGI("Failed to create mutex");
             return BSP_ERR_STS_NO_MEM;
         }
     }
@@ -251,6 +251,7 @@ bsp_err_sts_t nalNetworkDeinit(nalHandle_t* handle)
     /* ensure we close any open socket */
     if(handle->sockfd >= 0)
     {
+        NAL_LOGI("Closing socket %d", handle->sockfd);
         lwip_close(handle->sockfd);
         handle->sockfd = -1;
     }
@@ -259,6 +260,7 @@ bsp_err_sts_t nalNetworkDeinit(nalHandle_t* handle)
 #if defined(NAL_USE_TLS)
     if(handle->tls_ctx)
     {
+        NAL_LOGI("Closing TLS context");
         nalTlsDeinit(handle->tls_ctx);
         handle->tls_ctx = NULL;
     }
@@ -267,61 +269,14 @@ bsp_err_sts_t nalNetworkDeinit(nalHandle_t* handle)
     NAL_UNLOCK(handle);
 
     osMutexDelete(handle->lock);
+    handle->lock                 = NULL;
+    g_nal_session_id[handle->id] = 0;
     memset(handle, 0, sizeof(nalHandle_t));
-    handle->lock = NULL;
+    handle->id = -1;
 
     return BSP_ERR_STS_OK;
 }
 /* ------------------------------------------------------------------------- */
-
-/*
- * @brief Establish a TCP or TLS connection with timeout support.
- *
- * This function connects to a remote host using a blocking-style API,
- * but internally implements a connection timeout using a non-blocking
- * socket and select().
- *
- * Why this function exists:
- *  - Standard connect() may block forever on embedded systems.
- *  - Embedded applications must not hang if the network is unstable.
- *  - This function guarantees the call either succeeds or fails
- *    within the given timeout.
- *
- * How it works (high level):
- *  1. Create a TCP socket.
- *  2. Resolve hostname to IP address.
- *  3. Set the socket to non-blocking mode.
- *  4. Start connect() and wait using select() until:
- *        - connection succeeds,
- *        - connection fails, or
- *        - timeout expires.
- *  5. Restore socket to blocking mode.
- *  6. Optionally perform TLS handshake if enabled.
- *
- * On success:
- *  - The socket is stored inside the nalHandle_t.
- *  - The handle is ready for send/receive operations.
- *
- * On failure:
- *  - The socket is closed.
- *  - The handle remains in a clean, disconnected state.
- *
- * This API is safe to call from a task/thread context.
- * It does not block longer than timeout_ms.
- *
- * @param[in,out] handle     Initialized NAL handle.
- * @param[in]     host       Remote hostname or IPv4 string.
- * @param[in]     port       Remote TCP port.
- * @param[in]     scheme     Connection type (NAL_SCHEME_PLAIN or NAL_SCHEME_TLS).
- * @param[in]     timeout_ms Maximum time to wait for connection.
- *
- * @return BSP_ERR_STS_OK           Connection successful
- * @return BSP_ERR_STS_TIMEOUT      Connection timed out
- * @return BSP_ERR_STS_CONN_FAILED  Connection failed
- * @return BSP_ERR_STS_BUSY         Handle already connected
- * @return BSP_ERR_STS_NO_MEM       Socket allocation failed
- */
-
 bsp_err_sts_t
 nalNetworkConnect(nalHandle_t* handle, const char* host, uint16_t port, nalScheme_t scheme, uint32_t timeout_ms)
 {
@@ -332,27 +287,49 @@ nalNetworkConnect(nalHandle_t* handle, const char* host, uint16_t port, nalSchem
 
     NAL_LOCK(handle);
 
-    /* Prevent reconnect on an active socket */
+    NAL_LOGI("Connecting to %s:%d", host, port);
+
+    /* -------------------------------------------------
+     * 1. Prevent reconnect on active socket
+     * -------------------------------------------------
+     * A handle can own only one socket at a time.
+     * This avoids fd leaks and undefined behavior.
+     */
     if(handle->sockfd >= 0)
     {
+        NAL_LOGI("Socket already connected");
         NAL_UNLOCK(handle);
         return BSP_ERR_STS_BUSY;
     }
 
     handle->scheme = scheme;
+    handle->role   = NAL_ROLE_CLIENT;
 
     /* -------------------------------------------------
-     * 1. Create socket
-     * ------------------------------------------------- */
+     * 2. Create TCP socket
+     * -------------------------------------------------
+     * AF_INET      -> IPv4
+     * SOCK_STREAM  -> TCP
+     */
     int sock = lwip_socket(AF_INET, SOCK_STREAM, 0);
     if(sock < 0)
     {
+        NAL_LOGI("Socket creation failed: %d", (errno));
         NAL_UNLOCK(handle);
         return BSP_ERR_STS_INVALID_SOCKET;
     }
 
     /* -------------------------------------------------
-     * 2. Resolve address
+     * 3. Make socket non-blocking
+     * -------------------------------------------------
+     * Required so connect() does not block forever.
+     * Timeout will be handled using select().
+     */
+    int flags = lwip_fcntl(sock, F_GETFL, 0);
+    lwip_fcntl(sock, F_SETFL, flags | O_NONBLOCK);
+
+    /* -------------------------------------------------
+     * 4. Prepare destination address
      * ------------------------------------------------- */
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
@@ -360,6 +337,12 @@ nalNetworkConnect(nalHandle_t* handle, const char* host, uint16_t port, nalSchem
     addr.sin_family = AF_INET;
     addr.sin_port   = htons(port);
 
+    /* -------------------------------------------------
+     * 5. Resolve host
+     * -------------------------------------------------
+     * First try direct IP (faster).
+     * If that fails, fall back to DNS.
+     */
     in_addr_t ip = inet_addr(host);
     if(ip == INADDR_NONE)
     {
@@ -367,6 +350,7 @@ nalNetworkConnect(nalHandle_t* handle, const char* host, uint16_t port, nalSchem
         if(!he || !he->h_addr_list || !he->h_addr_list[0])
         {
             lwip_close(sock);
+            NAL_LOGI("Host resolution failed: %d", (errno));
             NAL_UNLOCK(handle);
             return BSP_ERR_STS_NOT_FOUND;
         }
@@ -374,26 +358,33 @@ nalNetworkConnect(nalHandle_t* handle, const char* host, uint16_t port, nalSchem
     }
     else
     {
+        /* IP string case */
         addr.sin_addr.s_addr = ip;
     }
 
     /* -------------------------------------------------
-     * 3. Non-blocking connect for timeout support
-     * ------------------------------------------------- */
-    int flags = lwip_fcntl(sock, F_GETFL, 0);
-    lwip_fcntl(sock, F_SETFL, flags | O_NONBLOCK);
-
+     * 6. Start non-blocking connect
+     * -------------------------------------------------
+     * Expected outcomes:
+     *  - rc == 0           -> connected immediately
+     *  - errno=EINPROGRESS -> connection in progress
+     */
     int rc = lwip_connect(sock, (struct sockaddr*)&addr, sizeof(addr));
     if(rc < 0 && errno != EINPROGRESS)
     {
         lwip_close(sock);
+        NAL_LOGI("Connect failed immediately: %d", errno);
         NAL_UNLOCK(handle);
         return BSP_ERR_STS_CONN_FAILED;
     }
 
     /* -------------------------------------------------
-     * 4. Wait for connect completion (select)
-     * ------------------------------------------------- */
+     * 7. Wait for connect completion using select()
+     * -------------------------------------------------
+     * Socket becomes writable when:
+     *  - connection succeeds OR
+     *  - connection fails
+     */
     fd_set wfds;
     FD_ZERO(&wfds);
     FD_SET(sock, &wfds);
@@ -402,16 +393,41 @@ nalNetworkConnect(nalHandle_t* handle, const char* host, uint16_t port, nalSchem
     tv.tv_sec  = timeout_ms / 1000;
     tv.tv_usec = (timeout_ms % 1000) * 1000;
 
-    rc = select(sock + 1, NULL, &wfds, NULL, (timeout_ms > 0) ? &tv : NULL);
+    rc = lwip_select(sock + 1, NULL, &wfds, NULL, (timeout_ms > 0) ? &tv : NULL);
 
-    if(rc <= 0)
+    if(rc == 0)
     {
+        /* Timeout expired */
         lwip_close(sock);
+        NAL_LOGI("Connect timeout (%lu ms)", timeout_ms);
         NAL_UNLOCK(handle);
         return BSP_ERR_STS_TIMEOUT;
     }
+    else if(rc < 0)
+    {
+        /* Select internal error */
 
-    /* Check socket error */
+        lwip_close(sock);
+        NAL_LOGI("Select failed: %d", errno);
+        NAL_UNLOCK(handle);
+        return BSP_ERR_STS_FAIL;
+    }
+
+    /* Defensive check */
+    if(!FD_ISSET(sock, &wfds))
+    {
+        lwip_close(sock);
+        NAL_LOGI("Socket not writable after select");
+        NAL_UNLOCK(handle);
+        return BSP_ERR_STS_FAIL;
+    }
+
+    /* -------------------------------------------------
+     * 8. Verify final socket error
+     * -------------------------------------------------
+     * Even if select() succeeds, the connection may
+     * still have failed. SO_ERROR tells the truth.
+     */
     int so_err    = 0;
     socklen_t len = sizeof(so_err);
     lwip_getsockopt(sock, SOL_SOCKET, SO_ERROR, &so_err, &len);
@@ -420,17 +436,25 @@ nalNetworkConnect(nalHandle_t* handle, const char* host, uint16_t port, nalSchem
     {
         lwip_close(sock);
         NAL_UNLOCK(handle);
+        NAL_LOGI("Socket error: %d", (so_err));
         return BSP_ERR_STS_CONN_FAILED;
     }
 
-    /* Restore blocking mode */
+    /* -------------------------------------------------
+     * 9. Restore blocking mode
+     * -------------------------------------------------
+     * recv()/send() APIs assume blocking sockets.
+     */
     lwip_fcntl(sock, F_SETFL, flags);
 
+    /* -------------------------------------------------
+     * 10. Attach socket to handle
+     * ------------------------------------------------- */
     handle->sockfd = sock;
 
 #if defined(NAL_USE_TLS)
     /* -------------------------------------------------
-     * 5. TLS handshake (optional)
+     * 11. TLS initialization and handshake (optional)
      * ------------------------------------------------- */
     if(handle->scheme == NAL_SCHEME_TLS)
     {
@@ -439,21 +463,26 @@ nalNetworkConnect(nalHandle_t* handle, const char* host, uint16_t port, nalSchem
         {
             lwip_close(sock);
             handle->sockfd = -1;
+            NAL_LOGI("TLS init failed: %d", (tls_rc));
             NAL_UNLOCK(handle);
             return tls_rc;
         }
 
-        tls_rc = nalTlsHandshake(handle);
+        tls_rc = nalTlsHandshake((nalTlsCtx_t*)handle->tls_ctx);
         if(tls_rc != BSP_ERR_STS_OK)
         {
             nalTlsDeinit(handle);
             lwip_close(sock);
             handle->sockfd = -1;
+            NAL_LOGI("TLS handshake failed: %s", bsp_err_sts_to_str(tls_rc));
             NAL_UNLOCK(handle);
             return tls_rc;
         }
     }
 #endif
+    /* -------------------------------------------------
+     * 12. Success
+     * ------------------------------------------------- */
 
     NAL_UNLOCK(handle);
     return BSP_ERR_STS_OK;
@@ -497,12 +526,14 @@ bsp_err_sts_t nalNetworkDisconnect(nalHandle_t* handle)
 {
     if(handle == NULL)
     {
+        NAL_LOGI("Invalid handle");
         return BSP_ERR_STS_INVALID_PARAM;
     }
 
     /* If already disconnected, treat as success */
     if(handle->sockfd < 0)
     {
+        NAL_LOGI("Socket already disconnected");
         return BSP_ERR_STS_OK;
     }
 
@@ -521,6 +552,7 @@ bsp_err_sts_t nalNetworkDisconnect(nalHandle_t* handle)
     /* Reset transport scheme to default */
     handle->scheme = NAL_SCHEME_PLAIN;
 
+    NAL_LOGI("Socket %d disconnected", handle->sockfd);
     return BSP_ERR_STS_OK;
 }
 
@@ -598,6 +630,7 @@ nalNetworkSendSync(nalHandle_t* handle, const void* data, size_t len, size_t* by
     /* Must be connected */
     if(handle->sockfd < 0)
     {
+        NAL_LOGI("Socket already disconnected");
         return BSP_ERR_STS_NO_CONN;
     }
 
@@ -609,6 +642,11 @@ nalNetworkSendSync(nalHandle_t* handle, const void* data, size_t len, size_t* by
     {
         return nalTlsSend(handle, data, len, bytes_sent, timeout_ms);
     }
+    else
+    {
+        NAL_LOGI("Invalid scheme: %d", handle->scheme);
+        return BSP_ERR_STS_INVALID_PARAM;
+    }
 #endif /* NAL_USE_TLS */
 
     /* ===============================
@@ -619,17 +657,17 @@ nalNetworkSendSync(nalHandle_t* handle, const void* data, size_t len, size_t* by
     size_t remaining   = len;
     uint32_t start_ms  = osKernelGetTickCount();
 
+    NAL_LOGI("Sending %zu bytes to socket %d", len, handle->sockfd);
 
     while(remaining > 0)
     {
-        NAL_LOCK(handle);
         /* Check timeout */
         if(timeout_ms > 0)
         {
-            uint32_t elapsed = NAL_MS_TO_TICKS(osKernelGetTickCount() - start_ms);
+            uint32_t elapsed = NAL_TICKS_TO_MS(osKernelGetTickCount() - start_ms);
             if(elapsed >= timeout_ms)
             {
-                NAL_UNLOCK(handle);
+                NAL_LOGE("Timeout expired before sending all data");
                 return BSP_ERR_STS_TIMEOUT;
             }
         }
@@ -641,23 +679,22 @@ nalNetworkSendSync(nalHandle_t* handle, const void* data, size_t len, size_t* by
             /* EWOULDBLOCK / EAGAIN → retry until timeout */
             if(errno == EWOULDBLOCK || errno == EAGAIN)
             {
-                NAL_UNLOCK(handle);
-                osDelay(NAL_MS_TO_TICKS(500)); /* brief delay before retry */
+                NAL_LOGE("EWOULDBLOCK / EAGAIN");
+                osDelay(NAL_MS_TO_TICKS(20)); /* brief delay before retry */
                 continue;
             }
 
-            NAL_UNLOCK(handle);
+            NAL_LOGE("Transport-level send failure");
             return BSP_ERR_STS_FAIL;
         }
 
         if(ret == 0)
         {
             /* Peer closed connection */
-            NAL_UNLOCK(handle);
+            NAL_LOGE("Peer closed connection");
             return BSP_ERR_STS_CONN_LOST;
         }
 
-        NAL_UNLOCK(handle);
         ptr += ret;
         remaining -= (size_t)ret;
         *bytes_sent += (size_t)ret;
@@ -667,57 +704,10 @@ nalNetworkSendSync(nalHandle_t* handle, const void* data, size_t len, size_t* by
 }
 
 /* ------------------------------------------------------------------------- */
-/**
- * @brief Receive data synchronously from an active NAL connection.
- *
- * This function reads data from a previously established network connection
- * (plain TCP or TLS) and blocks until one of the following occurs:
- *
- *  - At least one byte of data is received
- *  - The remote peer closes the connection
- *  - The specified timeout expires
- *  - A socket or transport error occurs
- *
- * Transport handling model:
- *  - For plain TCP connections, the function directly uses the underlying
- *    socket (lwIP / BSD-style recv) with a configured receive timeout.
- *  - For TLS connections, the function delegates the receive operation to
- *    the TLS layer (nal_tls.c), keeping this core logic TLS-agnostic.
- *
- * Connection semantics:
- *  - A return value of BSP_ERR_STS_OK indicates that data was successfully
- *    received and stored in the user-provided buffer.
- *  - If the remote peer performs an orderly shutdown, the connection is
- *    marked as disconnected and BSP_ERR_STS_CONN_LOST is returned.
- *  - Timeouts are treated explicitly and reported as BSP_ERR_STS_TIMEOUT.
- *
- * Threading and blocking:
- *  - This API is synchronous and blocking.
- *  - It is safe to call from a task/thread context.
- *  - It must not be called from ISR context.
- *
- * Ownership rules:
- *  - The receive buffer is owned by the caller.
- *  - The function does not retain or reference the buffer after returning.
- *
- * @param[in,out] handle       Pointer to an initialized and connected nalHandle_t
- * @param[out]    buf          Buffer to store received data
- * @param[in]     buf_len      Size of the receive buffer in bytes
- * @param[out]    bytes_recv   Number of bytes actually received
- * @param[in]     timeout_ms   Receive timeout in milliseconds (0 = block indefinitely)
- *
- * @return
- *  - BSP_ERR_STS_OK            Data received successfully
- *  - BSP_ERR_STS_TIMEOUT       No data received within timeout
- *  - BSP_ERR_STS_CONN_LOST     Peer closed the connection
- *  - BSP_ERR_STS_INVALID_PARAM Invalid arguments
- *  - BSP_ERR_STS_NOT_CONNECTED Handle is not connected
- *  - BSP_ERR_STS_FAIL          Transport or socket error
- */
-
 bsp_err_sts_t
 nalNetworkRecvSync(nalHandle_t* handle, void* buf, size_t buf_len, size_t* bytes_recv, uint32_t timeout_ms)
 {
+    /* Validate input parameters */
     if(handle == NULL || buf == NULL || bytes_recv == NULL || buf_len == 0)
     {
         return BSP_ERR_STS_INVALID_PARAM;
@@ -725,60 +715,92 @@ nalNetworkRecvSync(nalHandle_t* handle, void* buf, size_t buf_len, size_t* bytes
 
     *bytes_recv = 0;
 
-    /* Must be connected */
+    /* Socket must be valid (connected) */
     if(handle->sockfd < 0)
     {
+        NAL_LOGE("Socket already disconnected");
         return BSP_ERR_STS_NO_CONN;
     }
 
 #if defined(NAL_USE_TLS)
-    /* TLS path: delegate fully to TLS layer */
+    /*
+     * TLS path:
+     * Data reception is delegated entirely to the TLS layer.
+     * TLS handles its own buffering, timeouts, and decryption.
+     */
     if(handle->scheme == NAL_SCHEME_TLS)
     {
+        NAL_LOGE("TLS scheme detected");
         return nalTlsRecv(handle, buf, buf_len, bytes_recv, timeout_ms);
     }
 #endif /* NAL_USE_TLS */
 
-    /* ---------- Plain TCP path ---------- */
-
-    /* Configure receive timeout */
+    /*
+     * Configure receive timeout.
+     * SO_RCVTIMEO controls how long recv() will block.
+     *
+     * timeout_ms > 0:
+     *   recv() blocks up to timeout_ms.
+     *
+     * timeout_ms == 0:
+     *   recv() should not block (best-effort poll).
+     */
+    /* Non-blocking behavior: zero timeout */
+    struct timeval tv = { 0 };
     if(timeout_ms > 0)
     {
-        NAL_LOCK(handle);
-        struct timeval tv;
         tv.tv_sec  = timeout_ms / 1000;
         tv.tv_usec = (timeout_ms % 1000) * 1000;
-        lwip_setsockopt(handle->sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-        NAL_UNLOCK(handle);
     }
 
+    /* Apply socket receive timeout */
+    lwip_setsockopt(handle->sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+
+    /*
+     * Attempt to receive data.
+     * For TCP:
+     *   >0  : number of bytes received
+     *    0  : peer performed orderly shutdown
+     *   <0  : error (check errno)
+     */
     int ret = lwip_recv(handle->sockfd, buf, buf_len, 0);
 
     if(ret > 0)
     {
+        /* Data successfully received */
         *bytes_recv = (size_t)ret;
-
         return BSP_ERR_STS_OK;
     }
 
     if(ret == 0)
     {
-        NAL_LOCK(handle);
-        /* Peer performed an orderly shutdown */
+        /*
+         * Peer closed the connection cleanly (FIN received).
+         * Socket is no longer usable.
+         */
+        NAL_LOGE("Peer performed an orderly shutdown");
         lwip_close(handle->sockfd);
         handle->sockfd = -1;
-        NAL_UNLOCK(handle);
         return BSP_ERR_STS_CONN_LOST;
     }
 
-    /* ret < 0 → error */
+    /*
+     * ret < 0: error case
+     */
     if(errno == EWOULDBLOCK || errno == EAGAIN)
     {
-        NAL_UNLOCK(handle);
+        /*
+         * No data available within timeout.
+         * This is not a fatal error.
+         */
+        NAL_LOGE("EWOULDBLOCK / EAGAIN");
         return BSP_ERR_STS_TIMEOUT;
     }
 
-    NAL_UNLOCK(handle);
+    /*
+     * Any other error indicates a transport failure.
+     */
+    NAL_LOGE("Transport-level receive failure (errno=%d)", errno);
     return BSP_ERR_STS_FAIL;
 }
 
@@ -824,29 +846,291 @@ bsp_err_sts_t nalEnableAsyncEvents(nalHandle_t* handle, osMessageQueueId_t queue
         return BSP_ERR_STS_INVALID_PARAM;
     }
 
-    if(g_nal_async.enabled)
+    if(g_nal_async[handle->id].enabled)
     {
         return BSP_ERR_STS_OK;
     }
 
-    g_nal_async.evt_queue = queue;
-    g_nal_async.enabled   = 1;
+    g_nal_async[handle->id].evt_queue = queue;
+    g_nal_async[handle->id].enabled   = 1;
 
     const osThreadAttr_t attr = { .name       = NAL_EVENT_TASK_NAME,
                                   .priority   = NAL_EVENT_TASK_PRIORITY,
                                   .stack_size = NAL_EVENT_TASK_STACK_SIZE };
 
-    g_nal_async.worker_tid = osThreadNew(nalNetEventTask, handle, &attr);
+    g_nal_async[handle->id].worker_tid = osThreadNew(nalNetEventTask, handle, &attr);
 
-    if(g_nal_async.worker_tid == NULL)
+    if(g_nal_async[handle->id].worker_tid == NULL)
     {
-        g_nal_async.enabled = 0;
+        g_nal_async[handle->id].enabled = 0;
         return BSP_ERR_STS_NO_MEM;
     }
 
     return BSP_ERR_STS_OK;
 }
 
+/* ------------------------------------------------------------------------- */
+
+bsp_err_sts_t
+nalNetworkStartServer(nalHandle_t* handle, uint16_t port, nalScheme_t scheme, uint32_t backlog)
+{
+    if(!handle)
+        return BSP_ERR_STS_INVALID_PARAM;
+
+    NAL_LOCK(handle);
+
+    /* Protect handle state against concurrent access */
+    handle->scheme = scheme;
+    handle->role   = NAL_ROLE_SERVER;
+
+    /* Create a TCP socket (IPv4, stream-oriented) */
+    handle->sockfd = lwip_socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+    if(handle->sockfd < 0)
+    {
+        NAL_LOGE("Server socket creation failed");
+        goto err;
+    }
+
+    NAL_LOGI("Server socket created %d", handle->sockfd);
+
+    /* Allow address reuse to avoid TIME_WAIT bind failures */
+    int optval = 1;
+    if(lwip_setsockopt(handle->sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0)
+    {
+        NAL_LOGE("Server setsockopt failed");
+        goto err;
+    }
+
+    /* Prepare server bind address (any local interface) */
+    struct sockaddr_in addr = { 0 };
+    addr.sin_family         = AF_INET;
+    addr.sin_port           = htons(port);
+    addr.sin_addr.s_addr    = htonl(INADDR_ANY);
+
+    /* Bind socket to local port */
+    if(lwip_bind(handle->sockfd, (struct sockaddr*)&addr, sizeof(addr)) < 0)
+    {
+        NAL_LOGE("Server bind failed");
+        goto err;
+    }
+    NAL_LOGI("Server bound, port %d", port);
+
+    /* Put socket into listening mode */
+    if(lwip_listen(handle->sockfd, backlog) < 0)
+    {
+        NAL_LOGE("Server listen failed");
+        goto err;
+    }
+
+
+    NAL_LOGI("Server listening on port %d", port);
+
+#if defined(NAL_USE_TLS)
+    /* Initialize server-side TLS context if TLS is requested */
+    if(scheme == NAL_SCHEME_TLS)
+    {
+        /* Server must have certificate + key */
+        if(!handle->tls_creds.server)
+        {
+            NAL_LOGE("No TLS credentials provided");
+            goto err;
+        }
+
+        /* Allocate TLS server configuration context */
+        handle->tls_ctx = nalTlsAlloc();
+        if(!handle->tls_ctx)
+        {
+            NAL_LOGE("TLS context allocation failed");
+            goto err;
+        }
+
+        /* Load certificate and private key into TLS config */
+        if(nalTlsServerInit(handle->tls_ctx, handle->tls_creds.server) != BSP_ERR_STS_OK)
+        {
+            NAL_LOGE("TLS server initialization failed");
+            goto err;
+        }
+    }
+#endif
+
+    /* Server successfully started */
+    NAL_LOGI("Server started on port %d", port);
+    NAL_UNLOCK(handle);
+    return BSP_ERR_STS_OK;
+
+err:
+    /* Cleanup on failure */
+    if(handle->sockfd >= 0)
+    {
+        lwip_close(handle->sockfd);
+    }
+
+    handle->sockfd = -1;
+    NAL_LOGE("Server start failed");
+    NAL_UNLOCK(handle);
+    return BSP_ERR_STS_FAIL;
+}
+
+
+/* ------------------------------------------------------------------------- */
+bsp_err_sts_t nalNetworkAccept(nalHandle_t* server, nalHandle_t* client, uint32_t timeout_ms)
+{
+    if(!server || !client)
+        return BSP_ERR_STS_INVALID_PARAM;
+
+    fd_set rfds;
+    struct timeval tv;
+    char addr_str[128];
+
+    /* Lock server to serialize accept operations */
+    NAL_LOCK(server);
+
+    /* Prepare select timeout if requested */
+    if(timeout_ms > 0)
+    {
+        tv.tv_sec  = timeout_ms / 1000;
+        tv.tv_usec = (timeout_ms % 1000) * 1000;
+
+        /* IMPORTANT: initialize fd_set */
+        FD_ZERO(&rfds);
+        FD_SET(server->sockfd, &rfds);
+
+        /* Wait for incoming connection */
+        int ret = lwip_select(server->sockfd + 1, &rfds, NULL, NULL, &tv);
+
+        /* Timeout expired without connection */
+        if(ret == 0)
+        {
+            NAL_LOGI("Accept timed out");
+            NAL_UNLOCK(server);
+            return BSP_ERR_STS_TIMEOUT;
+        }
+        /* select() error */
+        if(ret < 0)
+        {
+            /* select error */
+            NAL_LOGE("Select error");
+            NAL_UNLOCK(server);
+            return BSP_ERR_STS_FAIL;
+        }
+    }
+
+    /* Accept incoming connection */
+    struct sockaddr_storage addr;
+    socklen_t addr_len = sizeof(addr);
+
+    int client_fd = lwip_accept(server->sockfd, (struct sockaddr*)&addr, &addr_len);
+    if(client_fd < 0)
+    {
+        NAL_LOGI("Accept failed");
+        NAL_UNLOCK(server);
+
+        if(errno == EWOULDBLOCK || errno == EAGAIN)
+            return BSP_ERR_STS_TIMEOUT;
+
+        return BSP_ERR_STS_FAIL;
+    }
+
+    /* Configure TCP keepalive to detect dead peers */
+    setsockopt(client_fd, SOL_SOCKET, SO_KEEPALIVE, &server->keepAlive, sizeof(int));
+    setsockopt(client_fd, IPPROTO_TCP, TCP_KEEPIDLE, &server->keepIdle, sizeof(int));
+    setsockopt(client_fd, IPPROTO_TCP, TCP_KEEPINTVL, &server->keepInterval, sizeof(int));
+    setsockopt(client_fd, IPPROTO_TCP, TCP_KEEPCNT, &server->keepCount, sizeof(int));
+
+    /* Convert client address to string */
+    if(addr.ss_family == PF_INET)
+    {
+        inet_ntoa_r(((struct sockaddr_in*)&addr)->sin_addr, addr_str, sizeof(addr_str) - 1);
+    }
+    else if(addr.ss_family == PF_INET6)
+    {
+        inet6_ntoa_r(((struct sockaddr_in6*)&addr)->sin6_addr, addr_str,
+                     sizeof(addr_str) - 1);
+    }
+
+    /* Initialize client handle */
+    client->sockfd       = client_fd;
+    client->scheme       = server->scheme;
+    client->role         = NAL_ROLE_CLIENT;
+    client->keepAlive    = server->keepAlive;
+    client->keepIdle     = server->keepIdle;
+    client->keepInterval = server->keepInterval;
+    client->keepCount    = server->keepCount;
+
+#if defined(NAL_USE_TLS)
+    /* Perform server-side TLS handshake per client */
+    if(server->scheme == NAL_SCHEME_TLS)
+    {
+        client->tls_ctx = nalTlsAlloc();
+        if(!client->tls_ctx)
+        {
+            NAL_LOGI("TLS context allocation failed");
+            goto err;
+        }
+
+        if(nalTlsServerAttach(client->tls_ctx, client_fd, server->tls_ctx) != BSP_ERR_STS_OK)
+        {
+            NAL_LOGI("TLS server attach failed");
+            goto err;
+        }
+
+        if(nalTlsServerHandshake(client->tls_ctx) != BSP_ERR_STS_OK)
+        {
+            NAL_LOGI("TLS server handshake failed");
+            goto err;
+        }
+    }
+#endif
+
+    /* Client successfully accepted */
+    NAL_LOGI("Client accepted ip address: %s", addr_str);
+    NAL_UNLOCK(server);
+    return BSP_ERR_STS_OK;
+
+
+#if defined(NAL_USE_TLS)
+err:
+    if(client->tls_ctx)
+    {
+        NAL_LOGI("TLS context freed");
+        nalTlsFree(client->tls_ctx);
+    }
+#endif
+    lwip_close(client_fd);
+    client->sockfd = -1;
+    NAL_LOGI("Client accept failed");
+    NAL_UNLOCK(server);
+    return BSP_ERR_STS_FAIL;
+}
+
+/* ------------------------------------------------------------------------- */
+bsp_err_sts_t nalNetworkStopServer(nalHandle_t* handle)
+{
+    if(!handle)
+        return BSP_ERR_STS_INVALID_PARAM;
+
+    NAL_LOCK(handle);
+    if(handle->sockfd >= 0)
+    {
+        NAL_LOGI("Closing server socket");
+        lwip_close(handle->sockfd);
+        handle->sockfd = -1;
+    }
+
+#if defined(NAL_USE_TLS)
+    if(handle->tls_ctx)
+    {
+        NAL_LOGI("TLS context freed");
+        nalTlsDeinit(handle);
+        handle->tls_ctx = NULL;
+    }
+#endif
+
+    NAL_LOGI("Server stopped");
+    NAL_UNLOCK(handle);
+    return BSP_ERR_STS_OK;
+}
+/* ------------------------------------------------------------------------- */
 /**
  ********************************************************************************
  * End of nal_core.c

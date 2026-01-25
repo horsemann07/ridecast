@@ -28,6 +28,7 @@ extern "C"
 #define nalCONFIG_NAL_EVENT_THREAD_PRIO      (osPriorityNormal)
 #define nalCONFIG_NAL_NET_RECV_TIMEOUT_MS    (5000U)
 
+#define bspNAL_MAX_CONNCETION_SUPPORT        (2U)
 /* ============================================================
  * Crypto configuration 1 = enable, 0 = disable
  * ============================================================ */
@@ -48,7 +49,7 @@ extern "C"
      * Network configuration
      * ============================================================ */
 
-#define NAL_USE_TLS           nalCONFIG_NAL_USE_TLS
+// #define NAL_USE_TLS           nalCONFIG_NAL_USE_TLS
 #define NAL_TLS_ALLOC_MODE    nalCONFIG_NAL_TLS_ALLOC_MODE
 #define NAL_LOG_LEVEL         nalCONFIG_NAL_LOG_LEVEL
 #define NAL_CONFIG_USE_CRYPTO nalCONFIG_NAL_CONFIG_USE_CRYPTO

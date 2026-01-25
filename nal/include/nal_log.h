@@ -2,6 +2,11 @@
 #define NAL_LOG_H
 
 #include "nal_config.h"
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <assert.h>
 
 /* ============================================================
  * Log level configuration
@@ -28,7 +33,9 @@
     /* ---------- ESP-IDF ---------- */
     #include "esp_log.h"
 
-    #define _FILENAME__ "NAL"
+    #ifndef _FILENAME__
+        #define _FILENAME__ (__builtin_strrchr("/" __FILE__, '/') + 1)
+    #endif
 
     #if (NAL_LOG_LEVEL >= 1)
         #define NAL_LOGE(fmt, ...) ESP_LOGE(_FILENAME__, fmt, ##__VA_ARGS__)

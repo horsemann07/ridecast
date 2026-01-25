@@ -2,10 +2,11 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
-
+#include "bsp_err_sts.h"
 
 extern void appStart(void);
 extern void wifi_sta_app_start(void);
+extern bsp_err_sts_t appConnectionInit(void);
 // void MyCmsisTask(void* argument)
 // {
 //     while(1)
@@ -32,7 +33,8 @@ void app_main(void)
     // AppUartAsyncDemoStart();
 
     //appStart();
-    wifi_sta_app_start();
+    // wifi_sta_app_start();
+    appConnectionInit();
 
     // Start scheduler (will call vTaskStartScheduler internally if not running)
     osKernelStart();

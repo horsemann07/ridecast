@@ -12,9 +12,10 @@ The main purpose of NAL is to decouple higher-level code (application logic, pro
 ```
 
 /nal
-├── nal.h
-├── nal_core.c        ← common logic (YOU WRITE ONCE)
-├── nal_tls.c        ← common logic (YOU WRITE ONCE)
+├── nal.h          ← public API
+├── nal_core.c     ← scheme-agnostic TCP logic
+├── nal_tls.c      ← TLS glue (scheme-specific)
+├── nal_crypto.c   ← generic crypto helpers
 ├── port/
 │   ├── esp32/
 │   │   └── nal_platform_esp32.c

@@ -43,10 +43,13 @@ extern "C"
 
 #include "cmsis_os2.h"
 
+#include "nal_core.h"
+
 #include <stdint.h>
 #include <stddef.h>
 
 #include "bsp_err_sts.h"
+
 
     /* =========================================================================
      *  TLS Backend Lifecycle
@@ -351,6 +354,14 @@ extern "C"
                                               uint8_t* plaintext,
                                               size_t* plain_len);
 
+    bsp_err_sts_t nal_platform_tls_server_init(void* tls_backend,
+                                               const nalTlsServerCreds_t* creds);
+
+    bsp_err_sts_t nal_platform_tls_server_handshake(void* tls_backend);
+
+    int nal_platform_tls_network_accept(void* tls_backend, uint32_t timeout_ms);
+
+    bsp_err_sts_t nal_platform_tls_server_close(void* tls_backend);
 
 #ifdef __cplusplus
 }

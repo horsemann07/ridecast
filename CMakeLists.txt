@@ -13,15 +13,15 @@ include("${CMAKE_SOURCE_DIR}/cmake/generate_version.cmake")
 # 1) ESP-IDF / Generic board selection
 # ----------------------------------------------------------------------
 set(ESP_PLATFORM ON CACHE BOOL "Build for ESP board using ESP-IDF")
+
 if(ESP_PLATFORM)
     message(STATUS "ESP board detected. Configuring ESP-IDF environment...")
 
     # ------------------------------------------------------------------
     # ESP-IDF setup
     # ------------------------------------------------------------------
-    
     if(DEFINED ENV{IDF_PATH})
-        message(WARNING 
+        message(WARNING
             "IDF_PATH environment variable is set externally.\n"
             "If build fails, try unsetting IDF_PATH and rebuilding.\n"
         )
@@ -36,6 +36,7 @@ if(ESP_PLATFORM)
         "${CMAKE_SOURCE_DIR}/system"
         "${CMAKE_SOURCE_DIR}/external/cli"
         "${CMAKE_SOURCE_DIR}/external/os/cmsis_esp"
+        "${CMAKE_SOURCE_DIR}/external/component/backoffAlgorithmWrapper"
         "${CMAKE_SOURCE_DIR}/bsp"
         "${CMAKE_SOURCE_DIR}/nal"
         "${CMAKE_SOURCE_DIR}/app/main"
@@ -53,7 +54,6 @@ else()
     # Standard CMake project
     # ------------------------------------------------------------------
     project(${PROJECT_NAME})
-
 endif()
 
 # ----------------------------------------------------------------------
@@ -64,7 +64,7 @@ endif()
 
 # ----------------------------------------------------------------------
 # 3) For ESP-IDF: project() MUST be after add_subdirectory(external)
-#    (this is ESP-IDF’s requirement)
+# (this is ESP-IDF’s requirement)
 # ----------------------------------------------------------------------
 if(ESP_PLATFORM)
     project(${PROJECT_NAME})
