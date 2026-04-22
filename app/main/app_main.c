@@ -4,38 +4,19 @@
 #include "esp_log.h"
 #include "bsp_err_sts.h"
 
-extern void appStart(void);
-extern void wifi_sta_app_start(void);
-extern bsp_err_sts_t appConnectionInit(void);
-// void MyCmsisTask(void* argument)
-// {
-//     while(1)
-//     {
-//         ESP_LOGI(TAG, "Hello from CMSIS-RTOS2 task!");
-//         osDelay(1000); // CMSIS API → calls vTaskDelay
-//     }
-// }
-
-extern void AppUartSyncDemoStart(void);
-// extern void AppUartAsyncDemoStart(void);
-
+#include "wifi_sta_app.h"
 
 void app_main(void)
 {
     // Initialize CMSIS-RTOS v2 kernel wrapper
     osKernelInitialize();
 
-    // Create one task using CMSIS API
-    // osThreadNew(MyCmsisTask, NULL, NULL);
+    // Start WiFi STA application:
+    //   1. Scan WiFi networks  → print table on UART
+    //   2. Connect to AP       → show status (IP / GW / RSSI) on UART
+    //   3. Connect TCP socket  → receive data from server, forward to UART
+    wifiStaAppStart();
 
-
-    // AppUartSyncDemoStart();
-    // AppUartAsyncDemoStart();
-
-    //appStart();
-    // wifi_sta_app_start();
-    appConnectionInit();
-
-    // Start scheduler (will call vTaskStartScheduler internally if not running)
+    // Start scheduler
     osKernelStart();
 }
