@@ -23,6 +23,10 @@ set(demo_conn_mgnr
     "${CMAKE_SOURCE_DIR}/app/conn_mgnr/conn_mgnr.c"
 )
 
+set(wifi_sta_app
+    "${CMAKE_SOURCE_DIR}/app/wifi_sta_app/wifi_sta_app.c"
+)
+
 # set(ridecast_app
 # "${CMAKE_SOURCE_DIR}/app/demo/wifi/demo_wifi_sta_ap.c"
 # )
@@ -34,10 +38,12 @@ idf_component_register(
     ${demo_uart}
     ${demo_wifi}
     ${demo_conn_mgnr}
+    ${wifi_sta_app}
 
     INCLUDE_DIRS "."
     "${CMAKE_SOURCE_DIR}/external/os/cmsis_esp/Include"
     "${CMAKE_SOURCE_DIR}/app/demo_config"
+    "${CMAKE_SOURCE_DIR}/app/wifi_sta_app"
 
     PRIV_REQUIRES
     freertos
