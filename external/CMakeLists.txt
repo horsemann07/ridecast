@@ -1,18 +1,27 @@
-message(STATUS "Configuring external modules...")
+message(STATUS "[RideCast:EXT] Configuring external modules...")
 
-# Detect ESP-IDF context
+# Platform switch (ESP_PLATFORM comes from top-level / ESP-IDF)
+option(STM32H7_PLATFORM "Build for STM32H7 platform" OFF)
+
 if(ESP_PLATFORM)
-    message(STATUS "Building for ESP-IDF platform")
+    message(STATUS "[RideCast:EXT] Platform: ESP32 (ESP-IDF)")
 
-    # Do NOT use your own LWIP / mbedTLS on ESP32
-    set(USE_SYSTEM_LWIP ON)
-    set(USE_SYSTEM_MBEDTLS ON)
+    # On ESP32, use ESP-IDF provided stacks
+    set(USE_SYSTEM_LWIP ON  CACHE BOOL "Use platform lwIP" FORCE)
+    set(USE_SYSTEM_MBEDTLS ON CACHE BOOL "Use platform mbedTLS" FORCE)
+
+elseif(STM32H7_PLATFORM)
+    message(STATUS "[RideCast:EXT] Platform: STM32H7")
+
+    # On STM32H7, use project external stacks
+    set(USE_SYSTEM_LWIP OFF  CACHE BOOL "Use platform lwIP" FORCE)
+    set(USE_SYSTEM_MBEDTLS OFF CACHE BOOL "Use platform mbedTLS" FORCE)
+
 else()
-    message(STATUS "Building for NON-ESP platform")
-
-    # For STM32 / Linux, enable your own external libraries
-    set(USE_SYSTEM_LWIP OFF)
-    set(USE_SYSTEM_MBEDTLS OFF)
+    message(FATAL_ERROR
+        "[RideCast:EXT] No valid platform selected. "
+        "Set ESP_PLATFORM=ON or -DSTM32H7_PLATFORM=ON"
+    )
 endif()
 
 # Add subdirectories (each has its own CMakeLists.txt)

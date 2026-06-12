@@ -29,24 +29,35 @@ extern "C"
     // Public Functions / Types
     // =========================
 
-#define BSP_UART_BAUD_1200            ((uint32_t)1200U)
-#define BSP_UART_BAUD_9600            ((uint32_t)9600U)
-#define BSP_UART_BAUD_19200           ((uint32_t)19200U)
-#define BSP_UART_BAUD_38400           ((uint32_t)38400U)
-#define BSP_UART_BAUD_57600           ((uint32_t)57600U)
-#define BSP_UART_BAUD_115200          ((uint32_t)115200U)
-#define BSP_UART_BAUD_230400          ((uint32_t)230400U)
-#define BSP_UART_BAUD_460800          ((uint32_t)460800U)
-#define BSP_UART_BAUD_921600          ((uint32_t)921600U)
+#define BSP_UART_BAUD_1200        ((uint32_t)1200U)
+#define BSP_UART_BAUD_9600        ((uint32_t)9600U)
+#define BSP_UART_BAUD_19200       ((uint32_t)19200U)
+#define BSP_UART_BAUD_38400       ((uint32_t)38400U)
+#define BSP_UART_BAUD_57600       ((uint32_t)57600U)
+#define BSP_UART_BAUD_115200      ((uint32_t)115200U)
+#define BSP_UART_BAUD_230400      ((uint32_t)230400U)
+#define BSP_UART_BAUD_460800      ((uint32_t)460800U)
+#define BSP_UART_BAUD_921600      ((uint32_t)921600U)
 
-#define BSP_UART_RXTX_BUFFER_SIZE     (bspCONFIG_UART_RXTX_BUFFER_SIZE)
-#define BSP_UART_ASYC_TASK_PRIORITY   (bspCONFIG_UART_ASYC_TASK_PRIORITY)
-#define BSP_UART_ASYC_TASK_STACK_SIZE (bspCONFIG_UART_ASYC_TASK_STACK_SIZE)
-#define BSP_UART_ASYC_EVNT_QUEUE_LEN  (bspCONFIG_UART_ASYC_EVNT_QUEUE_LEN)
-
+#define BSP_UART_RXTX_BUFFER_SIZE (bspCONFIG_UART_RXTX_BUFFER_SIZE)
+#define BSP_UART_ENABLE_ASYNC     (bspCONFIG_UART_ENABLE_ASYNC)
+#define BSP_UART_ASYNC_EVNT_QUEUE_LEN \
+    (bspCONFIG_UART_ASYNC_ESP_DRIVER_EVENT_Q_LEN)
 
     typedef uint32_t bspUartBaudrate_t;
     typedef uint8_t bspUartOwner_t;
+
+    typedef enum
+    {
+        eBspUartPort0 = 0U,
+        eBspUartPort1 = 1U,
+        eBspUartPort2 = 2U,
+        eBspUartPort3 = 3U,
+        eBspUartPort4 = 4U,
+        eBspUartPort5 = 5U,
+        eBspUartPort6 = 6U,
+        eBspUartPort7 = 7U
+    } bspUartPort_t;
 
     /**
      * @enum bspUartParity_t
@@ -79,7 +90,6 @@ extern "C"
         eBspUartGetRxCount, /**< Get the number of bytes received in the current or last async read. */
         eBspUartIsRxBusy, /**< Check whether an asynchronous receive operation is in progress. */
         eBspUartCancelRx, /**< Cancel the currently active asynchronous receive operation. */
-
         eBspUartGetTxCount, /**< Get the number of bytes written in the last asynchronous transmit. */
         eBspUartWaitTxDone /**< Block until all transmit data is sent or the specified timeout expires. */
     } bspUartIoctlRequest_t;
@@ -132,7 +142,7 @@ extern "C"
      * @var bspUartHandle_t::rxThreshold   RX FIFO threshold (if supported).
      *
      *  @code
-     * // Example: Initialize UART handle and use with ESP-IDF
+     * Example: Initialize UART handle and use with ESP-IDF
      * bspUartHandle_t uartHandle = {
      *     .portNum = 1, // UART1
      *     .baudrate = BSP_UART_BAUD_115200,
@@ -148,14 +158,14 @@ extern "C"
      *     .dmaEnable = 0
      * };
      *
-     * // Initialize UART peripheral
+     * Initialize UART peripheral
      * bspUartInit(uartHandle);
      *
-     * // Send data
+     * Send data
      * const uint8_t msg[] = "Hello UART";
      * bspUartSendSync(uartHandle, msg, sizeof(msg));
      *
-     * // Receive data
+     * Receive data
      * uint8_t rxBuf[16];
      * bspUartReceiveSync(uartHandle, rxBuf, sizeof(rxBuf), 100);
      * @endcode
@@ -214,7 +224,7 @@ extern "C"
     // BSP UART API
     // =========================
 
-   /**
+    /**
      * @typedef bspUartCallback_t
      * @brief UART asynchronous receive callback function.
      *
@@ -249,9 +259,9 @@ extern "C"
      *       at a time.
      */
     typedef void (*bspUartCallback_t)(bsp_err_sts_t status,
-                                    uint8_t* data,
-                                    uint16_t data_len,
-                                    void* userContext);
+                                      uint8_t* data,
+                                      uint16_t data_len,
+                                      void* userContext);
 
 
     /**
@@ -324,8 +334,8 @@ extern "C"
      * FIFO. The call blocks until data is received or the timeout expires.
      *
      * @param[in]     handle     Pointer to BSP UART handle.
-     * @param[out]    data       Buffer to store received data.
-     * @param[in]     data_len   Length of the data buffer.
+     * @param[out]    buffer     Buffer to store received data.
+     * @param[in]     buffer_len Length of the data buffer.
      * @param[out]    rx_len     On output: actual number of bytes received.
      * @param[in]     timeout_ms Timeout in milliseconds to wait for data.
      *
@@ -335,8 +345,11 @@ extern "C"
      *
      * @note This API blocks the calling thread.
      */
-    bsp_err_sts_t
-    bspUartReceiveSync(bspUartHandle_t* handle, uint8_t* data, size_t data_len, size_t* rx_len, uint32_t timeout_ms);
+    bsp_err_sts_t bspUartReceiveSync(bspUartHandle_t* handle,
+                                     uint8_t* buffer,
+                                     size_t buffer_len,
+                                     size_t* rx_len,
+                                     uint32_t timeout_ms);
 
     /**
      * @brief Register an asynchronous UART callback.
@@ -355,8 +368,8 @@ extern "C"
      * @note Only one callback can be registered per UART port.
      */
     bsp_err_sts_t bspUartSetCallback(bspUartHandle_t* handle,
-                                   bspUartCallback_t callback,
-                                   void* userContext);
+                                     bspUartCallback_t callback,
+                                     void* userContext);
 
     /**
      * @brief Start an asynchronous UART receive operation.
@@ -397,7 +410,8 @@ extern "C"
      * @note This API does not provide completion notification.
      */
 
-    bsp_err_sts_t bspUartWriteAsync(bspUartHandle_t* handle, const uint8_t* buffer, size_t length);
+    bsp_err_sts_t
+    bspUartWriteAsync(bspUartHandle_t* handle, const uint8_t* buffer, size_t length);
 
     /**
      * @brief Perform control operations on a UART port.
@@ -419,7 +433,8 @@ extern "C"
      * @note Cancelling RX triggers the registered callback with failure status.
      */
 
-    bsp_err_sts_t bspUartIoctl(bspUartHandle_t* handle, bspUartIoctlRequest_t req, void* arg);
+    bsp_err_sts_t
+    bspUartIoctl(bspUartHandle_t* handle, bspUartIoctlRequest_t req, void* arg);
 
 #ifdef __cplusplus
 }

@@ -56,4 +56,4 @@ dkms.conf
 
 # build folders
 [Bb]uild
-.vscode
+# .vscode

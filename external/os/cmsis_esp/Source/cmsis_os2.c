@@ -1,29 +1,34 @@
 /* --------------------------------------------------------------------------
- * Copyright (c) 2013-2024 Arm Limited. All rights reserved.
- *
- * SPDX-License-Identifier: Apache-2.0
- *
- * Licensed under the Apache License, Version 2.0 (the License); you may
- * not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an AS IS BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Copyright (c)
  *      Name:    cmsis_os2.c
- *      Purpose: CMSIS RTOS2 wrapper for FreeRTOS
+ *      Purpose: CMSIS RTOS2 wrapper for FreeRTOS (ESP32 port)
+ *
+ * Limitations:
+ *   - ESP32 is SMP (dual-core Xtensa or single-core RISC-V).
+ *     CMSIS-RTOS2 was designed for single-core ARM. Some assumptions
+ *     about interrupt masking do not translate 1:1.
+ *   - osThreadJoinable is NOT supported.
+ *   - osMutexRobust is NOT supported.
+ *   - Memory Pool requires FREERTOS_MPOOL_H_ (custom extension).
+ *   - osThreadEnumerate uses dynamic allocation (unavoidable with FreeRTOS  API).
+ *   - Event flags limited to 24 bits (FreeRTOS limitation).
+ *   - Message queue priority is ignored.
+ *
+ * Production Risks:
+ *   - On dual-core ESP32, IRQ_Context() may have a narrow race window
+ *     between reading scheduler state and checking interrupt mask.
+ *     Mitigation: use portENTER_CRITICAL for safety.
+ *   - Timer callback stores function pointer using LSB flag hack.
+ *     This is fragile if memory alignment changes.
  *
  *---------------------------------------------------------------------------*/
 
 #include <string.h>
+#include <stdint.h>
+#include <stdbool.h>
 
-#include "cmsis_os2.h" // ::CMSIS:RTOS2
-#include "os_tick.h"   // OS Tick API
+#include "cmsis_os2.h"
+#include "os_tick.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/FreeRTOSConfig.h"
@@ -33,176 +38,182 @@
 #include "freertos/timers.h"
 #include "freertos/portmacro.h"
 
-// #include "freertos/freertos_mpool.h" // osMemoryPool definitions
-// #include "freertos/freertos_os2.h"   // Configuration check and setup
-
 /*---------------------------------------------------------------------------*/
+/* CMSIS-RTOS2 feature config.
+ *
+ * WARNING: These MUST match what is set in FreeRTOSConfig.h / sdkconfig.
+ * If FreeRTOSConfig.h already defines these, these will be ignored.
+ * Move to sdkconfig for production.
+ */
+/*---------------------------------------------------------------------------*/
+#ifndef configUSE_OS2_MUTEX
+    #define configUSE_OS2_MUTEX 1
+#endif
+#ifndef configUSE_OS2_TIMER
+    #define configUSE_OS2_TIMER 1
+#endif
+#ifndef configUSE_OS2_THREAD_FLAGS
+    #define configUSE_OS2_THREAD_FLAGS 1
+#endif
+#ifndef configUSE_OS2_THREAD_SUSPEND_RESUME
+    #define configUSE_OS2_THREAD_SUSPEND_RESUME 1
+#endif
+#ifndef configUSE_OS2_THREAD_ENUMERATE
+    #define configUSE_OS2_THREAD_ENUMERATE 1
+#endif
+#ifndef configUSE_OS2_EVENTFLAGS_FROM_ISR
+    #define configUSE_OS2_EVENTFLAGS_FROM_ISR 0
+#endif
+#ifndef configUSE_OS2_CPU_AFFINITY
+    #define configUSE_OS2_CPU_AFFINITY 0
+#endif
 
 /******************************************************************************
- *  ESP32 CMSIS-Like Interrupt Control Wrappers
+ * ESP32 CMSIS-Like Interrupt Control Wrappers
  *
- *  This file implements CMSIS-compatible macros and inline functions for
- *  handling interrupts on ESP32 (both Xtensa and RISC-V architectures).
- *  It allows you to write code in a CMSIS-style while actually using FreeRTOS
- *  and ESP-IDF primitives.
+ * ESP32 does NOT have ARM's PRIMASK/IPSR registers.
+ * We emulate using:
+ *   - Xtensa: PS register INTLEVEL field + xPortInIsrContext()
+ *   - RISC-V: mstatus MIE bit + xPortInIsrContext()
  *
- *  The main goals:
- *    1. Provide __disable_irq() / __enable_irq() macros like ARM.
- *    2. Provide IS_IRQ_MASKED() to check if global interrupts are masked.
- *    3. Provide IS_IRQ_MODE() to check if currently running inside an ISR.
- *
- *  Note: ESP32 doesn't have ARM's PRIMASK or IPSR, so we emulate behavior  using:
- *        - Xtensa: processor status register (PS) + FreeRTOS interrupt nesting
- *        - RISC-V: mstatus and mcause registers
+ * IMPORTANT (SMP):
+ *   On dual-core ESP32, disabling interrupts on one core does NOT affect
+ *   the other core. IS_IRQ_MASKED() only reports the calling core's state.
+ *   This is acceptable for CMSIS-RTOS2 because all RTOS API calls are
+ *   per-core (the calling task runs on one core at a time).
  ******************************************************************************/
 
 /* -----------------------------------------------------------
- * 1️. Enable / Disable global interrupts (CMSIS-like)
- * -----------------------------------------------------------
- * portDISABLE_INTERRUPTS() and portENABLE_INTERRUPTS() are FreeRTOS macros
- * for masking/unmasking interrupts globally.
- *
- * __disable_irq(): disables all interrupts
- * __enable_irq():  enables all interrupts
- */
-static inline void __disable_irq(void)
-{
-    portDISABLE_INTERRUPTS();
-}
-
-static inline void __enable_irq(void)
-{
-    portENABLE_INTERRUPTS();
-}
-
-/* -----------------------------------------------------------
- * 2. Check if interrupts are masked (CMSIS PRIMASK emulation)
- * -----------------------------------------------------------
- * __get_primask(): returns 1 if global interrupts are disabled, 0 if enabled
- * IS_IRQ_MASKED(): macro that evaluates to true if interrupts are masked
- */
+ * 1. Check if interrupts are masked (CMSIS PRIMASK emulation)
+ * ----------------------------------------------------------- */
 static inline uint32_t __get_primask(void)
 {
 #if defined(CONFIG_IDF_TARGET_ARCH_XTENSA)
     uint32_t ps;
-    // Read processor status register (PS) using inline assembly
-    // Bits [3:0] = INTLEVEL, 0 = all interrupts enabled, >0 = masked
-    asm volatile("rsr.ps %0" : "=a"(ps));
-    return ((ps & 0xF) > 0) ? 1U : 0U;
+    __asm__ volatile("rsr.ps %0" : "=a"(ps));
+    return ((ps & 0x0FU) > 0U) ? 1U : 0U;
 
 #elif defined(CONFIG_IDF_TARGET_ARCH_RISCV)
     uint32_t mstatus;
-    // Read machine status register (mstatus)
-    asm volatile("csrr %0, mstatus" : "=r"(mstatus));
-    // Bit 3 (MIE) = global interrupt enable
-    // 0 = interrupts disabled, 1 = interrupts enabled
-    return ((mstatus & (1 << 3)) == 0) ? 1U : 0U;
+    __asm__ volatile("csrr %0, mstatus" : "=r"(mstatus));
+    /* MIE bit (bit 3): 0 = interrupts disabled, 1 = enabled */
+    return ((mstatus & (1U << 3U)) == 0U) ? 1U : 0U;
 
 #else
-    return 0U; // fallback for unknown architectures
+    #error "Unsupported ESP32 architecture. Expected Xtensa or RISC-V."
+    return 0U;
 #endif
 }
 
-#define IS_IRQ_MASKED() (__get_primask() != 0U)
-
 /* -----------------------------------------------------------
- * 3. Check if running inside an ISR (CMSIS IPSR emulation)
- * -----------------------------------------------------------
- * __get_ipsr(): returns 1 if currently in ISR, 0 if in thread mode
- * IS_IRQ_MODE(): macro that evaluates to true if in ISR
- *
- * Xtensa: FreeRTOS keeps per-core interrupt nesting in port_uxInterruptNesting[]
- * RISC-V: use mcause highest bit to detect interrupt vs exception
- */
+ * 2. Check if running inside an ISR (CMSIS IPSR emulation)
+ * ----------------------------------------------------------- */
 static inline uint32_t __get_ipsr(void)
 {
-    return xPortInIsrContext() ? 1U : 0U;
+    /* xPortInIsrContext() is ESP-IDF's official ISR detection.
+     * Works on both Xtensa and RISC-V, both cores. */
+    return (xPortInIsrContext() != 0) ? 1U : 0U;
 }
 
-#define IS_IRQ_MODE() (__get_ipsr() != 0U)
+/* -----------------------------------------------------------
+ * 3. Macros for context checks
+ * ----------------------------------------------------------- */
+#define IS_IRQ_MASKED() (__get_primask() != 0U)
+#define IS_IRQ_MODE()   (__get_ipsr() != 0U)
 
 /* -----------------------------------------------------------
- * 4. Optional: provide simple CMSIS-style macros for enable/disable
- * -----------------------------------------------------------
- * These macros are aliases to FreeRTOS port macros for convenience
- */
-#define __disable_irq() portDISABLE_INTERRUPTS()
-#define __enable_irq()  portENABLE_INTERRUPTS()
+ * 4. Interrupt enable/disable
+ *    Use FreeRTOS port macros (SMP-safe on ESP-IDF)
+ * ----------------------------------------------------------- */
+#define CMSIS_DISABLE_IRQ()  portDISABLE_INTERRUPTS()
+#define CMSIS_ENABLE_IRQ()   portENABLE_INTERRUPTS()
 
-
-/* Limits */
+#define PTR_FLAG_LSB         ((uintptr_t)1U)
+#define PTR_FLAG_IS_SET(p)   ((((uintptr_t)(p)) & PTR_FLAG_LSB) != 0U)
+#define PTR_FLAG_SET(p)      ((void*)((uintptr_t)(p) | PTR_FLAG_LSB))
+#define PTR_FLAG_CLEAR(t, p) ((t*)((uintptr_t)(p) & ~PTR_FLAG_LSB))
+/*---------------------------------------------------------------------------*/
+/* Internal constants                                                        */
+/*---------------------------------------------------------------------------*/
 #define MAX_BITS_TASK_NOTIFY      31U
 #define MAX_BITS_EVENT_GROUPS     24U
 
 #define THREAD_FLAGS_INVALID_BITS (~((1UL << MAX_BITS_TASK_NOTIFY) - 1U))
 #define EVENT_FLAGS_INVALID_BITS  (~((1UL << MAX_BITS_EVENT_GROUPS) - 1U))
 
-/* Kernel version and identification string definition (major.minor.rev: mmnnnrrrr dec) */
-#define KERNEL_VERSION                                  \
-    (((uint32_t)tskKERNEL_VERSION_MAJOR * 10000000UL) | \
-     ((uint32_t)tskKERNEL_VERSION_MINOR * 10000UL) |    \
-     ((uint32_t)tskKERNEL_VERSION_BUILD * 1UL))
+/* Kernel version (major.minor.rev: mmnnnrrrr dec) */
+#define KERNEL_VERSION                                 \
+    (                                                  \
+    ((uint32_t)tskKERNEL_VERSION_MAJOR * 10000000UL) | \
+    ((uint32_t)tskKERNEL_VERSION_MINOR * 10000UL) |    \
+    ((uint32_t)tskKERNEL_VERSION_BUILD * 1UL))
 
 #define KERNEL_ID       ("FreeRTOS " tskKERNEL_VERSION_NUMBER)
 
+
 #define __STATIC_INLINE static inline
-/* Timer callback information structure definition */
+
+
+/*---------------------------------------------------------------------------*/
+/* Internal types                                                            */
+/*---------------------------------------------------------------------------*/
 typedef struct
 {
+    /* User callback passed to osTimerNew() */
     osTimerFunc_t func;
+
+    /* User argument passed to osTimerNew() */
     void* arg;
+
+    /* 1 if this context was allocated with pvPortMalloc(), 0 if it lives
+       inside user-provided static timer memory. This avoids pointer-bit hacks. */
+    uint8_t dynamic_alloc;
 } TimerCallback_t;
 
-/* Kernel initialization state */
+typedef struct
+{
+    QueueHandle_t handle;
+    uint32_t msg_count;
+    uint32_t msg_size;
+    uint8_t meta_dynamic;
+} MessageQueueMeta_t;
+
+/*---------------------------------------------------------------------------*/
+/* Module-level state                                                        */
+/*---------------------------------------------------------------------------*/
 static osKernelState_t KernelState = osKernelInactive;
 
-
-/*
- * Enable CMSIS-RTOS2 compatibility features in FreeRTOSConfig.h.
- * These macros control support for CMSIS-RTOS2 mutexes, timers, thread flags, etc.
- * Normally, these should be set via sdkconfig, but for now we enable them here directly.
- */
-#define configUSE_OS2_MUTEX        1
-#define configUSE_OS2_TIMER        1
-#define configUSE_OS2_THREAD_FLAGS 1
-// #define configUSE_OS2_CPU_AFFINITY            1
-#define configUSE_OS2_THREAD_SUSPEND_RESUME 1
-#define configUSE_OS2_THREAD_ENUMERATE      1
-
-
-/*
-  Determine if CPU executes from interrupt context or if interrupts are masked.
-*/
-__STATIC_INLINE uint32_t IRQ_Context(void)
+/*---------------------------------------------------------------------------*/
+/* IRQ_Context: Determine if CPU is in interrupt context or interrupts masked */
+/*                                                                           */
+/* Returns: 0 = thread context, 1 = ISR or interrupts masked                */
+/*                                                                           */
+/* NOTE (SMP): This is called from the current core only. On ESP32 dual-core*/
+/* the result is valid for the calling core. This is correct because RTOS    */
+/* API calls happen from the core where the calling task is running.         */
+/*---------------------------------------------------------------------------*/
+static inline uint32_t IRQ_Context(void)
 {
-    uint32_t irq;
-    BaseType_t state;
-
-    irq = 0U;
+    uint32_t irq = 0U;
 
     if(IS_IRQ_MODE())
     {
-        /* Called from interrupt context */
         irq = 1U;
     }
     else
     {
-        /* Get FreeRTOS scheduler state */
-        state = xTaskGetSchedulerState();
+        BaseType_t state = xTaskGetSchedulerState();
 
         if(state != taskSCHEDULER_NOT_STARTED)
         {
-            /* Scheduler was started */
             if(IS_IRQ_MASKED())
             {
-                /* Interrupts are masked */
                 irq = 1U;
             }
         }
     }
 
-    /* Return context, 0: thread context, 1: IRQ context */
-    return (irq);
+    return irq;
 }
 
 
@@ -235,6 +246,7 @@ osStatus_t osKernelInitialize(void)
             /* Initialize the memory regions when using heap_5 variant */
             vPortDefineHeapRegions(configHEAP_5_REGIONS);
 #endif
+            /* ESP-IDF: scheduler already running (normal for app_main) */
             KernelState = osKernelReady;
             stat        = osOK;
         }
@@ -284,27 +296,27 @@ osKernelState_t osKernelGetState(void)
 
     switch(xTaskGetSchedulerState())
     {
-    case taskSCHEDULER_RUNNING:
-        state = osKernelRunning;
-        break;
+        case taskSCHEDULER_RUNNING:
+            state = osKernelRunning;
+            break;
 
-    case taskSCHEDULER_SUSPENDED:
-        state = osKernelLocked;
-        break;
+        case taskSCHEDULER_SUSPENDED:
+            state = osKernelLocked;
+            break;
 
-    case taskSCHEDULER_NOT_STARTED:
-    default:
-        if(KernelState == osKernelReady)
-        {
-            /* Ready, osKernelInitialize was already called */
-            state = osKernelReady;
-        }
-        else
-        {
-            /* Not initialized */
-            state = osKernelInactive;
-        }
-        break;
+        case taskSCHEDULER_NOT_STARTED:
+        default:
+            if(KernelState == osKernelReady)
+            {
+                /* Ready, osKernelInitialize was already called */
+                state = osKernelReady;
+            }
+            else
+            {
+                /* Not initialized */
+                state = osKernelInactive;
+            }
+            break;
     }
 
     /* Return current state */
@@ -361,21 +373,21 @@ int32_t osKernelLock(void)
     {
         switch(xTaskGetSchedulerState())
         {
-        case taskSCHEDULER_SUSPENDED:
-            /* Suspend scheduler or increment nesting level */
-            vTaskSuspendAll();
-            lock = 1;
-            break;
+            case taskSCHEDULER_SUSPENDED:
+                /* Suspend scheduler or increment nesting level */
+                vTaskSuspendAll();
+                lock = 1;
+                break;
 
-        case taskSCHEDULER_RUNNING:
-            vTaskSuspendAll();
-            lock = 0;
-            break;
+            case taskSCHEDULER_RUNNING:
+                vTaskSuspendAll();
+                lock = 0;
+                break;
 
-        case taskSCHEDULER_NOT_STARTED:
-        default:
-            lock = (int32_t)osError;
-            break;
+            case taskSCHEDULER_NOT_STARTED:
+            default:
+                lock = (int32_t)osError;
+                break;
         }
     }
 
@@ -398,20 +410,20 @@ int32_t osKernelUnlock(void)
     {
         switch(xTaskGetSchedulerState())
         {
-        case taskSCHEDULER_SUSPENDED:
-            lock = 1;
-            /* Resume scheduler or decrement nesting level */
-            (void)xTaskResumeAll();
-            break;
+            case taskSCHEDULER_SUSPENDED:
+                lock = 1;
+                /* Resume scheduler or decrement nesting level */
+                (void)xTaskResumeAll();
+                break;
 
-        case taskSCHEDULER_RUNNING:
-            lock = 0;
-            break;
+            case taskSCHEDULER_RUNNING:
+                lock = 0;
+                break;
 
-        case taskSCHEDULER_NOT_STARTED:
-        default:
-            lock = (int32_t)osError;
-            break;
+            case taskSCHEDULER_NOT_STARTED:
+            default:
+                lock = (int32_t)osError;
+                break;
         }
     }
 
@@ -432,40 +444,40 @@ int32_t osKernelRestoreLock(int32_t lock)
     {
         switch(xTaskGetSchedulerState())
         {
-        case taskSCHEDULER_SUSPENDED:
-            if(lock == 0)
-            {
-                /* Resume scheduler or decrement nesting level */
-                (void)xTaskResumeAll();
-            }
-            else
-            {
-                if(lock != 1)
+            case taskSCHEDULER_SUSPENDED:
+                if(lock == 0)
                 {
-                    lock = (int32_t)osError;
+                    /* Resume scheduler or decrement nesting level */
+                    (void)xTaskResumeAll();
                 }
-            }
-            break;
-
-        case taskSCHEDULER_RUNNING:
-            if(lock == 1)
-            {
-                /* Suspend scheduler or increment nesting level */
-                vTaskSuspendAll();
-            }
-            else
-            {
-                if(lock != 0)
+                else
                 {
-                    lock = (int32_t)osError;
+                    if(lock != 1)
+                    {
+                        lock = (int32_t)osError;
+                    }
                 }
-            }
-            break;
+                break;
 
-        case taskSCHEDULER_NOT_STARTED:
-        default:
-            lock = (int32_t)osError;
-            break;
+            case taskSCHEDULER_RUNNING:
+                if(lock == 1)
+                {
+                    /* Suspend scheduler or increment nesting level */
+                    vTaskSuspendAll();
+                }
+                else
+                {
+                    if(lock != 0)
+                    {
+                        lock = (int32_t)osError;
+                    }
+                }
+                break;
+
+            case taskSCHEDULER_NOT_STARTED:
+            default:
+                lock = (int32_t)osError;
+                break;
         }
     }
 
@@ -524,7 +536,7 @@ uint32_t osKernelGetSysTimerCount(void)
 
     if(irqmask == 0U)
     {
-        __disable_irq();
+        CMSIS_DISABLE_IRQ();
     }
 
     ticks = xTaskGetTickCount();
@@ -548,7 +560,7 @@ uint32_t osKernelGetSysTimerCount(void)
 
     if(irqmask == 0U)
     {
-        __enable_irq();
+        CMSIS_ENABLE_IRQ();
     }
 
     /* Return system timer count */
@@ -747,21 +759,21 @@ osThreadState_t osThreadGetState(osThreadId_t thread_id)
     {
         switch(eTaskGetState(hTask))
         {
-        case eRunning:
-            state = osThreadRunning;
-            break;
-        case eReady:
-            state = osThreadReady;
-            break;
-        case eBlocked:
-        case eSuspended:
-            state = osThreadBlocked;
-            break;
-        case eDeleted:
-        case eInvalid:
-        default:
-            state = osThreadError;
-            break;
+            case eRunning:
+                state = osThreadRunning;
+                break;
+            case eReady:
+                state = osThreadReady;
+                break;
+            case eBlocked:
+            case eSuspended:
+                state = osThreadBlocked;
+                break;
+            case eDeleted:
+            case eInvalid:
+            default:
+                state = osThreadError;
+                break;
         }
     }
 
@@ -1038,9 +1050,17 @@ uint32_t osThreadEnumerate(osThreadId_t* thread_array, uint32_t array_items)
             }
             count = i;
         }
+        else
+        {
+            count = 0U;
+        }
+
         (void)xTaskResumeAll();
 
-        vPortFree(task);
+        if(task != NULL)
+        {
+            vPortFree(task);
+        }
     }
 
     /* Return number of enumerated threads */
@@ -1402,17 +1422,20 @@ osStatus_t osDelayUntil(uint32_t ticks)
 
 #if (configUSE_OS2_TIMER == 1)
 
+/*
+  Internal timer trampoline.
+
+  FreeRTOS stores one opaque void* timer ID per timer. Instead of encoding state
+  in pointer bits, store a real context object there. This is safer on ESP32 and
+  portable to future targets where pointer size/alignment assumptions may differ.
+*/
 static void TimerCallback(TimerHandle_t hTimer)
 {
     TimerCallback_t* callb;
 
-    /* Retrieve pointer to callback function and argument */
     callb = (TimerCallback_t*)pvTimerGetTimerID(hTimer);
 
-    /* Remove dynamic allocation flag */
-    callb = (TimerCallback_t*)((uint32_t)callb & ~1U);
-
-    if(callb != NULL)
+    if((callb != NULL) && (callb->func != NULL))
     {
         callb->func(callb->arg);
     }
@@ -1420,6 +1443,13 @@ static void TimerCallback(TimerHandle_t hTimer)
 
 /*
   Create and Initialize a timer.
+
+  ESP-specific notes:
+  - Avoid pointer LSB tagging. Use an explicit context object instead.
+  - Use uintptr_t for address arithmetic when placing callback context behind
+    StaticTimer_t inside user-provided cb_mem.
+  - On static allocation, attr->cb_mem must be large enough for both:
+      StaticTimer_t + TimerCallback_t
 */
 osTimerId_t osTimerNew(osTimerFunc_t func, osTimerType_t type, void* argument, const osTimerAttr_t* attr)
 {
@@ -1428,122 +1458,109 @@ osTimerId_t osTimerNew(osTimerFunc_t func, osTimerType_t type, void* argument, c
     TimerCallback_t* callb;
     UBaseType_t reload;
     int32_t mem;
-    uint32_t callb_dyn;
 
     hTimer = NULL;
+    callb  = NULL;
 
-    if((IRQ_Context() == 0U) && (func != NULL))
+    if((IRQ_Context() != 0U) || (func == NULL))
     {
-        callb     = NULL;
-        callb_dyn = 0U;
+        return NULL;
+    }
 
+    if((type != osTimerOnce) && (type != osTimerPeriodic))
+    {
+        return NULL;
+    }
+
+    /* Resolve callback context storage first. */
     #if (configSUPPORT_STATIC_ALLOCATION == 1)
-        /* Static memory allocation is available: check if memory for control block */
-        /* is provided and if it also contains space for callback and its argument */
-        if((attr != NULL) && (attr->cb_mem != NULL))
-        {
-            if(attr->cb_size >= (sizeof(StaticTimer_t) + sizeof(TimerCallback_t)))
-            {
-                callb = (TimerCallback_t*)((uint32_t)attr->cb_mem + sizeof(StaticTimer_t));
-            }
-        }
+    if((attr != NULL) && (attr->cb_mem != NULL) &&
+       (attr->cb_size >= (sizeof(StaticTimer_t) + sizeof(TimerCallback_t))))
+    {
+        /* Place callback context immediately after StaticTimer_t in the
+           user-provided timer control block memory. */
+        callb = (TimerCallback_t*)((uintptr_t)attr->cb_mem + sizeof(StaticTimer_t));
+        callb->dynamic_alloc = 0U;
+    }
     #endif
 
     #if (configSUPPORT_DYNAMIC_ALLOCATION == 1)
-        /* Dynamic memory allocation is available: if memory for callback and */
-        /* its argument is not provided, allocate it from dynamic memory pool */
-        if(callb == NULL)
-        {
-            callb = (TimerCallback_t*)pvPortMalloc(sizeof(TimerCallback_t));
-
-            if(callb != NULL)
-            {
-                /* Callback memory was allocated from dynamic pool, set flag */
-                callb_dyn = 1U;
-            }
-        }
-    #endif
+    if(callb == NULL)
+    {
+        callb = (TimerCallback_t*)pvPortMalloc(sizeof(TimerCallback_t));
 
         if(callb != NULL)
         {
-            callb->func = func;
-            callb->arg  = argument;
-
-            if(type == osTimerOnce)
-            {
-                reload = pdFALSE;
-            }
-            else
-            {
-                reload = pdTRUE;
-            }
-
-            mem  = -1;
-            name = NULL;
-
-            if(attr != NULL)
-            {
-                if(attr->name != NULL)
-                {
-                    name = attr->name;
-                }
-
-                if((attr->cb_mem != NULL) && (attr->cb_size >= sizeof(StaticTimer_t)))
-                {
-                    /* The memory for control block is provided, use static object */
-                    mem = 1;
-                }
-                else
-                {
-                    if((attr->cb_mem == NULL) && (attr->cb_size == 0U))
-                    {
-                        /* Control block will be allocated from the dynamic pool */
-                        mem = 0;
-                    }
-                }
-            }
-            else
-            {
-                mem = 0;
-            }
-            /* Store callback memory dynamic allocation flag */
-            callb = (TimerCallback_t*)((uint32_t)callb | callb_dyn);
-            /*
-              TimerCallback function is always provided as a callback and is used to call application
-              specified function with its argument both stored in structure callb.
-            */
-            if(mem == 1)
-            {
-    #if (configSUPPORT_STATIC_ALLOCATION == 1)
-                hTimer = xTimerCreateStatic(name, 1, reload, callb, TimerCallback,
-                                            (StaticTimer_t*)attr->cb_mem);
-    #endif
-            }
-            else
-            {
-                if(mem == 0)
-                {
-    #if (configSUPPORT_DYNAMIC_ALLOCATION == 1)
-                    hTimer = xTimerCreate(name, 1, reload, callb, TimerCallback);
-    #endif
-                }
-            }
-
-    #if (configSUPPORT_DYNAMIC_ALLOCATION == 1)
-            if((hTimer == NULL) && (callb != NULL) && (callb_dyn == 1U))
-            {
-                /* Failed to create a timer, release allocated resources */
-                callb = (TimerCallback_t*)((uint32_t)callb & ~1U);
-
-                vPortFree(callb);
-            }
-    #endif
+            callb->dynamic_alloc = 1U;
         }
     }
+    #endif
 
-    /* Return timer ID */
+    if(callb == NULL)
+    {
+        return NULL;
+    }
+
+    callb->func = func;
+    callb->arg  = argument;
+
+    reload = (type == osTimerOnce) ? pdFALSE : pdTRUE;
+
+    mem  = -1;
+    name = NULL;
+
+    if(attr != NULL)
+    {
+        if(attr->name != NULL)
+        {
+            name = attr->name;
+        }
+
+        if((attr->cb_mem != NULL) && (attr->cb_size >= sizeof(StaticTimer_t)))
+        {
+            /* Timer control block is provided by caller. */
+            mem = 1;
+        }
+        else if((attr->cb_mem == NULL) && (attr->cb_size == 0U))
+        {
+            /* Timer control block will come from heap. */
+            mem = 0;
+        }
+    }
+    else
+    {
+        mem = 0;
+    }
+
+    /*
+      TimerCallback is always registered as the FreeRTOS callback.
+      The real user callback and its argument are stored in callb.
+    */
+    if(mem == 1)
+    {
+    #if (configSUPPORT_STATIC_ALLOCATION == 1)
+        hTimer = xTimerCreateStatic(name, 1U, reload, (void*)callb,
+                                    TimerCallback, (StaticTimer_t*)attr->cb_mem);
+    #endif
+    }
+    else if(mem == 0)
+    {
+    #if (configSUPPORT_DYNAMIC_ALLOCATION == 1)
+        hTimer = xTimerCreate(name, 1U, reload, (void*)callb, TimerCallback);
+    #endif
+    }
+
+    #if (configSUPPORT_DYNAMIC_ALLOCATION == 1)
+    if((hTimer == NULL) && (callb->dynamic_alloc != 0U))
+    {
+        /* Timer creation failed, release heap-backed callback context. */
+        vPortFree(callb);
+    }
+    #endif
+
     return ((osTimerId_t)hTimer);
 }
+
 
 /*
   Get name of a timer.
@@ -1559,8 +1576,7 @@ const char* osTimerGetName(osTimerId_t timer_id)
     }
     else if(IRQ_Context() != 0U)
     {
-        /* Retrieve the name even though the function is not allowed to be called from ISR */
-        /* Function implementation allows this therefore we make an exception. */
+        /* FreeRTOS allows this, even though CMSIS marks ISR usage as restricted. */
         p = pcTimerGetName(hTimer);
     }
     else
@@ -1568,7 +1584,6 @@ const char* osTimerGetName(osTimerId_t timer_id)
         p = pcTimerGetName(hTimer);
     }
 
-    /* Return name as null-terminated string */
     return (p);
 }
 
@@ -1600,9 +1615,9 @@ osStatus_t osTimerStart(osTimerId_t timer_id, uint32_t ticks)
         }
     }
 
-    /* Return execution status */
     return (stat);
 }
+
 
 /*
   Stop a timer.
@@ -1639,7 +1654,6 @@ osStatus_t osTimerStop(osTimerId_t timer_id)
         }
     }
 
-    /* Return execution status */
     return (stat);
 }
 
@@ -1660,17 +1674,22 @@ uint32_t osTimerIsRunning(osTimerId_t timer_id)
         running = (uint32_t)xTimerIsTimerActive(hTimer);
     }
 
-    /* Return 0: not running, 1: running */
     return (running);
 }
 
 /*
   Delete a timer.
+
+  Cleanup rule:
+  - If callback context was allocated from heap, free it only after successful
+    xTimerDelete().
+  - If callback context is embedded in caller-provided static memory, do not free.
 */
 osStatus_t osTimerDelete(osTimerId_t timer_id)
 {
     TimerHandle_t hTimer = (TimerHandle_t)timer_id;
     osStatus_t stat;
+
     #ifndef USE_FreeRTOS_HEAP_1
         #if (configSUPPORT_DYNAMIC_ALLOCATION == 1)
     TimerCallback_t* callb;
@@ -1693,12 +1712,8 @@ osStatus_t osTimerDelete(osTimerId_t timer_id)
         if(xTimerDelete(hTimer, 0) == pdPASS)
         {
         #if (configSUPPORT_DYNAMIC_ALLOCATION == 1)
-            if((uint32_t)callb & 1U)
+            if((callb != NULL) && (callb->dynamic_alloc != 0U))
             {
-                /* Callback memory was allocated from dynamic pool, clear flag */
-                callb = (TimerCallback_t*)((uint32_t)callb & ~1U);
-
-                /* Return allocated memory to dynamic pool */
                 vPortFree(callb);
             }
         #endif
@@ -1713,7 +1728,6 @@ osStatus_t osTimerDelete(osTimerId_t timer_id)
     stat = osError;
     #endif
 
-    /* Return execution status */
     return (stat);
 }
 #endif /* (configUSE_OS2_TIMER == 1) */
@@ -2130,8 +2144,7 @@ osMutexId_t osMutexNew(const osMutexAttr_t* attr)
 
             if((hMutex != NULL) && (rmtx != 0U))
             {
-                /* Set LSB as 'recursive mutex flag' */
-                hMutex = (SemaphoreHandle_t)((uint32_t)hMutex | 1U);
+                hMutex = (SemaphoreHandle_t)PTR_FLAG_SET(hMutex);
             }
         }
     }
@@ -2149,10 +2162,8 @@ osStatus_t osMutexAcquire(osMutexId_t mutex_id, uint32_t timeout)
     osStatus_t stat;
     uint32_t rmtx;
 
-    hMutex = (SemaphoreHandle_t)((uint32_t)mutex_id & ~1U);
-
-    /* Extract recursive mutex flag */
-    rmtx = (uint32_t)mutex_id & 1U;
+    hMutex = (SemaphoreHandle_t)((uintptr_t)mutex_id & ~PTR_FLAG_LSB);
+    rmtx   = (uint32_t)((uintptr_t)mutex_id & PTR_FLAG_LSB);
 
     stat = osOK;
 
@@ -2211,10 +2222,8 @@ osStatus_t osMutexRelease(osMutexId_t mutex_id)
     osStatus_t stat;
     uint32_t rmtx;
 
-    hMutex = (SemaphoreHandle_t)((uint32_t)mutex_id & ~1U);
-
-    /* Extract recursive mutex flag */
-    rmtx = (uint32_t)mutex_id & 1U;
+    hMutex = (SemaphoreHandle_t)((uintptr_t)mutex_id & ~PTR_FLAG_LSB);
+    rmtx   = (uint32_t)((uintptr_t)mutex_id & PTR_FLAG_LSB);
 
     stat = osOK;
 
@@ -2258,7 +2267,7 @@ osThreadId_t osMutexGetOwner(osMutexId_t mutex_id)
     SemaphoreHandle_t hMutex;
     osThreadId_t owner;
 
-    hMutex = (SemaphoreHandle_t)((uint32_t)mutex_id & ~1U);
+    hMutex = (SemaphoreHandle_t)((uintptr_t)mutex_id & ~PTR_FLAG_LSB);
 
     if((IRQ_Context() != 0U) || (hMutex == NULL))
     {
@@ -2282,7 +2291,7 @@ osStatus_t osMutexDelete(osMutexId_t mutex_id)
     #ifndef USE_FreeRTOS_HEAP_1
     SemaphoreHandle_t hMutex;
 
-    hMutex = (SemaphoreHandle_t)((uint32_t)mutex_id & ~1U);
+    hMutex = (SemaphoreHandle_t)((uintptr_t)mutex_id & ~PTR_FLAG_LSB);
 
     if(IRQ_Context() != 0U)
     {
@@ -2577,9 +2586,11 @@ osMessageQueueId_t
 osMessageQueueNew(uint32_t msg_count, uint32_t msg_size, const osMessageQueueAttr_t* attr)
 {
     QueueHandle_t hQueue;
+    MessageQueueMeta_t* mq;
     int32_t mem;
 
     hQueue = NULL;
+    mq     = NULL;
 
     if((IRQ_Context() == 0U) && (msg_count > 0U) && (msg_size > 0U))
     {
@@ -2590,17 +2601,12 @@ osMessageQueueNew(uint32_t msg_count, uint32_t msg_size, const osMessageQueueAtt
             if((attr->cb_mem != NULL) && (attr->cb_size >= sizeof(StaticQueue_t)) &&
                (attr->mq_mem != NULL) && (attr->mq_size >= (msg_count * msg_size)))
             {
-                /* The memory for control block and message data is provided, use static object */
                 mem = 1;
             }
-            else
+            else if((attr->cb_mem == NULL) && (attr->cb_size == 0U) &&
+                    (attr->mq_mem == NULL) && (attr->mq_size == 0U))
             {
-                if((attr->cb_mem == NULL) && (attr->cb_size == 0U) &&
-                   (attr->mq_mem == NULL) && (attr->mq_size == 0U))
-                {
-                    /* Control block will be allocated from the dynamic pool */
-                    mem = 0;
-                }
+                mem = 0;
             }
         }
         else
@@ -2614,30 +2620,43 @@ osMessageQueueNew(uint32_t msg_count, uint32_t msg_size, const osMessageQueueAtt
             hQueue = xQueueCreateStatic(msg_count, msg_size, attr->mq_mem, attr->cb_mem);
 #endif
         }
-        else
+        else if(mem == 0)
         {
-            if(mem == 0)
-            {
 #if (configSUPPORT_DYNAMIC_ALLOCATION == 1)
-                hQueue = xQueueCreate(msg_count, msg_size);
+            hQueue = xQueueCreate(msg_count, msg_size);
 #endif
-            }
         }
 
-#if (configQUEUE_REGISTRY_SIZE > 0)
         if(hQueue != NULL)
         {
-            if((attr != NULL) && (attr->name != NULL))
+#if (configSUPPORT_DYNAMIC_ALLOCATION == 1)
+            mq = (MessageQueueMeta_t*)pvPortMalloc(sizeof(MessageQueueMeta_t));
+#endif
+            if(mq == NULL)
             {
-                /* Only non-NULL name objects are added to the Queue Registry */
-                vQueueAddToRegistry(hQueue, attr->name);
+#ifndef USE_FreeRTOS_HEAP_1
+                vQueueDelete(hQueue);
+#endif
+                hQueue = NULL;
+            }
+            else
+            {
+                mq->handle       = hQueue;
+                mq->msg_count    = msg_count;
+                mq->msg_size     = msg_size;
+                mq->meta_dynamic = 1U;
+
+#if (configQUEUE_REGISTRY_SIZE > 0)
+                if((attr != NULL) && (attr->name != NULL))
+                {
+                    vQueueAddToRegistry(hQueue, attr->name);
+                }
+#endif
             }
         }
-#endif
     }
 
-    /* Return message queue ID */
-    return ((osMessageQueueId_t)hQueue);
+    return ((osMessageQueueId_t)mq);
 }
 
 /*
@@ -2649,9 +2668,11 @@ osMessageQueueNew(uint32_t msg_count, uint32_t msg_size, const osMessageQueueAtt
 osStatus_t
 osMessageQueuePut(osMessageQueueId_t mq_id, const void* msg_ptr, uint8_t msg_prio, uint32_t timeout)
 {
-    QueueHandle_t hQueue = (QueueHandle_t)mq_id;
+    MessageQueueMeta_t* mq = (MessageQueueMeta_t*)mq_id;
+    QueueHandle_t hQueue   = (mq != NULL) ? mq->handle : NULL;
     osStatus_t stat;
     BaseType_t yield;
+
 
     (void)msg_prio; /* Message priority is ignored */
 
@@ -2711,7 +2732,8 @@ osMessageQueuePut(osMessageQueueId_t mq_id, const void* msg_ptr, uint8_t msg_pri
 */
 osStatus_t osMessageQueueGet(osMessageQueueId_t mq_id, void* msg_ptr, uint8_t* msg_prio, uint32_t timeout)
 {
-    QueueHandle_t hQueue = (QueueHandle_t)mq_id;
+    MessageQueueMeta_t* mq = (MessageQueueMeta_t*)mq_id;
+    QueueHandle_t hQueue   = (mq != NULL) ? mq->handle : NULL;
     osStatus_t stat;
     BaseType_t yield;
 
@@ -2770,20 +2792,8 @@ osStatus_t osMessageQueueGet(osMessageQueueId_t mq_id, void* msg_ptr, uint8_t* m
 */
 uint32_t osMessageQueueGetCapacity(osMessageQueueId_t mq_id)
 {
-    QueueHandle_t hQueue = (QueueHandle_t)mq_id;
-    uint32_t capacity;
-
-    if(hQueue == NULL)
-    {
-        capacity = 0U;
-    }
-    else
-    {
-        capacity = uxQueueGetQueueNumber(hQueue);
-    }
-
-    /* Return maximum number of messages */
-    return (capacity);
+    MessageQueueMeta_t* mq = (MessageQueueMeta_t*)mq_id;
+    return (mq != NULL) ? mq->msg_count : 0U;
 }
 
 /*
@@ -2791,20 +2801,8 @@ uint32_t osMessageQueueGetCapacity(osMessageQueueId_t mq_id)
 */
 uint32_t osMessageQueueGetMsgSize(osMessageQueueId_t mq_id)
 {
-    QueueHandle_t hQueue = (QueueHandle_t)mq_id;
-    uint32_t size;
-
-    if(hQueue == NULL)
-    {
-        size = 0U;
-    }
-    else
-    {
-        size = uxQueueGetQueueNumber(hQueue);
-    }
-
-    /* Return maximum message size */
-    return (size);
+    MessageQueueMeta_t* mq = (MessageQueueMeta_t*)mq_id;
+    return (mq != NULL) ? mq->msg_size : 0U;
 }
 
 /*
@@ -2812,7 +2810,8 @@ uint32_t osMessageQueueGetMsgSize(osMessageQueueId_t mq_id)
 */
 uint32_t osMessageQueueGetCount(osMessageQueueId_t mq_id)
 {
-    QueueHandle_t hQueue = (QueueHandle_t)mq_id;
+    MessageQueueMeta_t* mq = (MessageQueueMeta_t*)mq_id;
+    QueueHandle_t hQueue   = (mq != NULL) ? mq->handle : NULL;
     UBaseType_t count;
 
     if(hQueue == NULL)
@@ -2837,29 +2836,27 @@ uint32_t osMessageQueueGetCount(osMessageQueueId_t mq_id)
 */
 uint32_t osMessageQueueGetSpace(osMessageQueueId_t mq_id)
 {
-    QueueHandle_t hQueue = (QueueHandle_t)mq_id;
-    uint32_t space;
-    uint32_t isrm;
+    MessageQueueMeta_t* mq = (MessageQueueMeta_t*)mq_id;
+    QueueHandle_t hQueue;
+    UBaseType_t count;
 
-    if(hQueue == NULL)
+    if(mq == NULL)
     {
-        space = 0U;
+        return 0U;
     }
-    else if(IRQ_Context() != 0U)
+
+    hQueue = mq->handle;
+
+    if(IRQ_Context() != 0U)
     {
-        isrm = taskENTER_CRITICAL_FROM_ISR();
-
-        space = uxQueueGetQueueNumber(hQueue) - uxQueueMessagesWaiting(hQueue);
-
-        taskEXIT_CRITICAL_FROM_ISR(isrm);
+        count = uxQueueMessagesWaitingFromISR(hQueue);
     }
     else
     {
-        space = (uint32_t)uxQueueSpacesAvailable(hQueue);
+        count = uxQueueMessagesWaiting(hQueue);
     }
 
-    /* Return number of available slots */
-    return (space);
+    return (mq->msg_count >= (uint32_t)count) ? (mq->msg_count - (uint32_t)count) : 0U;
 }
 
 /*
@@ -2867,7 +2864,8 @@ uint32_t osMessageQueueGetSpace(osMessageQueueId_t mq_id)
 */
 osStatus_t osMessageQueueReset(osMessageQueueId_t mq_id)
 {
-    QueueHandle_t hQueue = (QueueHandle_t)mq_id;
+    MessageQueueMeta_t* mq = (MessageQueueMeta_t*)mq_id;
+    QueueHandle_t hQueue   = (mq != NULL) ? mq->handle : NULL;
     osStatus_t stat;
 
     if(IRQ_Context() != 0U)
@@ -2893,7 +2891,8 @@ osStatus_t osMessageQueueReset(osMessageQueueId_t mq_id)
 */
 osStatus_t osMessageQueueDelete(osMessageQueueId_t mq_id)
 {
-    QueueHandle_t hQueue = (QueueHandle_t)mq_id;
+    MessageQueueMeta_t* mq = (MessageQueueMeta_t*)mq_id;
+    QueueHandle_t hQueue   = (mq != NULL) ? mq->handle : NULL;
     osStatus_t stat;
 
 #ifndef USE_FreeRTOS_HEAP_1
@@ -2913,12 +2912,18 @@ osStatus_t osMessageQueueDelete(osMessageQueueId_t mq_id)
 
         stat = osOK;
         vQueueDelete(hQueue);
+
+    #if (configSUPPORT_DYNAMIC_ALLOCATION == 1)
+        if(mq->meta_dynamic != 0U)
+        {
+            vPortFree(mq);
+        }
+    #endif
     }
 #else
     stat = osError;
 #endif
 
-    /* Return execution status */
     return (stat);
 }
 

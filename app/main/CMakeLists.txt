@@ -1,68 +1,90 @@
+#
+# RideCast Application CMake Configuration
+#
+# MISRA C:2012 compliant embedded project structure
+# - No dynamic memory allocation
+# - All sources explicitly listed
+# - Clear component dependencies
+#
 
-# Current File Path
-# ${CAMAKE_SOURCE_DIR}/app/main/CMakeLists.txt
+cmake_minimum_required(VERSION 3.16)
 
-message(STATUS "app/main/CMakeLists.txt")
+message(STATUS "[RideCast] Configuring app/main")
 
-set(demo_uart
-    "${CMAKE_SOURCE_DIR}/app/demo/uart/demo_app_uart_sync.c"
-    "${CMAKE_SOURCE_DIR}/app/demo/uart/demo_app_uart_async.c"
+# =========================================================================
+# SOURCE FILES
+# =========================================================================
+set(RIDECAST_APP_CFG_SRCS
+    "${CMAKE_SOURCE_DIR}/app/app_config/app_config.c"
 )
 
-# set(demo_nal
-# "${CMAKE_SOURCE_DIR}/app/demo/nal/demo_nal_sync_tcp.c"
-# "${CMAKE_SOURCE_DIR}/app/demo/nal/demo_nal_sync_tls.c"
-# )
-set(demo_wifi
-
-    "${CMAKE_SOURCE_DIR}/app/demo/wifi/demo_wifi_sta_ap.c"
+# UART application layer
+set(RIDECAST_APP_SRCS
+    "${CMAKE_SOURCE_DIR}/app/srcs/uart_app.c"
+    "${CMAKE_SOURCE_DIR}/app/srcs/wifi_app.c"
+    "${CMAKE_SOURCE_DIR}/app/srcs/ridecast_main.c"
 )
 
-set(demo_conn_mgnr
-
-    "${CMAKE_SOURCE_DIR}/app/conn_mgnr/conn_mgnr.c"
+# Startup / main entry
+set(APP_ENTRY_SRCS
+    "${CMAKE_SOURCE_DIR}/app/main/app_main.c"
 )
 
-set(wifi_sta_app
-    "${CMAKE_SOURCE_DIR}/app/wifi_sta_app/wifi_sta_app.c"
+# Test app
+set(TEST_SRCS
+    "${CMAKE_SOURCE_DIR}/app/test/test_host_uart.c"
 )
 
-# set(ridecast_app
-# "${CMAKE_SOURCE_DIR}/app/demo/wifi/demo_wifi_sta_ap.c"
-# )
-idf_component_register(
-    SRCS "app_main.c"
+# =========================================================================
+# CMSIS-RTOS2 Wrapper
+# =========================================================================
+set(CMSIS_RTOS2_SRCS
     "${CMAKE_SOURCE_DIR}/external/os/cmsis_esp/Source/cmsis_os2.c"
+)
 
-    # "${CMAKE_SOURCE_DIR}/app/demo_config/app_bsp_config.c"
-    ${demo_uart}
-    ${demo_wifi}
-    ${demo_conn_mgnr}
-    ${wifi_sta_app}
-
-    INCLUDE_DIRS "."
+# =========================================================================
+# INCLUDE DIRECTORIES
+# =========================================================================
+set(APP_INCLUDE_DIRS
+    "${CMAKE_SOURCE_DIR}/app/app_config"
+    "${CMAKE_SOURCE_DIR}/app/include"
     "${CMAKE_SOURCE_DIR}/external/os/cmsis_esp/Include"
-    "${CMAKE_SOURCE_DIR}/app/demo_config"
-    "${CMAKE_SOURCE_DIR}/app/wifi_sta_app"
+    "${CMAKE_BINARY_DIR}/version"
+)
+
+# =========================================================================
+# COMPONENT REGISTRATION (ESP-IDF)
+# =========================================================================
+idf_component_register(
+    SRCS
+        ${APP_ENTRY_SRCS}
+        ${RIDECAST_APP_CFG_SRCS}
+        ${RIDECAST_APP_SRCS}
+        ${CMSIS_RTOS2_SRCS}
+        ${TEST_SRCS}
+
+    INCLUDE_DIRS
+        ${APP_INCLUDE_DIRS}
 
     PRIV_REQUIRES
-    freertos
-    cmsis_esp
-    system
-    mbedtls
-    lwip
-    driver
-    esp_netif
-    esp_wifi
-    esp_event
-    log
-    mbedtls
-    lwip
-    esp-tls
-    esp_common
-    bsp
-    nal
-    cli
-    nvs_flash
-    backoffAlgorithmWrapper
+        freertos
+        cmsis_esp
+        system
+        # mbedtls
+        lwip
+        driver
+        esp_netif
+        esp_wifi
+        esp_event
+        log
+        esp-tls
+        esp_common
+        bsp
+        # nal 
+        cli
+        nvs_flash
+        backoffAlgorithmWrapper
 )
+message(STATUS "[RideCast:BSP] ========================================")
+message(STATUS "[RideCast:APP] ✓ app/main configured")
+message(STATUS "[RideCast:BSP] ========================================")

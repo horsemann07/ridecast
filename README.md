@@ -14,54 +14,113 @@ Key features:
 
 ---
 
+
+## System Architecture
+
+```lua
++------------------------------------------------------+
+|          APPLICATION CONFIGURATION LAYER             |
+|------------------------------------------------------|
+| Tasks | Queues | Semaphores | Mutex | Macros |      |
+| Peripheral Configuration                             |
++------------------------------------------------------+
+                         |
+                         v
++------------------------------------------------------+
+|                APPLICATION LAYER                     |
+|------------------------------------------------------|
+| Application Logic | State Machines | Control Flow   |
++------------------------------------------------------+
+                         |
+                         v
++------------------------------------------------------+
+|             BSP CONFIGURATION LAYER                  |
+|------------------------------------------------------|
+| Tasks | Queues | Semaphores | Mutex | Macros        |
++------------------------------------------------------+
+                         |
+                         v
++------------------------------------------------------+
+|         BSP (Board Support Package Layer)            |
+|------------------------------------------------------|
+| Internal Headers | Vendor-Independent API |          |
+| Vendor-Dependent Port Layer                          |
++------------------------------------------------------+
+                         |
+                         v
++------------------------------------------------------+
+|         HAL / VENDOR SDK (LOW-LEVEL LAYER)           |
+|------------------------------------------------------|
+| Register Access | Vendor Drivers | Startup Code      |
++------------------------------------------------------+
+                         |
+                         v
++------------------------------------------------------+
+|                     HARDWARE                         |
+|------------------------------------------------------|
+| MCU | Peripherals | External Devices                 |
++------------------------------------------------------+
+```
+
+
 ## Folder Structure
 
 ```bash
 /ridecast
 │
-├── /app
-│   └── main              # Application entry point (routes data between wireless and serial interfaces)
+├── app/
+│   ├── app_config/              # App-level config: tasks, queues, semaphores, mutex, macros, peripheral cfg
+│   ├── include/                 # App public headers
+│   ├── main/                    # Application entry point
+│   └── src/                     # Application source files
 │
-├── /cmakes               # CMake scripts 
+├── bsp/
+│   ├── bsp_config/              # BSP config: board/port/task/macro setup
+│   ├── include/
+│   │   ├── internal/            # BSP private/internal headers
+│   │   └── public/              # Vendor-independent BSP APIs
+│   ├── port/
+│   │   ├── esp/                 # ESP32/ESP-IDF port implementations
+│   │   ├── stm/                 # STM32 HAL port implementations (future)
+│   │   └── ti/                  # TI MCU port implementations (future)
+│   └── src/
+│       ├── internal/            # BSP internal source files
+│       ├── bsp_err_sts.c        # Error status string helpers
+│       └── bsp_log.c            # Logger / debug output
 │
-├── /docs
-│   ├── html              # Generated documentation in HTML format
-│   ├── images            # Architecture diagrams, flowcharts, design visuals
-│   └── doxygen           # Doxygen configuration files and outputs
+├── nal/                         # Network Abstraction Layer
+│   ├── include/                 # NAL interface headers
+│   └── src/                     # NAL implementations
 │
-├── /bsp                  # Board Support Package (MCU-specific hardware abstraction)
-│   ├── include           # Generic hardware abstraction headers (common IO driver APIs)
-│   ├── port              # Hardware interface implementations (UART, CAN, USB, etc.)
-│   │   ├── esp           # ESP32/ESP-IDF specific drivers (UART, CAN, Wi-Fi, etc.)
-│   │   ├── stm           # STM32 HAL-based implementations (UART, CAN, timers, etc.)
-│   │   └── ti            # TI MCU driver implementations
-│   ├── src
-│       ├── bsp_err_sts.c # Error status string functions
-│       └── bsp_log.c     # Command-line interface logger for debugging and monitoring
+├── external/                    # Third-party libs and OS wrappers
+│   ├── component/
+│   │   ├── lwip/                # Lightweight TCP/IP stack (lwIP source code)
+│   │   └── mbedtls/             # TLS/crypto library (mbedTLS source code)
+│   ├── cli/
+│   │   ├── embedded-cli/        # CLI library for command-line interface
+│   │   └── freertos-cli/        # TODO- CLI library for command-line interface
+│   └── os/
+│       ├── cmsis/               # CMSIS headers and standard ARM abstraction
+│       ├── cmsis_freertos/      # CMSIS-RTOS wrapper for FreeRTOS
+│       └── cmsis_esp/           # CMSIS-RTOS adaptation layer for ESP-IDF
 │
-├── /nal                  # Network abstraction layer (NAL)
-│   ├── include           # NAL interface headers
-│   ├── src               # NAL implementation source files
+├── sdk/                         # Vendor SDK/HAL packages
+│   ├── esp/
+│   ├── stm/                     # future
+│   └── ti/                      # future
 │
-├── /external             # Third-party libraries and OS wrappers
-│   ├── component
-│   │   ├── lwip          # Lightweight TCP/IP stack (lwIP source code)
-│   │   └── mbedtls       # TLS/crypto library (mbedTLS source code)
-│   ├── cli
-│   │   └── embedded-cli  # CLI library for command-line interface
-│   └── os
-│       ├── cmsis         # CMSIS headers and standard ARM abstraction
-│       ├── cmsis_freertos # CMSIS-RTOS wrapper for FreeRTOS
-│       └── cmsis_esp     # CMSIS-RTOS adaptation layer for ESP-IDF
+├── tests/
+│   ├── unit/                    # Unit tests
+│   └── integration/             # End-to-end/system tests
 │
-├── /tests
-│   ├── integration       # End-to-end, system-level, and protocol flow tests
-│   └── unit              # Unit tests for individual modules/components
+├── docs/
+│   ├── images/                  # Architecture diagrams and visuals
+│   ├── doxygen/                 # Doxygen config/output
+│   └── html/                    # Generated docs
 │
-├── /sdk                  # Vendor-specific SDKs and HAL drivers
-│   ├── esp               # ESP-IDF SDK and tools
-│   ├── stm               # STM32 HAL and CubeMX-generated drivers (future)
-│   └── ti                # TI SDK or driver support (future)
+├── cmake/                       # CMake modules/toolchain files
+├── CMakeLists.txt               # Root build entry
+└── README.md
 
 ```
 
