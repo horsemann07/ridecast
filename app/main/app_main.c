@@ -1,22 +1,51 @@
+/**
+ * @file    main.c
+ * @brief   FreeRTOS / CMSIS-RTOS2 application entry.
+ *          Only job: start scheduler then call ridecast_init().
+ */
+
 #include "cmsis_os2.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "esp_log.h"
-#include "bsp_err_sts.h"
+#include "ridecast_main.h"
+#include "app_config.h"
+#include "app_logging.h"
 
-#include "wifi_sta_app.h"
+/* =========================================================================
+ * Startup task  - runs once after scheduler starts
+ * ========================================================================= */
+static void startup_task(void* arg)
+{
+    (void)arg;
 
+    if(ridecast_init() != BSP_ERR_STS_OK)
+    {
+        /* Fail-stop: do not continue with partially initialized system */
+        ALOGE("ridecast_init failed - halting");
+        for(;;)
+        {
+            osDelay(1000U);
+        }
+    }
+
+    osThreadExit();
+}
+
+/* =========================================================================
+ * app_main()
+ *
+ * Entry point called by ESP-IDF after boot and peripherals init.
+ * Initialize RTOS kernel and start scheduler.
+ * ========================================================================= */
 void app_main(void)
 {
-    // Initialize CMSIS-RTOS v2 kernel wrapper
+    /* Board / clock / peripheral init (BSP-specific) */
+    /* bsp_board_init(); */
+
     osKernelInitialize();
 
-    // Start WiFi STA application:
-    //   1. Scan WiFi networks  → print table on UART
-    //   2. Connect to AP       → show status (IP / GW / RSSI) on UART
-    //   3. Connect TCP socket  → receive data from server, forward to UART
-    wifiStaAppStart();
+    (void)osThreadNew(startup_task, NULL,
+                      &g_appThreadCfg[APP_THREAD_OWNER_STARTUP].attr);
 
-    // Start scheduler
-    osKernelStart();
+    osKernelStart(); /* Never returns */
+
+    return;
 }

@@ -1,0 +1,33 @@
+// {
+//   "configurations": [
+//     // {
+//     //   "name": "ESP-IDF (Linux)",
+//     //   "includePath": [
+//     //     "${workspaceFolder}/**"
+//     //   ],
+//     //   "defines": [
+//     //     "ESP_PLATFORM"
+//     //   ],
+//     //   "compilerPath": "${env:HOME}/.espressif/tools/xtensa-esp-elf/esp-14.2.0_20241119/xtensa-esp-elf/bin/xtensa-esp-elf-gcc",
+//     //   "cStandard": "c11",
+//     //   "cppStandard": "c++17",
+//     //   "intelliSenseMode": "linux-gcc-x64",
+//     //   "compileCommands": "${workspaceFolder}/build/compile_commands.json"
+//     // },
+//     {
+//       "name": "ESP-IDF (Windows)",
+//       "includePath": [
+//         "${workspaceFolder}/**"
+//       ],
+//       "defines": [
+//         "ESP_PLATFORM"
+//       ],
+//       "compilerPath": "${env:USERPROFILE}\\.espressif\\tools\\xtensa-esp-elf\\esp-14.2.0_20241119\\xtensa-esp-elf\\bin\\xtensa-esp-elf-gcc.exe",
+//       "cStandard": "c11",
+//       "cppStandard": "c++17",
+//       "intelliSenseMode": "windows-gcc-x64",
+//       "compileCommands": "${workspaceFolder}/build/compile_commands.json"
+//     }
+//   ],
+//   "version": 4
+// }

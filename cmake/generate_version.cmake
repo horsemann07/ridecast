@@ -1,105 +1,126 @@
-# Get the latest Git tag and commit information
-execute_process(
-    COMMAND git describe --tags --abbrev=0
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    OUTPUT_VARIABLE LAST_TAG
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    RESULT_VARIABLE TAG_RESULT
-)
 
-if(TAG_RESULT EQUAL 0)
+include_guard(GLOBAL)
+
+# -----------------------------------------------------------------------------
+# Version metadata defaults (safe fallback when Git is unavailable)
+# -----------------------------------------------------------------------------
+set(APP_MAJOR_VERSION 0)
+set(APP_MINOR_VERSION 0)
+set(APP_PATCH_VERSION 0)
+set(APP_DEV_VERSION   0)
+set(APP_STATUS        "Development")
+set(APP_COMMIT_HASH_SHORT "unknown")
+set(APP_RELEASE_DATE      "unknown")
+set(APP_VERSION_STRING    "0.0.0.0")
+set(APP_SHORT_COMMIT_STRING "dev-unknown")
+
+find_package(Git QUIET)
+
+if(GIT_FOUND AND EXISTS "${CMAKE_SOURCE_DIR}/.git")
     execute_process(
-        COMMAND git rev-list --count ${LAST_TAG}..HEAD
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        OUTPUT_VARIABLE COMMITS_SINCE_TAG
+        COMMAND "${GIT_EXECUTABLE}" describe --tags --abbrev=0
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+        OUTPUT_VARIABLE LAST_TAG
         OUTPUT_STRIP_TRAILING_WHITESPACE
+        RESULT_VARIABLE TAG_RESULT
+        ERROR_QUIET
     )
-else()
-    execute_process(
-        COMMAND git rev-list --count HEAD
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        OUTPUT_VARIABLE COMMITS_SINCE_TAG
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-endif()
 
-# Get the short commit hash
-execute_process(
-    COMMAND git rev-parse --short HEAD
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    OUTPUT_VARIABLE COMMIT_HASH_SHORT
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-
-# Get the date of the latest commit
-execute_process(
-    COMMAND git log -1 --format=%cd --date=short
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    OUTPUT_VARIABLE COMMIT_DATE
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-
-if(TAG_RESULT EQUAL 0 AND COMMITS_SINCE_TAG STREQUAL "0")
-    # Exactly at tag
-    string(REGEX MATCH "v([0-9]+)\\.([0-9]+)\\.([0-9]+)" _ ${LAST_TAG})
-    set(APP_MAJOR_VERSION ${CMAKE_MATCH_1})
-    set(APP_MINOR_VERSION ${CMAKE_MATCH_2})
-    set(APP_PATCH_VERSION ${CMAKE_MATCH_3})
-    set(APP_DEV_VERSION 0)
-    set(APP_STATUS "Release")
-else()
-    # After tag or no tag
     if(TAG_RESULT EQUAL 0)
-        string(REGEX MATCH "v([0-9]+)\\.([0-9]+)\\.([0-9]+)" _ ${LAST_TAG})
-        set(APP_MAJOR_VERSION ${CMAKE_MATCH_1})
-        set(APP_MINOR_VERSION ${CMAKE_MATCH_2})
-        set(APP_PATCH_VERSION ${CMAKE_MATCH_3})
+        execute_process(
+            COMMAND "${GIT_EXECUTABLE}" rev-list --count "${LAST_TAG}..HEAD"
+            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+            OUTPUT_VARIABLE COMMITS_SINCE_TAG
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            RESULT_VARIABLE COUNT_RESULT
+            ERROR_QUIET
+        )
     else()
-        set(APP_MAJOR_VERSION 0)
-        set(APP_MINOR_VERSION 0)
-        set(APP_PATCH_VERSION 0)
+        execute_process(
+            COMMAND "${GIT_EXECUTABLE}" rev-list --count HEAD
+            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+            OUTPUT_VARIABLE COMMITS_SINCE_TAG
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            RESULT_VARIABLE COUNT_RESULT
+            ERROR_QUIET
+        )
     endif()
 
-    set(APP_DEV_VERSION ${COMMITS_SINCE_TAG})
-    set(APP_STATUS "Development")
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" rev-parse --short HEAD
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+        OUTPUT_VARIABLE APP_COMMIT_HASH_SHORT
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        RESULT_VARIABLE HASH_RESULT
+        ERROR_QUIET
+    )
+
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" log -1 --format=%cd --date=short
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+        OUTPUT_VARIABLE APP_RELEASE_DATE
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        RESULT_VARIABLE DATE_RESULT
+        ERROR_QUIET
+    )
+
+    if(NOT COUNT_RESULT EQUAL 0)
+        set(COMMITS_SINCE_TAG "0")
+    endif()
+    if(NOT HASH_RESULT EQUAL 0 OR APP_COMMIT_HASH_SHORT STREQUAL "")
+        set(APP_COMMIT_HASH_SHORT "unknown")
+    endif()
+    if(NOT DATE_RESULT EQUAL 0 OR APP_RELEASE_DATE STREQUAL "")
+        set(APP_RELEASE_DATE "unknown")
+    endif()
+
+    if(TAG_RESULT EQUAL 0 AND LAST_TAG MATCHES "^v([0-9]+)\\.([0-9]+)\\.([0-9]+)$")
+        set(APP_MAJOR_VERSION "${CMAKE_MATCH_1}")
+        set(APP_MINOR_VERSION "${CMAKE_MATCH_2}")
+        set(APP_PATCH_VERSION "${CMAKE_MATCH_3}")
+    endif()
+
+    if(TAG_RESULT EQUAL 0 AND COMMITS_SINCE_TAG STREQUAL "0")
+        set(APP_DEV_VERSION 0)
+        set(APP_STATUS "Release")
+    else()
+        set(APP_DEV_VERSION "${COMMITS_SINCE_TAG}")
+        set(APP_STATUS "Development")
+    endif()
 endif()
 
-# Set final version string based on status
 if(APP_STATUS STREQUAL "Release")
     set(APP_VERSION_STRING "${APP_MAJOR_VERSION}.${APP_MINOR_VERSION}.${APP_PATCH_VERSION}")
-    set(APP_SHORT_COMMIT_STRING "${COMMIT_HASH_SHORT}")
+    set(APP_SHORT_COMMIT_STRING "${APP_COMMIT_HASH_SHORT}")
 else()
     set(APP_VERSION_STRING "${APP_MAJOR_VERSION}.${APP_MINOR_VERSION}.${APP_PATCH_VERSION}.${APP_DEV_VERSION}")
-    set(APP_SHORT_COMMIT_STRING "dev-${COMMIT_HASH_SHORT}")
+    set(APP_SHORT_COMMIT_STRING "dev-${APP_COMMIT_HASH_SHORT}")
 endif()
 
-# Generate the app_version.h file from a template string
+# Export for parent/top-level usage
+set(APP_VERSION_STRING "${APP_VERSION_STRING}" CACHE INTERNAL "RideCast app version" FORCE)
+set(APP_SHORT_COMMIT_STRING "${APP_SHORT_COMMIT_STRING}" CACHE INTERNAL "RideCast short commit" FORCE)
+set(APP_RELEASE_DATE "${APP_RELEASE_DATE}" CACHE INTERNAL "RideCast commit date" FORCE)
+
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/version")
 file(GENERATE
     OUTPUT "${CMAKE_BINARY_DIR}/version/app_version.h"
-    CONTENT "
-#ifndef _APP_VERSION_H_
+    CONTENT
+"#ifndef _APP_VERSION_H_
 #define _APP_VERSION_H_
 
-/*
- * This file is auto-generated by CMake during the build process.
- * Do not edit this file manually.
- */
+/* Auto-generated by CMake. Do not edit manually. */
 
 #define APP_NAME          \"${PROJECT_NAME}\"
 #define APP_VERSION       \"${APP_VERSION_STRING}\"
 #define APP_COMMIT_HASH   \"${APP_SHORT_COMMIT_STRING}\"
-#define APP_RELEASE_DATE  \"${COMMIT_DATE}\"
+#define APP_RELEASE_DATE  \"${APP_RELEASE_DATE}\"
 
 #define APP_MAJOR_VERSION ${APP_MAJOR_VERSION}
 #define APP_MINOR_VERSION ${APP_MINOR_VERSION}
 #define APP_PATCH_VERSION ${APP_PATCH_VERSION}
 #define APP_DEV_VERSION   ${APP_DEV_VERSION}
 
-#endif // _APP_VERSION_H_
+#endif /* _APP_VERSION_H_ */
 "
 )
-
-# Print version info for debugging
-message(STATUS "Project Version: ${APP_FULL_VERSION_STRING}")
-message(STATUS "Commit Hash: ${APP_COMMIT_HASH}")
-message(STATUS "Build Date: ${COMMIT_DATE}")
