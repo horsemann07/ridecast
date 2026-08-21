@@ -39,39 +39,29 @@ extern "C"
 #define GPIO_PIN_UNUSED (0xFFFFFFFFUL)
 
     /* ========================================================= */
-    /* SIZE DEFINITIONS                                          */
-    /* ========================================================= */
-
-#define BSP_SIZE_1B (1U)
-#define BSP_SIZE_1K (1024U)
-#define BSP_SIZE_1M (1024U * 1024U)
-
-    /* ========================================================= */
     /* STACK SIZES (CMSIS expects BYTES)                         */
     /* ========================================================= */
 
 #define THREAD_STACK_512B (512U)
-#define THREAD_STACK_1K   (1U * BSP_SIZE_1K)
+#define THREAD_STACK_1K   (1024U)
 #define THREAD_STACK_1_5K (1536U)
-#define THREAD_STACK_2K   (2U * BSP_SIZE_1K)
-#define THREAD_STACK_3K   (3U * BSP_SIZE_1K)
-#define THREAD_STACK_4K   (4U * BSP_SIZE_1K)
-#define THREAD_STACK_5K   (5U * BSP_SIZE_1K)
-#define THREAD_STACK_6K   (6U * BSP_SIZE_1K)
-#define THREAD_STACK_7K   (7U * BSP_SIZE_1K)
-#define THREAD_STACK_8K   (8U * BSP_SIZE_1K)
+#define THREAD_STACK_2K   (2U * THREAD_STACK_1K)
+#define THREAD_STACK_3K   (3U * THREAD_STACK_1K)
+#define THREAD_STACK_4K   (4U * THREAD_STACK_1K)
+#define THREAD_STACK_5K   (5U * THREAD_STACK_1K)
+#define THREAD_STACK_6K   (6U * THREAD_STACK_1K)
+#define THREAD_STACK_7K   (7U * THREAD_STACK_1K)
+#define THREAD_STACK_8K   (8U * THREAD_STACK_1K)
 
 /* Multiplier (512B blocks) */
 #define THREAD_STACK_MULT_512B(x) ((x) * THREAD_STACK_512B)
-
+#define THREAD_STACK_MULT_1KB(x)  ((x) * THREAD_STACK_1K)
     /* ========================================================= */
     /* TIME / DELAY                                              */
     /* ========================================================= */
 
 #define BSP_SEC_TO_MS(sec)  ((sec) * 1000U)
 #define BSP_MS_TO_SEC(ms)   ((ms) / 1000U)
-#define BSP_MS_TO_TICKS(ms) ((uint32_t)(ms))
-
 #define BSP_MIN_DELAY_MS    (1U)
 
     /* ========================================================= */
@@ -128,7 +118,6 @@ extern "C"
     /* ========================================================= */
 
 #define BSP_ALIGN_UP(val, align)   (((val) + ((align) - 1U)) & ~((align) - 1U))
-
 #define BSP_ALIGN_DOWN(val, align) ((val) & ~((align) - 1U))
 
     /* ========================================================= */

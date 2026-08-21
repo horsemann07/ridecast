@@ -113,6 +113,35 @@ os_event_flags_map_t g_bspEventFlagsCfg[BSP_EVENT_FLAGS_OWNER_MAX] = {
     }
 };
 
+
+bspUartHandle_t g_bspUartCfg[BSP_UART_OWNER_MAX] =
+{
+    [BSP_UART_OWNER_CONSOLE] = {
+        .baudrate        = BSP_UART_BAUD_115200,
+        .wordLength      = eBSP_UART_WORD_LENGTH_8,
+        .parity          = eBSP_UART_PARITY_NONE,
+        .stopBits        = eBSP_UART_STOP_BITS_1,
+        .mode            = eBSP_UART_MODE_TX_RX,
+
+        .uartRxPin       = BSP_UART_CONSOLE_RX_PIN,
+        .uartTxPin       = BSP_UART_CONSOLE_TX_PIN,
+        .uartRtsPin      = 0U,
+        .uartCtsPin      = 0U,
+
+        .fifoSize        = 128U,
+
+        .portNum         = BSP_UART_CONSOLE_PORT,
+        .uartOwner       = BSP_UART_OWNER_CONSOLE,
+
+        .oversampling    = 16U,
+        .rxThreshold     = 0U,
+        .invertTx        = 0U,
+        .invertRx        = 0U,
+        .dmaEnable       = 0U,
+
+        .hwFlowControlEn = false
+    }
+};
 /**********************************************************************
  * FILE END
  ***********************************************************************/

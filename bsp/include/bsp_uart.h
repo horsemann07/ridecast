@@ -21,9 +21,9 @@ extern "C"
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "bsp_err_sts.h"
 
 #include "bsp_config.h"
+#include "bsp_err_sts.h"
 
     // =========================
     // Public Functions / Types
