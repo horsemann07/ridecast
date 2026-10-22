@@ -26,113 +26,105 @@
 #ifndef BSP_CONSOLE_H
 #define BSP_CONSOLE_H
 
-
-/*=============================================================================
- * SYSTEM INCLUDES
- *============================================================================*/
-
 #include <stdbool.h>
 #include <stdint.h>
 
-
-/*=============================================================================
- * PROJECT INCLUDES
- *============================================================================*/
-
-#include "bsp_err.h"
-#include "bsp_log.h"
-
-#if (BSP_CLI_ENABLE  == 1)
-#include "bsp_cli.h"
-#endif /* BSP_CLI_ENABLE */
-
+#include "bsp_config.h"
 #include "bsp_console_transport.h"
+#include "bsp_err_sts.h"
 
-
-/*=============================================================================
- * CONSOLE CONFIGURATION
- *============================================================================*/
-
-/**
- * @brief BSP console initialization configuration.
- *
- * Logger and CLI can use completely different transports.
- *
- * Example:
- *
- *     logTransport = UART
- *     cliTransport = USB CDC
- */
-typedef struct
+#ifdef __cplusplus
+extern "C"
 {
-    /**
-     * @brief Transport used by BSP logger.
-     *
-     * Mandatory.
-     */
-    const bspConsoleTransport_t* logTransport;
+#endif /* #ifdef __cplusplus*/
 
+    /**
+     * @brief BSP console initialization configuration.
+     *
+     * Logger and CLI can use completely different transports.
+     *
+     * Example:
+     *
+     *     logTransport = UART
+     *     cliTransport = USB CDC
+     */
+    typedef struct
+    {
+        /*
+         * Logger transport. Required even if logging starts disabled, because
+         * bsp_log_enable(true) may be called later at runtime.
+         *
+         * Can be UART1, UART2, USB CDC, RTT, etc. It may be the same transport
+         * as cliTransport.
+         */
+        const bspConsoleTransport_t* logTransport;
 
 #if (BSP_CLI_ENABLE == 1U)
+        /*
+         * CLI transport when cliEnabled is true.
+         *
+         * May be the same transport as logTransport, or a different
+         * UART/USB/RTT transport.
+         */
+        const bspConsoleTransport_t* cliTransport;
+#endif /* #if (BSP_CLI_ENABLE == 1U) */
+
+    } bspConsoleConfig_t;
 
     /**
-     * @brief Transport used by BSP CLI.
+     * @brief Initialize logger and optional CLI from one configuration.
      *
-     * Mandatory when CLI is enabled.
+     * Logger is always initialized so it can be enabled later at runtime.
+     * CLI is initialized only when both BSP_CLI_ENABLE and cliEnabled are true.
      */
-    const bspConsoleTransport_t* cliTransport;
+    bsp_err_sts_t bsp_console_init(const bspConsoleConfig_t* config);
 
-#endif
+    /**
+     * @brief Deinitialize BSP console services.
+     *
+     * The CLI is stopped first because it may still receive transport input.
+     * Logging is stopped afterwards.
+     *
+     * The function supports all valid configurations:
+     *
+     * - Logger only
+     * - Logger plus CLI on the same transport
+     * - Logger and CLI on separate UART/USB/RTT transports
+     * - Compile-time-disabled CLI
+     *
+     * @return PLT_ERR_STS_OK on successful shutdown.
+     * @return PLT_ERR_STS_NOT_INIT if bsp_console_init() was not successful.
+     * @return CLI deinitialization failure, if one occurs.
+     * @return Logger deinitialization status otherwise.
+     */
+    bsp_err_sts_t bsp_console_deinit(void);
 
-} bspConsoleConfig_t;
+    /**
+     * @brief Process deferred CLI and logger work.
+     *
+     * Call this function repeatedly from one dedicated console task or from the
+     * bare-metal main loop.
+     *
+     * This function must not be called from ISR context.
+     *
+     * Processing order:
+     *
+     * 1. If runtime CLI is enabled, process received CLI bytes.
+     *    The transport RX callback only stores bytes in the CLI RX ring buffer.
+     *    Command parsing and command handlers run here in normal task context.
+     *
+     * 2. Process queued ISR log records.
+     *    bsp_log_isr() does not use printf, mutexes, or transport writes in
+     * ISR. It only queues a small log record. bsp_log_process() formats and
+     * sends that record here in normal task context.
+     *
+     * @note When BSP_CLI_ENABLE is 0U, all CLI processing code is removed at
+     *       compile time.
+     */
+    void bsp_console_process(void);
 
-/*=============================================================================
- * PUBLIC API
- *============================================================================*/
-
-/**
- * @brief Initialize BSP console components.
- *
- * This function initializes:
- *
- *     1. BSP logger
- *     2. BSP CLI, when BSP_CLI_ENABLE == 1U
- *
- * The logger and CLI remain independent modules.
- *
- * This function only supplies the appropriate transport to each module.
- *
- * @param[in] config
- *        Console configuration.
- *
- * @return BSP_ERR_STS_OK
- *         Console components initialized successfully.
- *
- * @return BSP_ERR_STS_INVALID_PARAM
- *         Invalid configuration.
- *
- * @return BSP_ERR_STS_ALREADY_INIT
- *         Console already initialized.
- *
- * @return BSP_ERR_STS_FAIL
- *         Component initialization failed.
- */
-bsp_err_sts_t bsp_console_init(
-    const bspConsoleConfig_t* config);
-
-
-/**
- * @brief Deinitialize BSP console components.
- *
- * Deinitializes CLI first, when enabled, followed by logger.
- *
- * @return BSP_ERR_STS_OK
- *         Console components deinitialized successfully.
- *
- * @return BSP_ERR_STS_NOT_INIT
- *         Console was not initialized.
- */
-bsp_err_sts_t bsp_console_deinit(void);
-
+#ifdef __cplusplus
+}
+#endif /* #ifdef __cplusplus */
 
 #endif /* BSP_CONSOLE_H */

@@ -70,6 +70,21 @@ extern "C"
     } uart_app_tx_msg_t;
 
     /* =========================================================================
+     * RX callback - called from BSP UART event thread on data received
+     *
+     * This replaces the polling loop.
+     * BSP calls this whenever bytes arrive -> we post raw bytes to RX queue
+     * -> RX task accumulates and decodes frames.
+     * ========================================================================= */
+
+    /* RX queue message */
+    typedef struct
+    {
+        uint8_t buf[UART_APP_RX_BUF_LEN];
+        uint16_t len;
+    } uart_rx_msg_t;
+
+    /* =========================================================================
      * CONFIG - filled once at boot
      * ========================================================================= */
     typedef struct

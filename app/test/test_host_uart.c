@@ -35,27 +35,27 @@ typedef struct
 
 static test_host_uart_t gTestHostUart;
 
-static bsp_err_sts_t
+static plt_err_sts_t
 test_host_uart_send_frame(test_host_uart_t* host, const uint8_t* frame, uint16_t len);
 static void test_host_uart_task(void* arg);
 
 /* -------------------------------------------------------------------------
  * Send frame over UART synchronously
  * ------------------------------------------------------------------------- */
-static bsp_err_sts_t
+static plt_err_sts_t
 test_host_uart_send_frame(test_host_uart_t* host, const uint8_t* frame, uint16_t len)
 {
-    bsp_err_sts_t sts;
+    plt_err_sts_t sts;
 
     if((host == NULL) || (host->app == NULL) || (frame == NULL) || (len == 0U))
     {
         ALOGE("send_frame: invalid param");
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     sts = bspUartSendSync(&host->app->cfg.uartHandle, frame, (size_t)len, 500U);
 
-    if(sts != BSP_ERR_STS_OK)
+    if(sts != PLT_ERR_STS_OK)
     {
         ALOGE("send_frame: uart send failed len=%" PRIu16 " sts=%d", len, (int)sts);
     }
@@ -174,21 +174,21 @@ static void test_host_uart_task(void* arg)
 /* -------------------------------------------------------------------------
  * Public API
  * ------------------------------------------------------------------------- */
-bsp_err_sts_t test_host_uart_deinit(void)
+plt_err_sts_t test_host_uart_deinit(void)
 {
     gTestHostUart.running = 0U;
     osDelay(100U);
     gTestHostUart.taskId = NULL;
     gTestHostUart.app    = NULL;
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 }
 
-bsp_err_sts_t test_host_uart_init(uart_app_t* app)
+plt_err_sts_t test_host_uart_init(uart_app_t* app)
 {
     if(app == NULL)
     {
         ALOGE("init: invalid app");
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     (void)memset(&gTestHostUart, 0, sizeof(gTestHostUart));
@@ -199,8 +199,8 @@ bsp_err_sts_t test_host_uart_init(uart_app_t* app)
     if(gTestHostUart.taskId == NULL)
     {
         ALOGE("init: task create failed");
-        return BSP_ERR_STS_FAIL;
+        return PLT_ERR_STS_FAIL;
     }
 
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 }

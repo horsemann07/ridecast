@@ -60,17 +60,17 @@ static bsp_err_sts_t nalTlsPoolInitOnce(void)
 
     if(initialized)
     {
-        return BSP_ERR_STS_OK;
+        return PLT_ERR_STS_OK;
     }
 
     memset(g_tls_pool, 0, sizeof(g_tls_pool));
     g_tls_pool_lock = osMutexNew(NULL);
     if(g_tls_pool_lock == NULL)
     {
-        return BSP_ERR_STS_NO_MEM;
+        return PLT_ERR_STS_NO_MEM;
     }
     initialized = true;
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 }
 
 /*
@@ -88,7 +88,7 @@ static nalTlsCtx_t* nalTlsAlloc(void)
     nalTlsCtx_t* ctx = NULL;
 
     bsp_err_sts_t rc = nalTlsPoolInitOnce();
-    if(rc != BSP_ERR_STS_OK)
+    if(rc != PLT_ERR_STS_OK)
     {
         return NULL;
     }
@@ -158,16 +158,16 @@ static bsp_err_sts_t nalTlsBackendInit(nalTlsCtx_t* ctx)
 {
     if(!ctx)
     {
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     ctx->platform_ctx = nal_platform_tls_create();
     if(ctx->platform_ctx == NULL)
     {
-        return BSP_ERR_STS_FAIL;
+        return PLT_ERR_STS_FAIL;
     }
 
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 }
 
 /* =========================================================================
@@ -182,24 +182,24 @@ bsp_err_sts_t nalTlsInit(nalHandle_t* handle)
 {
     if(!handle)
     {
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     handle->tls_ctx = (nalTlsCtx_t*)nalTlsAlloc();
     if(handle->tls_ctx == NULL)
     {
-        return BSP_ERR_STS_NO_MEM;
+        return PLT_ERR_STS_NO_MEM;
     }
 
     bsp_err_sts_t rc = nalTlsBackendInit(handle->tls_ctx);
-    if(rc != BSP_ERR_STS_OK)
+    if(rc != PLT_ERR_STS_OK)
     {
         nalTlsFree(handle->tls_ctx);
         handle->tls_ctx = NULL;
         return rc;
     }
 
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -207,7 +207,7 @@ bsp_err_sts_t nalTlsDeinit(nalHandle_t* handle)
 {
     if(handle == NULL || handle->tls_ctx == NULL)
     {
-        return BSP_ERR_STS_OK;
+        return PLT_ERR_STS_OK;
     }
 
     nalTlsCtx_t* ctx = (nalTlsCtx_t*)handle->tls_ctx;
@@ -228,7 +228,7 @@ bsp_err_sts_t nalTlsDeinit(nalHandle_t* handle)
      */
     nalTlsFree(ctx);
     handle->tls_ctx = NULL;
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -236,7 +236,7 @@ bsp_err_sts_t nalTlsHandshake(nalHandle_t* handle)
 {
     if(handle == NULL || handle->tls_ctx == NULL)
     {
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     nalTlsCtx_t* ctx = (nalTlsCtx_t*)handle->tls_ctx;
@@ -246,7 +246,7 @@ bsp_err_sts_t nalTlsHandshake(nalHandle_t* handle)
      * The socket is already connected at TCP level.
      */
     bsp_err_sts_t rc = nal_platform_tls_handshake(ctx->platform_ctx, sockfd);
-    if(rc != BSP_ERR_STS_OK)
+    if(rc != PLT_ERR_STS_OK)
     {
         /*
          * Reset backend state so the context
@@ -256,7 +256,7 @@ bsp_err_sts_t nalTlsHandshake(nalHandle_t* handle)
         return rc;
     }
 
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -264,7 +264,7 @@ bsp_err_sts_t nalTlsShutdown(nalHandle_t* handle)
 {
     if(handle == NULL || handle->tls_ctx == NULL)
     {
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     nalTlsCtx_t* ctx = (nalTlsCtx_t*)handle->tls_ctx;
@@ -278,7 +278,7 @@ bsp_err_sts_t nalTlsShutdown(nalHandle_t* handle)
         nal_platform_tls_shutdown(ctx->platform_ctx);
     }
 
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -288,7 +288,7 @@ nalTlsSend(nalHandle_t* handle, const void* data, size_t len, size_t* bytes_sent
 {
     if(!handle || !data || len == 0 || !bytes_sent)
     {
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     *bytes_sent = 0;
@@ -303,7 +303,7 @@ nalTlsSend(nalHandle_t* handle, const void* data, size_t len, size_t* bytes_sent
     if(handle->scheme != NAL_SCHEME_TLS || handle->tls_ctx == NULL || handle->sockfd < 0)
     {
         NAL_UNLOCK(handle);
-        return BSP_ERR_STS_UNSUPPORTED;
+        return PLT_ERR_STS_UNSUPPORTED;
     }
 
     uint32_t start_tick = osKernelGetTickCount();
@@ -322,7 +322,7 @@ nalTlsSend(nalHandle_t* handle, const void* data, size_t len, size_t* bytes_sent
             if(NAL_TIMEOUT_EXPIRED(elapsed_ms, timeout_ms))
             {
                 NAL_UNLOCK(handle);
-                return BSP_ERR_STS_TIMEOUT;
+                return PLT_ERR_STS_TIMEOUT;
             }
         }
 
@@ -334,7 +334,7 @@ nalTlsSend(nalHandle_t* handle, const void* data, size_t len, size_t* bytes_sent
         nal_platform_tls_send(ctx->platform_ctx, (const uint8_t*)data + *bytes_sent,
                               len - *bytes_sent, &written, remaining_timeout);
 
-        if(rc != BSP_ERR_STS_OK)
+        if(rc != PLT_ERR_STS_OK)
         {
             NAL_UNLOCK(handle);
             return rc;
@@ -346,14 +346,14 @@ nalTlsSend(nalHandle_t* handle, const void* data, size_t len, size_t* bytes_sent
              * No forward progress → connection likely lost
              */
             NAL_UNLOCK(handle);
-            return BSP_ERR_STS_CONN_LOST;
+            return PLT_ERR_STS_CONN_LOST;
         }
 
         *bytes_sent += written;
     }
 
     NAL_UNLOCK(handle);
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -362,7 +362,7 @@ nalTlsRecv(nalHandle_t* handle, void* buf, size_t buf_len, size_t* bytes_recv, u
 {
     if(!handle || !buf || buf_len == 0 || !bytes_recv)
     {
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     *bytes_recv = 0;
@@ -375,7 +375,7 @@ nalTlsRecv(nalHandle_t* handle, void* buf, size_t buf_len, size_t* bytes_recv, u
     if(handle->scheme != NAL_SCHEME_TLS || handle->tls_ctx == NULL || handle->sockfd < 0)
     {
         NAL_UNLOCK(handle);
-        return BSP_ERR_STS_NO_CONN;
+        return PLT_ERR_STS_NO_CONN;
     }
 
     nalTlsCtx_t* ctx = (nalTlsCtx_t*)handle->tls_ctx;
@@ -398,7 +398,7 @@ nalTlsRecv(nalHandle_t* handle, void* buf, size_t buf_len, size_t* bytes_recv, u
             if(NAL_TIMEOUT_EXPIRED(elapsed_ms, timeout_ms))
             {
                 NAL_UNLOCK(handle);
-                return BSP_ERR_STS_TIMEOUT;
+                return PLT_ERR_STS_TIMEOUT;
             }
         }
 
@@ -409,13 +409,13 @@ nalTlsRecv(nalHandle_t* handle, void* buf, size_t buf_len, size_t* bytes_recv, u
         bsp_err_sts_t rc = nal_platform_tls_recv(ctx->platform_ctx, (uint8_t*)buf,
                                                  buf_len, &read, remaining_timeout);
 
-        if(rc == BSP_ERR_STS_TIMEOUT)
+        if(rc == PLT_ERR_STS_TIMEOUT)
         {
             /* retry until overall timeout expires */
             continue;
         }
 
-        if(rc != BSP_ERR_STS_OK)
+        if(rc != PLT_ERR_STS_OK)
         {
             NAL_UNLOCK(handle);
             return rc;
@@ -427,12 +427,12 @@ nalTlsRecv(nalHandle_t* handle, void* buf, size_t buf_len, size_t* bytes_recv, u
              * Peer performed orderly shutdown
              */
             NAL_UNLOCK(handle);
-            return BSP_ERR_STS_CONN_LOST;
+            return PLT_ERR_STS_CONN_LOST;
         }
 
         *bytes_recv = read;
         NAL_UNLOCK(handle);
-        return BSP_ERR_STS_OK;
+        return PLT_ERR_STS_OK;
     }
 }
 
@@ -441,12 +441,12 @@ bsp_err_sts_t nalTlsSetCaCert(nalHandle_t* handle, const uint8_t* ca_pem, size_t
 {
     if(!handle || !ca_pem || len == 0)
     {
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     if(handle->sockfd >= 0)
     {
-        return BSP_ERR_STS_BUSY;
+        return PLT_ERR_STS_BUSY;
     }
 
     NAL_LOCK(handle);
@@ -459,14 +459,14 @@ bsp_err_sts_t nalTlsSetCaCert(nalHandle_t* handle, const uint8_t* ca_pem, size_t
     handle->ca_cert_len = len;
 
     NAL_UNLOCK(handle);
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 }
 
 bsp_err_sts_t nalTlsGetCaCert(nalHandle_t* handle, const uint8_t** out_ca_pem, size_t* out_len)
 {
     if(!handle || !out_ca_pem || !out_len)
     {
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     NAL_LOCK(handle);
@@ -474,7 +474,7 @@ bsp_err_sts_t nalTlsGetCaCert(nalHandle_t* handle, const uint8_t** out_ca_pem, s
     if(handle->ca_cert == NULL || handle->ca_cert_len == 0)
     {
         NAL_UNLOCK(handle);
-        return BSP_ERR_STS_NOT_FOUND;
+        return PLT_ERR_STS_NOT_FOUND;
     }
 
     /*
@@ -485,7 +485,7 @@ bsp_err_sts_t nalTlsGetCaCert(nalHandle_t* handle, const uint8_t** out_ca_pem, s
     *out_len    = handle->ca_cert_len;
 
     NAL_UNLOCK(handle);
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -497,7 +497,7 @@ bsp_err_sts_t nalTlsDecrypt(nalHandle_t* handle,
 {
     if(!handle || !plaintext || !plain_len)
     {
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     NAL_LOCK(handle);
@@ -505,7 +505,7 @@ bsp_err_sts_t nalTlsDecrypt(nalHandle_t* handle,
     if(handle->tls_ctx == NULL || handle->sockfd < 0)
     {
         NAL_UNLOCK(handle);
-        return BSP_ERR_STS_NO_CONN;
+        return PLT_ERR_STS_NO_CONN;
     }
 
     /*
@@ -522,7 +522,7 @@ bsp_err_sts_t nalTlsDecrypt(nalHandle_t* handle,
     nal_platform_tls_recv(((nalTlsCtx_t*)handle->tls_ctx)->platform_ctx,
                           plaintext, out_len, &out_len, 0 /* blocking */);
 
-    if(rc != BSP_ERR_STS_OK)
+    if(rc != PLT_ERR_STS_OK)
     {
         NAL_UNLOCK(handle);
         return rc;
@@ -531,21 +531,21 @@ bsp_err_sts_t nalTlsDecrypt(nalHandle_t* handle,
     *plain_len = out_len;
 
     NAL_UNLOCK(handle);
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 }
 
 /* ------------------------------------------------------------------------- */
 bsp_err_sts_t nalTlsServerStart(nalHandle_t* handle, nalTlsServerCreds_t* creds)
 {
     if(!handle || !handle->tls_ctx || !creds)
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
 
     uint8_t id = handle->id;
 
     bsp_err_sts_t sts =
     nal_platform_tls_server_init(((nalTlsCtx_t*)handle->tls_ctx)->platform_ctx, creds);
 
-    if(sts != BSP_ERR_STS_OK)
+    if(sts != PLT_ERR_STS_OK)
     {
         nal_platform_tls_free(((nalTlsCtx_t*)handle->tls_ctx)->platform_ctx);
         nalTlsFree(handle->tls_ctx);
@@ -558,7 +558,7 @@ bsp_err_sts_t nalTlsServerStart(nalHandle_t* handle, nalTlsServerCreds_t* creds)
 bsp_err_sts_t nalTlsHandshakeServer(nalTlsCtx_t* ctx)
 {
     if(!ctx || ctx->sockfd < 0)
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
 
     bsp_err_sts_t sts = nal_platform_tls_server_handshake(ctx->platform_ctx);
 
@@ -569,19 +569,19 @@ bsp_err_sts_t nalTlsHandshakeServer(nalTlsCtx_t* ctx)
 bsp_err_sts_t nalTlsNetworkAccept(nalHandle_t* handle, uint32_t timeout_ms)
 {
     if(!handle || !handle->tls_ctx)
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
 
     int fd = nal_platform_tls_network_accept(handle->tls_ctx, timeout_ms);
     if(fd < 0)
     {
-        return BSP_ERR_STS_TIMEOUT;
+        return PLT_ERR_STS_TIMEOUT;
     }
 
     handle->sockfd = fd;
 
     nalTlsCtx_t* ctx = (nalTlsCtx_t*)handle->tls_ctx;
     ctx->sockfd      = fd;
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 }
 /* ------------------------------------------------------------------------- */
 #endif /* NAL_USE_TLS */

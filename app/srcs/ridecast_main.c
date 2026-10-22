@@ -341,7 +341,7 @@ bsp_err_sts_t ridecast_deinit(void)
 {
     (void)wifi_app_deinit(&gWifiApp);
     (void)uart_app_deinit(&gUartApp);
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 }
 
 /* =========================================================================
@@ -372,7 +372,7 @@ bsp_err_sts_t ridecast_init(void)
     uCfg.btUser      = NULL;
 
     sts = uart_app_init(&gUartApp, &uCfg);
-    if(sts != BSP_ERR_STS_OK)
+    if(sts != PLT_ERR_STS_OK)
     {
         return sts;
     }
@@ -397,7 +397,7 @@ bsp_err_sts_t ridecast_init(void)
     wCfg.cbUser        = BSP_NULL;
 
     sts = wifi_app_init(&gWifiApp, &wCfg);
-    if(sts != BSP_ERR_STS_OK)
+    if(sts != PLT_ERR_STS_OK)
     {
         (void)uart_app_deinit(&gUartApp);
         return sts;
@@ -410,5 +410,5 @@ bsp_err_sts_t ridecast_init(void)
 
     // (void)test_host_uart_init(&gUartApp);
 
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 }

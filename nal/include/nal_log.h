@@ -28,7 +28,7 @@
  * Platform log mapping
  * ============================================================ */
 
-#if defined(ESP_PLATFORM)
+#if defined(CMAKE_ESP_PLATFORM)
 
     /* ---------- ESP-IDF ---------- */
     #include "esp_log.h"
@@ -91,7 +91,7 @@
     #endif
 
 #else
-    #error "No log backend selected. Please define NAL_USE_BSP_LOG or ESP_PLATFORM."
+    #error "No log backend selected. Please define NAL_USE_BSP_LOG or CMAKE_ESP_PLATFORM."
 #endif /* platform selection */
 
 #endif /* NAL_LOG_H */

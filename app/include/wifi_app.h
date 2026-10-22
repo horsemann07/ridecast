@@ -162,6 +162,15 @@ extern "C"
         bspWifiHandle_t wifi;
     } wifi_app_t;
 
+    /* Internal message on the queue */
+    typedef struct
+    {
+        uint8_t cmd;
+        uint16_t len;
+        uint8_t data[WIFI_APP_TX_BUF_MAX];
+        wifi_app_start_params_t startParams; /* only used for eWifiAppCmdStart */
+    } wifi_app_msg_t;
+
     /* =========================================================================
      * PUBLIC API
      * ========================================================================= */

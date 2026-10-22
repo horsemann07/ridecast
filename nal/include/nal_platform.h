@@ -137,8 +137,8 @@ extern "C"
      *  Length of CA certificate buffer in bytes.
      *
      * @return
-     *  - BSP_ERR_STS_OK    Configuration successful
-     *  - BSP_ERR_STS_FAIL  Certificate parsing or configuration failed
+     *  - PLT_ERR_STS_OK    Configuration successful
+     *  - PLT_ERR_STS_FAIL  Certificate parsing or configuration failed
      *
      * @note
      *  Must be called before nal_platform_tls_handshake().
@@ -159,8 +159,8 @@ extern "C"
      *  Null-terminated server hostname string.
      *
      * @return
-     *  - BSP_ERR_STS_OK    SNI configured successfully
-     *  - BSP_ERR_STS_FAIL  Failed to set server name
+     *  - PLT_ERR_STS_OK    SNI configured successfully
+     *  - PLT_ERR_STS_FAIL  Failed to set server name
      *
      * @note
      *  Must be called before nal_platform_tls_handshake().
@@ -180,9 +180,9 @@ extern "C"
      *  Connected TCP socket file descriptor.
      *
      * @return
-     *  - BSP_ERR_STS_OK              Handshake successful
-     *  - BSP_ERR_STS_HANDSHAKE_FAIL  TLS handshake failed
-     *  - BSP_ERR_STS_INVALID_PARAM   Invalid input parameters
+     *  - PLT_ERR_STS_OK              Handshake successful
+     *  - PLT_ERR_STS_HANDSHAKE_FAIL  TLS handshake failed
+     *  - PLT_ERR_STS_INVALID_PARAM   Invalid input parameters
      *
      * @note
      *  The socket must already be connected.
@@ -211,10 +211,10 @@ extern "C"
      *  Send timeout in milliseconds (0 = blocking).
      *
      * @return
-     *  - BSP_ERR_STS_OK
-     *  - BSP_ERR_STS_TIMEOUT
-     *  - BSP_ERR_STS_CONN_LOST
-     *  - BSP_ERR_STS_FAIL
+     *  - PLT_ERR_STS_OK
+     *  - PLT_ERR_STS_TIMEOUT
+     *  - PLT_ERR_STS_CONN_LOST
+     *  - PLT_ERR_STS_FAIL
      */
     bsp_err_sts_t nal_platform_tls_send(void* backend_ctx,
                                         const uint8_t* data,
@@ -243,10 +243,10 @@ extern "C"
      *  Receive timeout in milliseconds.
      *
      * @return
-     *  - BSP_ERR_STS_OK
-     *  - BSP_ERR_STS_TIMEOUT
-     *  - BSP_ERR_STS_CONN_LOST
-     *  - BSP_ERR_STS_FAIL
+     *  - PLT_ERR_STS_OK
+     *  - PLT_ERR_STS_TIMEOUT
+     *  - PLT_ERR_STS_CONN_LOST
+     *  - PLT_ERR_STS_FAIL
      */
     bsp_err_sts_t nal_platform_tls_recv(void* backend_ctx,
                                         uint8_t* buf,
@@ -267,9 +267,9 @@ extern "C"
      *  This function does NOT close the socket.
      *
      * @return
-     *  - BSP_ERR_STS_OK
-     *  - BSP_ERR_STS_INVALID_PARAM
-     *  - BSP_ERR_STS_FAIL
+     *  - PLT_ERR_STS_OK
+     *  - PLT_ERR_STS_INVALID_PARAM
+     *  - PLT_ERR_STS_FAIL
      */
     bsp_err_sts_t nal_platform_tls_shutdown(void* backend_ctx);
 
@@ -305,10 +305,10 @@ extern "C"
      *  OUT: number of bytes written
      *
      * @return
-     *  - BSP_ERR_STS_OK
-     *  - BSP_ERR_STS_INVALID_PARAM
-     *  - BSP_ERR_STS_BUF_TOO_SMALL
-     *  - BSP_ERR_STS_FAIL
+     *  - PLT_ERR_STS_OK
+     *  - PLT_ERR_STS_INVALID_PARAM
+     *  - PLT_ERR_STS_BUF_TOO_SMALL
+     *  - PLT_ERR_STS_FAIL
      */
     bsp_err_sts_t nal_platform_crypto_encrypt(const uint8_t* key,
                                               size_t key_len,
@@ -342,10 +342,10 @@ extern "C"
      *  OUT: number of bytes decrypted
      *
      * @return
-     *  - BSP_ERR_STS_OK
-     *  - BSP_ERR_STS_INVALID_PARAM
-     *  - BSP_ERR_STS_BUF_TOO_SMALL
-     *  - BSP_ERR_STS_FAIL
+     *  - PLT_ERR_STS_OK
+     *  - PLT_ERR_STS_INVALID_PARAM
+     *  - PLT_ERR_STS_BUF_TOO_SMALL
+     *  - PLT_ERR_STS_FAIL
      */
     bsp_err_sts_t nal_platform_crypto_decrypt(const uint8_t* key,
                                               size_t key_len,

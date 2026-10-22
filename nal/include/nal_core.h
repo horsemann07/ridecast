@@ -209,8 +209,8 @@ extern "C"
      *                    Can be NULL if only global init is required.
      *
      * @return
-     *  - BSP_ERR_STS_OK              Initialization successful
-     *  - BSP_ERR_STS_INTERNAL_ERROR  Platform or TLS initialization failed
+     *  - PLT_ERR_STS_OK              Initialization successful
+     *  - PLT_ERR_STS_INTERNAL_ERROR  Platform or TLS initialization failed
      */
     bsp_err_sts_t nalNetworkInit(nalHandle_t* handle);
 
@@ -224,8 +224,8 @@ extern "C"
      *                   Can be NULL for global-only cleanup.
      *
      * @return
-     *  - BSP_ERR_STS_OK              Deinitialization successful
-     *  - BSP_ERR_STS_INTERNAL_ERROR  Cleanup failed
+     *  - PLT_ERR_STS_OK              Deinitialization successful
+     *  - PLT_ERR_STS_INTERNAL_ERROR  Cleanup failed
      */
     bsp_err_sts_t nalNetworkDeinit(nalHandle_t* handle);
 
@@ -275,11 +275,11 @@ extern "C"
      * @param[in]     scheme     Connection type (NAL_SCHEME_PLAIN or NAL_SCHEME_TLS).
      * @param[in]     timeout_ms Maximum time to wait for connection.
      *
-     * @return BSP_ERR_STS_OK           Connection successful
-     * @return BSP_ERR_STS_TIMEOUT      Connection timed out
-     * @return BSP_ERR_STS_CONN_FAILED  Connection failed
-     * @return BSP_ERR_STS_BUSY         Handle already connected
-     * @return BSP_ERR_STS_NO_MEM       Socket allocation failed
+     * @return PLT_ERR_STS_OK           Connection successful
+     * @return PLT_ERR_STS_TIMEOUT      Connection timed out
+     * @return PLT_ERR_STS_CONN_FAILED  Connection failed
+     * @return PLT_ERR_STS_BUSY         Handle already connected
+     * @return PLT_ERR_STS_NO_MEM       Socket allocation failed
      */
 
     bsp_err_sts_t nalNetworkConnect(nalHandle_t* handle,
@@ -297,8 +297,8 @@ extern "C"
      * @param[in,out] handle Pointer to nalHandle_t
      *
      * @return
-     *  - BSP_ERR_STS_OK              Disconnected successfully
-     *  - BSP_ERR_STS_INTERNAL_ERROR  Socket close or cleanup failed
+     *  - PLT_ERR_STS_OK              Disconnected successfully
+     *  - PLT_ERR_STS_INTERNAL_ERROR  Socket close or cleanup failed
      */
     bsp_err_sts_t nalNetworkDisconnect(nalHandle_t* handle);
 
@@ -318,10 +318,10 @@ extern "C"
      * @param[in]     timeout_ms   Send timeout in milliseconds
      *
      * @return
-     *  - BSP_ERR_STS_OK              Data sent successfully
-     *  - BSP_ERR_STS_TIMEOUT         Send timed out
-     *  - BSP_ERR_STS_INVALID_PARAM   Invalid arguments
-     *  - BSP_ERR_STS_FAIL            Send failure
+     *  - PLT_ERR_STS_OK              Data sent successfully
+     *  - PLT_ERR_STS_TIMEOUT         Send timed out
+     *  - PLT_ERR_STS_INVALID_PARAM   Invalid arguments
+     *  - PLT_ERR_STS_FAIL            Send failure
      */
     bsp_err_sts_t nalNetworkSendSync(nalHandle_t* handle,
                                      const void* data,
@@ -347,11 +347,11 @@ extern "C"
      *    the TLS layer (nal_tls.c), keeping this core logic TLS-agnostic.
      *
      * Connection semantics:
-     *  - A return value of BSP_ERR_STS_OK indicates that data was successfully
+     *  - A return value of PLT_ERR_STS_OK indicates that data was successfully
      *    received and stored in the user-provided buffer.
      *  - If the remote peer performs an orderly shutdown, the connection is
-     *    marked as disconnected and BSP_ERR_STS_CONN_LOST is returned.
-     *  - Timeouts are treated explicitly and reported as BSP_ERR_STS_TIMEOUT.
+     *    marked as disconnected and PLT_ERR_STS_CONN_LOST is returned.
+     *  - Timeouts are treated explicitly and reported as PLT_ERR_STS_TIMEOUT.
      *
      * Threading and blocking:
      *  - This API is synchronous and blocking.
@@ -369,12 +369,12 @@ extern "C"
      * @param[in]     timeout_ms   Receive timeout in milliseconds (0 = block indefinitely)
      *
      * @return
-     *  - BSP_ERR_STS_OK            Data received successfully
-     *  - BSP_ERR_STS_TIMEOUT       No data received within timeout
-     *  - BSP_ERR_STS_CONN_LOST     Peer closed the connection
-     *  - BSP_ERR_STS_INVALID_PARAM Invalid arguments
-     *  - BSP_ERR_STS_NOT_CONNECTED Handle is not connected
-     *  - BSP_ERR_STS_FAIL          Transport or socket error
+     *  - PLT_ERR_STS_OK            Data received successfully
+     *  - PLT_ERR_STS_TIMEOUT       No data received within timeout
+     *  - PLT_ERR_STS_CONN_LOST     Peer closed the connection
+     *  - PLT_ERR_STS_INVALID_PARAM Invalid arguments
+     *  - PLT_ERR_STS_NOT_CONNECTED Handle is not connected
+     *  - PLT_ERR_STS_FAIL          Transport or socket error
      */
 
     bsp_err_sts_t nalNetworkRecvSync(nalHandle_t* handle,
@@ -400,9 +400,9 @@ extern "C"
      * @param[in,out] arg    Request-specific argument
      *
      * @return
-     *  - BSP_ERR_STS_OK              Operation successful
-     *  - BSP_ERR_STS_INVALID_PARAM   Invalid request or arguments
-     *  - BSP_ERR_STS_FUNC_NOT_SUPPORTED Unsupported request
+     *  - PLT_ERR_STS_OK              Operation successful
+     *  - PLT_ERR_STS_INVALID_PARAM   Invalid request or arguments
+     *  - PLT_ERR_STS_FUNC_NOT_SUPPORTED Unsupported request
      */
     bsp_err_sts_t nalNetworkIoctl(nalHandle_t* handle, nalIoctlReq_t req, void* arg);
 
@@ -421,8 +421,8 @@ extern "C"
      * @param[in] evt_queue  QueueHandle_t created by the application
      *
      * @return
-     *  - BSP_ERR_STS_OK
-     *  - BSP_ERR_STS_INVALID_PARAM
+     *  - PLT_ERR_STS_OK
+     *  - PLT_ERR_STS_INVALID_PARAM
      */
     bsp_err_sts_t nalEnableAsyncEvents(nalHandle_t* handle, osMessageQueueId_t queue);
 
@@ -441,7 +441,7 @@ extern "C"
      * @param[in]     scheme   NAL_SCHEME_PLAIN or NAL_SCHEME_TLS
      * @param[in]     backlog  Max pending connections
      *
-     * @return BSP_ERR_STS_OK on success
+     * @return PLT_ERR_STS_OK on success
      */
     bsp_err_sts_t
     nalNetworkStartServer(nalHandle_t* handle, uint16_t port, nalScheme_t scheme, uint32_t backlog);
@@ -460,9 +460,9 @@ extern "C"
      * @param[in]  timeout_ms Accept timeout (0 = block forever)
      *
      * @return
-     *  - BSP_ERR_STS_OK
-     *  - BSP_ERR_STS_TIMEOUT
-     *  - BSP_ERR_STS_FAIL
+     *  - PLT_ERR_STS_OK
+     *  - PLT_ERR_STS_TIMEOUT
+     *  - PLT_ERR_STS_FAIL
      */
     bsp_err_sts_t nalNetworkAccept(nalHandle_t* server, nalHandle_t* client, uint32_t timeout_ms);
 

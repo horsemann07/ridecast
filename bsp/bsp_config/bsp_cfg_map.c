@@ -1,28 +1,36 @@
 
 #include "bsp_config.h"
-#include "bsp_os_map.h"
 #include "bsp_core.h"
 
-// clang-format off
+#include "bsp_log.h"
+#include "bsp_wifi.h"
+
+#if defined(CMAKE_ESP_PLATFORM) && (BSP_UART_ENABLE_ASYNC == BSP_ENABLE)
+extern void bspUartEventThread(void* arg);
+#endif /* CMAKE_ESP_PLATFORM */
+
+
+       // clang-format off
 /*
  * ------------------------------------------------------------------------
  */
 os_thread_map_t g_bspThreadCfg[BSP_THREAD_OWNER_MAX] = {
-    [BSP_THREAD_OWNER_LOGGER] = {
-        .attr = {
-            .name       = "Logger",
-            .stack_size = THREAD_STACK_3K,
-            .priority   = osPriorityNormal
-        }
-    },
-
+#if defined(CMAKE_ESP_PLATFORM) && (BSP_UART_ENABLE_ASYNC == BSP_ENABLE)
     [BSP_THREAD_OWNER_UART_ASYNC] = {
+
+        .func = bspUartEventThread,
+
+        .func = NULL,
+
+        .arg  = NULL,
         .attr = {
             .name       = "UARTAsync",
             .stack_size = THREAD_STACK_3K,
             .priority   = osPriorityNormal
-        }
+        },
+        .handle = NULL
     },
+#endif /* CMAKE_ESP_PLATFORM */
 };
 
 /*
@@ -31,12 +39,21 @@ os_thread_map_t g_bspThreadCfg[BSP_THREAD_OWNER_MAX] = {
 
 os_queue_map_t g_bspQueueCfg[BSP_QUEUE_OWNER_MAX] = {
         
-    [BSP_WIFI_EVENT_QUEUE] = {
+    [BSP_QUEUE_OWNER_LOG] = {
+        .msg_count      = bspCONFIG_LOG_ISR_QUEUE_LENGTH,
+        .msg_size_bytes = sizeof(bspLogIsrRecord_t),
+        .attr = {
+            .name = "bspLogQ"
+        },
+        .handle = NULL
+    },
+    [BSP_QUEUE_WIFI_EVENT] = {
             .msg_count      = 10U,
-            .msg_size_bytes = 0U, /* Run time analysis */
+            .msg_size_bytes = sizeof(bspWifiContext_t),
             .attr = {
                 .name = "bspWifiEventQ"
-            }
+            },
+            .handle = NULL
         }
 };
 
@@ -51,7 +68,8 @@ os_mutex_map_t g_bspMutexCfg[BSP_MUTEX_OWNER_MAX] = {
         .attr = {
             .name      = "bspLogMtx",
             .attr_bits = osMutexPrioInherit
-        }
+        },
+        .handle = NULL
     },
 
     [BSP_MUTEX_OWNER_WIFI] = {
@@ -65,7 +83,8 @@ os_mutex_map_t g_bspMutexCfg[BSP_MUTEX_OWNER_MAX] = {
         .attr = {
             .name      = "bspUartAsyncMtx",
             .attr_bits = osMutexPrioInherit
-        }
+        },
+        .handle = NULL
     }
 };
 
@@ -80,7 +99,8 @@ os_semaphore_map_t g_bspSemaphoreCfg[BSP_SEMAPHORE_OWNER_MAX] = {
         .initial_count = 0U,
         .attr = {
             .name = "bspLogSem"
-        }
+        },
+        .handle = NULL
     },
 
     [BSP_SEMAPHORE_OWNER_WIFI] = {
@@ -88,7 +108,8 @@ os_semaphore_map_t g_bspSemaphoreCfg[BSP_SEMAPHORE_OWNER_MAX] = {
         .initial_count = 0U,
         .attr = {
             .name = "bspWifiSem"
-        }
+        },
+        .handle = NULL
     }
 };
 
@@ -114,34 +135,6 @@ os_event_flags_map_t g_bspEventFlagsCfg[BSP_EVENT_FLAGS_OWNER_MAX] = {
 };
 
 
-bspUartHandle_t g_bspUartCfg[BSP_UART_OWNER_MAX] =
-{
-    [BSP_UART_OWNER_CONSOLE] = {
-        .baudrate        = BSP_UART_BAUD_115200,
-        .wordLength      = eBSP_UART_WORD_LENGTH_8,
-        .parity          = eBSP_UART_PARITY_NONE,
-        .stopBits        = eBSP_UART_STOP_BITS_1,
-        .mode            = eBSP_UART_MODE_TX_RX,
-
-        .uartRxPin       = BSP_UART_CONSOLE_RX_PIN,
-        .uartTxPin       = BSP_UART_CONSOLE_TX_PIN,
-        .uartRtsPin      = 0U,
-        .uartCtsPin      = 0U,
-
-        .fifoSize        = 128U,
-
-        .portNum         = BSP_UART_CONSOLE_PORT,
-        .uartOwner       = BSP_UART_OWNER_CONSOLE,
-
-        .oversampling    = 16U,
-        .rxThreshold     = 0U,
-        .invertTx        = 0U,
-        .invertRx        = 0U,
-        .dmaEnable       = 0U,
-
-        .hwFlowControlEn = false
-    }
-};
 /**********************************************************************
  * FILE END
  ***********************************************************************/

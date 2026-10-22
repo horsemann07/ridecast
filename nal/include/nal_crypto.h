@@ -61,7 +61,7 @@ extern "C"
      * @param[in] key_type  Crypto key type (algorithm + strength)
      * @param[in] key       Pointer to key material
      *
-     * @return BSP_ERR_STS_OK or error
+     * @return PLT_ERR_STS_OK or error
      */
     bsp_err_sts_t nalCryptoSetKey(nalCryptoKeyType_t key_type, const uint8_t* key);
 
@@ -72,7 +72,7 @@ extern "C"
      * @param[out] key     Pointer to key pointer
      * @param[out] key_len Length of key
      *
-     * @return BSP_ERR_STS_OK or BSP_ERR_STS_NOT_INITIALIZED
+     * @return PLT_ERR_STS_OK or PLT_ERR_STS_NOT_INITIALIZED
      */
     bsp_err_sts_t nalCryptoGetKey(const uint8_t** key, size_t* key_len);
 

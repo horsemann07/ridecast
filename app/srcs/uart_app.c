@@ -144,20 +144,6 @@ typedef struct
     rc_type_t frameType;
 } rx_accum_t;
 
-/* =========================================================================
- * RX callback - called from BSP UART event thread on data received
- *
- * This replaces the polling loop.
- * BSP calls this whenever bytes arrive -> we post raw bytes to RX queue
- * -> RX task accumulates and decodes frames.
- * ========================================================================= */
-
-/* RX queue message */
-typedef struct
-{
-    uint8_t buf[UART_APP_RX_BUF_LEN];
-    uint16_t len;
-} uart_rx_msg_t;
 
 /* Static RX callback message buffer to avoid large stack usage in callback */
 static uart_rx_msg_t g_rxCbMsg;
@@ -321,7 +307,7 @@ static void uart_rx_cb(bsp_err_sts_t status, uint8_t* data, uint16_t data_len, v
         return; // defensive: should not happen since we disarm callback on fail-stop, but check just in case
     }
 
-    if((status == BSP_ERR_STS_OK) && (data != NULL) && (data_len > 0U) &&
+    if((status == PLT_ERR_STS_OK) && (data != NULL) && (data_len > 0U) &&
        (data_len <= (uint16_t)sizeof(g_rxCbMsg.buf)))
     {
         (void)memcpy(g_rxCbMsg.buf, data, (size_t)data_len);
@@ -337,7 +323,7 @@ static void uart_rx_cb(bsp_err_sts_t status, uint8_t* data, uint16_t data_len, v
             uart_note_rx_success(); /* reset consecutive RX error counter */
         }
     }
-    else if(status != BSP_ERR_STS_OK)
+    else if(status != PLT_ERR_STS_OK)
     {
         ALOGE("uart_app_rx_cb: RX callback error, status=%d", (int)status);
         uart_note_rx_error(app, "BSP RX callback failure");
@@ -345,11 +331,11 @@ static void uart_rx_cb(bsp_err_sts_t status, uint8_t* data, uint16_t data_len, v
 
     if((app->running != 0U) && (app->rxQ != NULL))
     {
-        if((bspUartIoctl(&app->cfg.uartHandle, eBspUartIsRxBusy, &rxBusy) == BSP_ERR_STS_OK) &&
+        if((bspUartIoctl(&app->cfg.uartHandle, eBspUartIsRxBusy, &rxBusy) == PLT_ERR_STS_OK) &&
            (rxBusy == false))
         {
             if(bspUartReadAsync(&app->cfg.uartHandle, gRxAsyncBuf,
-                                sizeof(gRxAsyncBuf)) != BSP_ERR_STS_OK)
+                                sizeof(gRxAsyncBuf)) != PLT_ERR_STS_OK)
             {
                 ALOGE("uart_app_rx_cb: Re-arm async RX failed");
                 uart_note_rx_error(app, "Async RX re-arm failure");
@@ -401,6 +387,7 @@ static void uart_rx_task(void* arg)
 
         /* Queue timeout - no data, loop back to wait */
         if(qSts != osOK)
+        
         {
             continue;
         }
@@ -517,7 +504,7 @@ static void uart_tx_task(void* arg)
 
         if(msg.len > 0U)
         {
-            if(bspUartSendSync(&app->cfg.uartHandle, msg.buf, (size_t)msg.len, 500U) != BSP_ERR_STS_OK)
+            if(bspUartSendSync(&app->cfg.uartHandle, msg.buf, (size_t)msg.len, 500U) != PLT_ERR_STS_OK)
             {
                 ALOGE("UART TX send failed, len=%u", (unsigned int)msg.len);
             }
@@ -540,13 +527,13 @@ bsp_err_sts_t uart_app_send(uart_app_t* app, const uint8_t* frame, uint16_t len)
        (len > (uint16_t)sizeof(msg.buf)))
     {
         ALOGE("uart_app_send: Invalid param");
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     if((app->running == 0U) || (s_uartFailStopped != 0U) || (app->txQ == NULL))
     {
         ALOGE("uart_app_send: UART app not running");
-        return BSP_ERR_STS_FAIL;
+        return PLT_ERR_STS_FAIL;
     }
 
     /* Build TX message */
@@ -559,13 +546,13 @@ bsp_err_sts_t uart_app_send(uart_app_t* app, const uint8_t* frame, uint16_t len)
     if(osMessageQueuePut(app->txQ, &msg, 0U, 0U) != osOK)
     {
         ALOGE("uart_app_send: TX queue post failed, len=%u", (uint16_t)len);
-        return BSP_ERR_STS_FAIL;
+        return PLT_ERR_STS_FAIL;
     }
 
     ALOGD("uart_app_send: Posted frame to TX queue, len=%u frame%.*s",
           (uint16_t)len, (uint16_t)len, (const char*)msg.buf);
 
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 }
 /* ------------------------------------------------------------------ */
 bsp_err_sts_t uart_app_send_status(uart_app_t* app, rc_intf_t intf, rc_sts_sub_t sub)
@@ -577,7 +564,7 @@ bsp_err_sts_t uart_app_send_status(uart_app_t* app, rc_intf_t intf, rc_sts_sub_t
     if(len == 0U)
     {
         ALOGE("uart_app_send_status: Status frame encode failed");
-        return BSP_ERR_STS_FAIL;
+        return PLT_ERR_STS_FAIL;
     }
     return uart_app_send(app, buf, (uint16_t)len);
 }
@@ -591,7 +578,7 @@ uart_app_send_data(uart_app_t* app, rc_intf_t intf, uint8_t dataSub, const uint8
     if(osMutexAcquire(app->txMutex, 100U) != osOK)
     {
         ALOGE("uart_app_send_data: TX mutex acquire timeout");
-        return BSP_ERR_STS_TIMEOUT;
+        return PLT_ERR_STS_TIMEOUT;
     }
 
     frameLen = rc_encode_data(gTxEncodeBuf, intf, dataSub, payload, payloadLen);
@@ -601,7 +588,7 @@ uart_app_send_data(uart_app_t* app, rc_intf_t intf, uint8_t dataSub, const uint8
     if(frameLen == 0U)
     {
         ALOGE("uart_app_send_data: Data frame encode failed");
-        return BSP_ERR_STS_FAIL;
+        return PLT_ERR_STS_FAIL;
     }
 
     return uart_app_send(app, gTxEncodeBuf, frameLen);
@@ -612,7 +599,7 @@ bsp_err_sts_t uart_app_deinit(uart_app_t* app)
     if(app == NULL)
     {
         ALOGE("uart_app_deinit: app is NULL");
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     app->running = 0U;
@@ -661,7 +648,7 @@ bsp_err_sts_t uart_app_deinit(uart_app_t* app)
     s_uartParseErrorCount = 0U;
     s_uartFailStopped     = 0U;
 
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 }
 
 /* ------------------------------------------------------------------ */
@@ -691,7 +678,7 @@ bsp_err_sts_t uart_app_init(uart_app_t* app, const uart_app_cfg_t* cfg)
     if((app == NULL) || (cfg == NULL))
     {
         ALOGE("uart_app_init: Invalid param");
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     s_uartRxErrorCount    = 0U;
@@ -705,89 +692,73 @@ bsp_err_sts_t uart_app_init(uart_app_t* app, const uart_app_cfg_t* cfg)
     (void)memcpy(&app->cfg, cfg, sizeof(uart_app_cfg_t));
 
     /* Init UART hardware via BSP */
-    if(bspUartInit(&app->cfg.uartHandle) != BSP_ERR_STS_OK)
+    if(bspUartInit(&app->cfg.uartHandle) != PLT_ERR_STS_OK)
     {
         ALOGE("uart_app_init: bspUartInit failed");
-        return BSP_ERR_STS_FAIL;
+        return PLT_ERR_STS_FAIL;
     }
 
-    /* Create RX queue */
-    g_appQueueCfg[APP_Q_OWNER_UART_APP_RX].msg_size_bytes = sizeof(uart_rx_msg_t);
-    app->rxQ = osMessageQueueNew(g_appQueueCfg[APP_Q_OWNER_UART_APP_RX].msg_count,
-                                 sizeof(uart_rx_msg_t),
-                                 &g_appQueueCfg[APP_Q_OWNER_UART_APP_RX].attr);
+    /* Get RX queue */
+    app->rxQ = g_appQueueCfg[APP_Q_OWNER_UART_APP_RX].handle;
     if(app->rxQ == NULL)
     {
-        ALOGE("uart_app_init: RX queue creation failed");
-        (void)bspUartDeInit(&app->cfg.uartHandle);
-        return BSP_ERR_STS_FAIL;
+        ALOGE("uart_app_init: RX queue config not initialized");
+        return PLT_ERR_STS_FAIL;
     }
-
-    /* Create TX queue */
-    g_appQueueCfg[APP_Q_OWNER_UART_APP_TX].msg_size_bytes = sizeof(uart_app_tx_msg_t);
-    app->txQ = osMessageQueueNew(g_appQueueCfg[APP_Q_OWNER_UART_APP_TX].msg_count,
-                                 sizeof(uart_app_tx_msg_t),
-                                 &g_appQueueCfg[APP_Q_OWNER_UART_APP_TX].attr);
+    /* Get TX queue */
+    app->txQ = g_appQueueCfg[APP_Q_OWNER_UART_APP_TX].handle;
     if(app->txQ == NULL)
     {
-        ALOGE("uart_app_init: TX queue creation failed");
-        (void)osMessageQueueDelete(app->rxQ);
-        (void)bspUartDeInit(&app->cfg.uartHandle);
-        return BSP_ERR_STS_FAIL;
+        ALOGE("uart_app_init: TX queue config not initialized");
+        return PLT_ERR_STS_FAIL;
     }
 
-    /* Create TX mutex */
-    app->txMutex = osMutexNew(&g_appMutexCfg[APP_MUTEX_OWNER_UART_APP_TX].attr);
+    /* Get TX mutex */
+    app->txMutex = g_appMutexCfg[APP_MUTEX_OWNER_UART_APP_TX].handle;
     if(app->txMutex == NULL)
     {
-        ALOGE("uart_app_init: TX mutex creation failed");
-        (void)osMessageQueueDelete(app->txQ);
-        (void)osMessageQueueDelete(app->rxQ);
-        (void)bspUartDeInit(&app->cfg.uartHandle);
-        return BSP_ERR_STS_FAIL;
+        return PLT_ERR_STS_FAIL;
     }
 
     app->running           = 1U;
     app->lastHeartbeatTick = osKernelGetTickCount();
 
     /* Register async RX callback */
-    if(bspUartSetCallback(&app->cfg.uartHandle, uart_rx_cb, app) != BSP_ERR_STS_OK)
+    if(bspUartSetCallback(&app->cfg.uartHandle, uart_rx_cb, app) != PLT_ERR_STS_OK)
     {
         (void)osMutexDelete(app->txMutex);
         (void)osMessageQueueDelete(app->txQ);
         (void)osMessageQueueDelete(app->rxQ);
         (void)bspUartDeInit(&app->cfg.uartHandle);
         ALOGE("uart_app_init: UART RX callback registration failed");
-        return BSP_ERR_STS_FAIL;
+        return PLT_ERR_STS_FAIL;
     }
 
     /* Arm first async RX - will auto re-arm in callback */
-    if(bspUartReadAsync(&app->cfg.uartHandle, gRxAsyncBuf, sizeof(gRxAsyncBuf)) != BSP_ERR_STS_OK)
+    if(bspUartReadAsync(&app->cfg.uartHandle, gRxAsyncBuf, sizeof(gRxAsyncBuf)) != PLT_ERR_STS_OK)
     {
         (void)osMutexDelete(app->txMutex);
         (void)osMessageQueueDelete(app->txQ);
         (void)osMessageQueueDelete(app->rxQ);
         (void)bspUartDeInit(&app->cfg.uartHandle);
         ALOGE("uart_app_init: UART async RX arm failed");
-        return BSP_ERR_STS_FAIL;
+        return PLT_ERR_STS_FAIL;
     }
 
-    /* Start RX task */
-    app->rxTaskId =
-    osThreadNew(uart_rx_task, app, &g_appThreadCfg[APP_THREAD_OWNER_UART_APP_RX].attr);
+    /* Get RX task */
+    app->rxTaskId = g_appThreadCfg[APP_THREAD_OWNER_UART_APP_RX].handle;
     if(app->rxTaskId == NULL)
     {
         (void)osMutexDelete(app->txMutex);
         (void)osMessageQueueDelete(app->txQ);
         (void)osMessageQueueDelete(app->rxQ);
         (void)bspUartDeInit(&app->cfg.uartHandle);
-        ALOGE("uart_app_init: RX task creation failed");
-        return BSP_ERR_STS_FAIL;
+        ALOGE("uart_app_init: RX task initialization failed");
+        return PLT_ERR_STS_NOT_INITIALIZED;
     }
 
-    /* Start TX task */
-    app->txTaskId =
-    osThreadNew(uart_tx_task, app, &g_appThreadCfg[APP_THREAD_OWNER_UART_APP_TX].attr);
+    /* Get TX task */
+    app->txTaskId = g_appThreadCfg[APP_THREAD_OWNER_UART_APP_TX].handle;
     if(app->txTaskId == NULL)
     {
         app->running = 0U;
@@ -796,9 +767,9 @@ bsp_err_sts_t uart_app_init(uart_app_t* app, const uart_app_cfg_t* cfg)
         (void)osMessageQueueDelete(app->txQ);
         (void)osMessageQueueDelete(app->rxQ);
         (void)bspUartDeInit(&app->cfg.uartHandle);
-        ALOGE("uart_app_init: TX task creation failed");
-        return BSP_ERR_STS_FAIL;
+        ALOGE("uart_app_init: TX task initialization failed");
+        return PLT_ERR_STS_NOT_INITIALIZED;
     }
 
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 }

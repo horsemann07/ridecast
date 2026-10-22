@@ -357,7 +357,7 @@ bsp_err_sts_t nal_platform_tls_destroy(void* backend_ctx)
 {
     if(backend_ctx == NULL)
     {
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     esp32_tls_backend_t* ctx = (esp32_tls_backend_t*)backend_ctx;
@@ -402,7 +402,7 @@ bsp_err_sts_t nal_platform_tls_destroy(void* backend_ctx)
         g_tls_pers_counter--;
     }
 
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -410,7 +410,7 @@ bsp_err_sts_t nal_platform_tls_handshake(void* backend_ctx, int sockfd)
 {
     if(backend_ctx == NULL || sockfd < 0)
     {
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     esp32_tls_backend_t* ctx = (esp32_tls_backend_t*)backend_ctx;
@@ -438,10 +438,10 @@ bsp_err_sts_t nal_platform_tls_handshake(void* backend_ctx, int sockfd)
 
         /* Real handshake failure */
         NAL_LOGE("TLS handshake failed (err=%d)", ret);
-        return BSP_ERR_STS_HANDSHAKE_FAIL;
+        return PLT_ERR_STS_HANDSHAKE_FAIL;
     }
 
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -449,7 +449,7 @@ bsp_err_sts_t nal_platform_tls_reset(void* backend_ctx)
 {
     if(backend_ctx == NULL)
     {
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     esp32_tls_backend_t* ctx = (esp32_tls_backend_t*)backend_ctx;
@@ -461,12 +461,12 @@ bsp_err_sts_t nal_platform_tls_reset(void* backend_ctx)
     int ret = mbedtls_ssl_session_reset(&ctx->ssl);
     if(ret != 0)
     {
-        return BSP_ERR_STS_FAIL;
+        return PLT_ERR_STS_FAIL;
         /* Rare but useful when debugging handshake retries */
         NAL_LOGD("TLS session reset failed (err=%d)", ret);
     }
 
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -478,7 +478,7 @@ bsp_err_sts_t nal_platform_tls_send(void* backend_ctx,
 {
     if(!backend_ctx || !data || !bytes_written || len == 0)
     {
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     *bytes_written = 0;
@@ -491,23 +491,23 @@ bsp_err_sts_t nal_platform_tls_send(void* backend_ctx,
     if(ret > 0)
     {
         *bytes_written = (size_t)ret;
-        return BSP_ERR_STS_OK;
+        return PLT_ERR_STS_OK;
     }
 
     if(ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE)
     {
         /* Retry at upper layer */
-        return BSP_ERR_STS_TIMEOUT;
+        return PLT_ERR_STS_TIMEOUT;
     }
 
     if(ret == MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY)
     {
-        return BSP_ERR_STS_CONN_LOST;
+        return PLT_ERR_STS_CONN_LOST;
     }
 
     /* Real TLS error */
     NAL_LOGE("TLS write failed (err=%d)", ret);
-    return BSP_ERR_STS_FAIL;
+    return PLT_ERR_STS_FAIL;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -516,7 +516,7 @@ nal_platform_tls_recv(void* backend_ctx, uint8_t* buf, size_t buf_len, size_t* b
 {
     if(!backend_ctx || !buf || !bytes_read || buf_len == 0)
     {
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     *bytes_read = 0;
@@ -529,22 +529,22 @@ nal_platform_tls_recv(void* backend_ctx, uint8_t* buf, size_t buf_len, size_t* b
     if(ret > 0)
     {
         *bytes_read = (size_t)ret;
-        return BSP_ERR_STS_OK;
+        return PLT_ERR_STS_OK;
     }
 
     if(ret == 0 || ret == MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY)
     {
-        return BSP_ERR_STS_CONN_LOST;
+        return PLT_ERR_STS_CONN_LOST;
     }
 
     if(ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE)
     {
-        return BSP_ERR_STS_TIMEOUT;
+        return PLT_ERR_STS_TIMEOUT;
     }
 
     /* Real TLS error */
     NAL_LOGE("TLS read failed (err=%d)", ret);
-    return BSP_ERR_STS_FAIL;
+    return PLT_ERR_STS_FAIL;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -552,7 +552,7 @@ bsp_err_sts_t nal_platform_tls_shutdown(void* backend_ctx)
 {
     if(backend_ctx == NULL)
     {
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     esp32_tls_backend_t* ctx = (esp32_tls_backend_t*)backend_ctx;
@@ -566,9 +566,9 @@ bsp_err_sts_t nal_platform_tls_shutdown(void* backend_ctx)
     {
         /* Non-fatal, useful only for debugging */
         NAL_LOGD("TLS close_notify failed (err=%d)", ret);
-        return BSP_ERR_STS_FAIL;
+        return PLT_ERR_STS_FAIL;
     }
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -576,7 +576,7 @@ bsp_err_sts_t nal_platform_tls_set_server_name(void* backend_ctx, const char* se
 {
     if(backend_ctx == NULL || server_name == NULL || server_name[0] == '\0')
     {
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     esp32_tls_backend_t* ctx = (esp32_tls_backend_t*)backend_ctx;
@@ -589,11 +589,11 @@ bsp_err_sts_t nal_platform_tls_set_server_name(void* backend_ctx, const char* se
     if(ret != 0)
     {
         NAL_LOGE("TLS set server name failed (err=%d)", ret);
-        return BSP_ERR_STS_FAIL;
+        return PLT_ERR_STS_FAIL;
     }
 
     ctx->sni_set = true;
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -601,7 +601,7 @@ bsp_err_sts_t nal_platform_tls_server_init(void* tls_backend, const nalTlsServer
 {
     if(!tls_backend || !creds || !creds->cert_pem || !creds->key_pem)
     {
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     esp32_tls_backend_t* ctx = (esp32_tls_backend_t*)tls_backend;
@@ -622,7 +622,7 @@ bsp_err_sts_t nal_platform_tls_server_init(void* tls_backend, const nalTlsServer
     {
         NAL_LOGE("DRBG seed failed: -0x%x", -ret);
         tls_ctx_cleanup(ctx);
-        return BSP_ERR_STS_FAIL;
+        return PLT_ERR_STS_FAIL;
     }
 
     /* ---- Parse server certificate ---- */
@@ -631,7 +631,7 @@ bsp_err_sts_t nal_platform_tls_server_init(void* tls_backend, const nalTlsServer
     {
         NAL_LOGE("cert parse failed: -0x%x", -ret);
         tls_ctx_cleanup(ctx);
-        return BSP_ERR_STS_FAIL;
+        return PLT_ERR_STS_FAIL;
     }
 
     /* ---- Parse private key (with RNG wired) ---- */
@@ -641,7 +641,7 @@ bsp_err_sts_t nal_platform_tls_server_init(void* tls_backend, const nalTlsServer
     {
         NAL_LOGE("key parse failed: -0x%x", -ret);
         tls_ctx_cleanup(ctx);
-        return BSP_ERR_STS_FAIL;
+        return PLT_ERR_STS_FAIL;
     }
 
     /* ---- Configure TLS as SERVER ---- */
@@ -652,7 +652,7 @@ bsp_err_sts_t nal_platform_tls_server_init(void* tls_backend, const nalTlsServer
     {
         NAL_LOGE("ssl_config_defaults failed: -0x%x", -ret);
         tls_ctx_cleanup(ctx);
-        return BSP_ERR_STS_FAIL;
+        return PLT_ERR_STS_FAIL;
     }
 
     // ret = mbedtls_x509_crt_parse(&ctx->x509_cert_set, creds->ca_pem,
@@ -660,7 +660,7 @@ bsp_err_sts_t nal_platform_tls_server_init(void* tls_backend, const nalTlsServer
     // {
     //     NAL_LOGE("CA cert parse failed: -0x%x", -ret);
     //     tls_ctx_cleanup(ctx);
-    //     return BSP_ERR_STS_FAIL;
+    //     return PLT_ERR_STS_FAIL;
     // }
 
     // mbedtls_ssl_conf_ca_chain(&ctx->conf, &ctx->x509_cert_set, NULL);
@@ -682,7 +682,7 @@ bsp_err_sts_t nal_platform_tls_server_init(void* tls_backend, const nalTlsServer
     {
         NAL_LOGE("ssl_conf_own_cert failed: -0x%x", -ret);
         tls_ctx_cleanup(ctx);
-        return BSP_ERR_STS_FAIL;
+        return PLT_ERR_STS_FAIL;
     }
 
     /* ---- Final SSL context setup ---- */
@@ -691,10 +691,10 @@ bsp_err_sts_t nal_platform_tls_server_init(void* tls_backend, const nalTlsServer
     {
         NAL_LOGE("ssl_setup failed: -0x%x", -ret);
         tls_ctx_cleanup(ctx);
-        return BSP_ERR_STS_FAIL;
+        return PLT_ERR_STS_FAIL;
     }
 
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -702,14 +702,14 @@ bsp_err_sts_t nal_platform_tls_server_handshake(void* tls_backend)
 {
     if(!tls_backend)
     {
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     esp32_tls_backend_t* ctx = (esp32_tls_backend_t*)tls_backend;
 
     if(ctx->sockfd < 0)
     {
-        return BSP_ERR_STS_NO_CONN;
+        return PLT_ERR_STS_NO_CONN;
     }
 
     mbedtls_ssl_set_bio(&ctx->ssl, &ctx->sockfd, mbedtls_net_send, mbedtls_net_recv, NULL);
@@ -723,10 +723,10 @@ bsp_err_sts_t nal_platform_tls_server_handshake(void* tls_backend)
         }
 
         NAL_LOGE("TLS handshake failed: -0x%x", -ret);
-        return BSP_ERR_STS_FAIL;
+        return PLT_ERR_STS_FAIL;
     }
 
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -782,20 +782,20 @@ bsp_err_sts_t nal_platform_crypto_encrypt(const uint8_t* key,
 {
     if(!key || !plaintext || !ciphertext || !cipher_len)
     {
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     /* Validate AES key length (128 / 192 / 256) */
     if(key_len != 16 && key_len != 24 && key_len != 32)
     {
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     size_t required_len = NAL_CRYPTO_AES_GCM_NONCE_LEN + plain_len + NAL_CRYPTO_AES_GCM_TAG_LEN;
 
     if(*cipher_len < required_len)
     {
-        return BSP_ERR_STS_BUF_TOO_SMALL;
+        return PLT_ERR_STS_BUF_TOO_SMALL;
     }
 
     uint8_t* nonce = ciphertext;
@@ -831,11 +831,11 @@ bsp_err_sts_t nal_platform_crypto_encrypt(const uint8_t* key,
 
     *cipher_len = required_len;
     mbedtls_gcm_free(&gcm);
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 
 fail:
     mbedtls_gcm_free(&gcm);
-    return BSP_ERR_STS_FAIL;
+    return PLT_ERR_STS_FAIL;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -848,24 +848,24 @@ bsp_err_sts_t nal_platform_crypto_decrypt(const uint8_t* key,
 {
     if(!key || !ciphertext || !plaintext || !plain_len)
     {
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     if(key_len != 16 && key_len != 24 && key_len != 32)
     {
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     if(cipher_len < (NAL_CRYPTO_AES_GCM_NONCE_LEN + NAL_CRYPTO_AES_GCM_TAG_LEN))
     {
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     size_t enc_len = cipher_len - NAL_CRYPTO_AES_GCM_NONCE_LEN - NAL_CRYPTO_AES_GCM_TAG_LEN;
 
     if(*plain_len < enc_len)
     {
-        return BSP_ERR_STS_BUF_TOO_SMALL;
+        return PLT_ERR_STS_BUF_TOO_SMALL;
     }
 
     const uint8_t* nonce = ciphertext;
@@ -894,11 +894,11 @@ bsp_err_sts_t nal_platform_crypto_decrypt(const uint8_t* key,
 
     *plain_len = enc_len;
     mbedtls_gcm_free(&gcm);
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 
 fail:
     mbedtls_gcm_free(&gcm);
-    return BSP_ERR_STS_FAIL;
+    return PLT_ERR_STS_FAIL;
 }
 
 #endif // #if defined(NAL_CONFIG_USE_CRYPTO)

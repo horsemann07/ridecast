@@ -9,7 +9,7 @@
  *      void nalNetworkDisconnect(nalHandle_t*);
  *      int32_t nalNetworkSend(nalHandle_t*, const void*, size_t, uint32_t);
  *      int32_t nalNetworkRecv(nalHandle_t*, void*, size_t, uint32_t);
- *      (and nalHandle_t type & BSP_ERR_STS_* codes)
+ *      (and nalHandle_t type & PLT_ERR_STS_* codes)
  *
  *  - CMSIS-RTOS2 must be available (SYS_USE_CMSIS defined).
  *
@@ -359,7 +359,7 @@ static void async_connect_thread(void* arg)
     nalHandle_t* h = c->handle;
     /* attempt connect (synchronous) */
     bsp_err_sts_t rc = nalNetworkConnect(h, job->host, job->port, job->scheme);
-    if(rc != BSP_ERR_STS_OK)
+    if(rc != PLT_ERR_STS_OK)
     {
         notify_callback(c, NAL_EVENT_CONNECT_FAILED, NULL, 0);
         c->running = 0;
@@ -396,7 +396,7 @@ static bsp_err_sts_t nal_openSocket(nalHandle_t* h, const char* host, uint16_t p
     h->sockfd = lwip_socket(AF_INET, SOCK_STREAM, 0);
     if(h->sockfd < 0)
     {
-        return BSP_ERR_STS_INVALID_SOCKET;
+        return PLT_ERR_STS_INVALID_SOCKET;
     }
 
     server.sin_family      = AF_INET;
@@ -412,7 +412,7 @@ static bsp_err_sts_t nal_openSocket(nalHandle_t* h, const char* host, uint16_t p
         {
             lwip_close(h->sockfd);
             h->sockfd = -1;
-            return BSP_ERR_STS_CONN_FAILED;
+            return PLT_ERR_STS_CONN_FAILED;
         }
         memcpy(&server.sin_addr.s_addr, he->h_addr_list[0],
                sizeof(server.sin_addr.s_addr));
@@ -426,13 +426,13 @@ static bsp_err_sts_t nal_openSocket(nalHandle_t* h, const char* host, uint16_t p
     {
         lwip_close(h->sockfd);
         h->sockfd = -1;
-        return BSP_ERR_STS_CONN_FAILED;
+        return PLT_ERR_STS_CONN_FAILED;
     }
 
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 }
 /* ------------------------------------------------------------------------- */
-#if defined(SYS_USE_MBEDTLS) || defined(ESP_PLATFORM_MBEDTLS)
+#if defined(SYS_USE_MBEDTLS) || defined(CMAKE_ESP_PLATFORM_MBEDTLS)
 static bsp_err_sts_t nal_tlsHandshake(nalHandle_t* handle)
 {
     CHECK_PARAM(handle);
@@ -480,12 +480,12 @@ static bsp_err_sts_t nal_tlsHandshake(nalHandle_t* handle)
     /* Consider a handshake timeout wrapper if needed */
     if((ret = mbedtls_ssl_handshake(&handle->ssl)) != 0)
     {
-        ret = BSP_ERR_STS_HANDSHAKE_FAIL;
+        ret = PLT_ERR_STS_HANDSHAKE_FAIL;
         goto tls_fail;
     }
 
     handle->tls_initialized = 1;
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 
 tls_fail:
     /* free any partial initialization */
@@ -496,7 +496,7 @@ tls_fail:
     mbedtls_entropy_free(&handle->entropy);
     mbedtls_net_free(&handle->net_ctx);
     handle->tls_initialized = 0;
-    return BSP_ERR_STS_INTERNAL_ERROR;
+    return PLT_ERR_STS_INTERNAL_ERROR;
 }
 #endif
 
@@ -522,13 +522,13 @@ bsp_err_sts_t nalNetworkInit(nalHandle_t* handle)
     handle->lock = osMutexNew(NULL);
     if(handle->lock == NULL)
     {
-        return BSP_ERR_STS_FAIL;
+        return PLT_ERR_STS_FAIL;
     }
 #else
     handle->lock = NULL;
 #endif
 
-#if defined(SYS_USE_MBEDTLS) || defined(ESP_PLATFORM_MBEDTLS)
+#if defined(SYS_USE_MBEDTLS) || defined(CMAKE_ESP_PLATFORM_MBEDTLS)
     /* initialize mbedTLS contexts but delay heavy operations until connect */
     mbedtls_ssl_init(&handle->ssl);
     mbedtls_ssl_config_init(&handle->conf);
@@ -541,7 +541,7 @@ bsp_err_sts_t nalNetworkInit(nalHandle_t* handle)
     /* ensure global async table inited */
     nal_async_table_init();
 
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 }
 /* ------------------------------------------------------------------------- */
 bsp_err_sts_t nalNetworkDeinit(nalHandle_t* handle)
@@ -563,7 +563,7 @@ bsp_err_sts_t nalNetworkDeinit(nalHandle_t* handle)
     }
 #endif
 
-#if defined(SYS_USE_MBEDTLS) || defined(ESP_PLATFORM_MBEDTLS)
+#if defined(SYS_USE_MBEDTLS) || defined(CMAKE_ESP_PLATFORM_MBEDTLS)
     if(handle->tls_initialized)
     {
         /* free TLS runtime resources */
@@ -589,25 +589,25 @@ bsp_err_sts_t nalNetworkDeinit(nalHandle_t* handle)
     memset(handle, 0, sizeof(*handle));
     handle->sockfd = -1;
 
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 }
 /* ------------------------------------------------------------------------- */
 bsp_err_sts_t nalNetworkConnect(nalHandle_t* handle, const char* host, uint16_t port, nalScheme_t scheme)
 {
     bsp_err_sts_t sts = nal_openSocket(handle, host, port);
-    if(sts != BSP_ERR_STS_OK)
+    if(sts != PLT_ERR_STS_OK)
     {
         return sts;
     }
 
     handle->scheme = scheme; /* ensure scheme remembered */
 
-#if defined(SYS_USE_MBEDTLS) || defined(ESP_PLATFORM_MBEDTLS)
+#if defined(SYS_USE_MBEDTLS) || defined(CMAKE_ESP_PLATFORM_MBEDTLS)
     if(scheme == NAL_SCHEME_TLS)
     {
         strncpy(handle->server_name, host, sizeof(handle->server_name) - 1);
         sts = nal_tlsHandshake(handle);
-        if(sts != BSP_ERR_STS_OK)
+        if(sts != PLT_ERR_STS_OK)
         {
             lwip_close(handle->sockfd);
             return sts;
@@ -615,14 +615,14 @@ bsp_err_sts_t nalNetworkConnect(nalHandle_t* handle, const char* host, uint16_t 
         handle->tls_initialized = 1;
     }
 #endif
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 }
 /* ------------------------------------------------------------------------- */
 bsp_err_sts_t nalNetworkDisconnect(nalHandle_t* handle)
 {
     CHECK_PARAM(handle);
 
-#if defined(SYS_USE_MBEDTLS) || defined(ESP_PLATFORM_MBEDTLS)
+#if defined(SYS_USE_MBEDTLS) || defined(CMAKE_ESP_PLATFORM_MBEDTLS)
     if(handle->scheme == NAL_SCHEME_TLS && handle->tls_initialized)
     {
         mbedtls_ssl_close_notify(&handle->ssl);
@@ -639,7 +639,7 @@ bsp_err_sts_t nalNetworkDisconnect(nalHandle_t* handle)
         lwip_close(handle->sockfd);
         handle->sockfd = -1;
     }
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 }
 /* ------------------------------------------------------------------------- */
 int32_t nalNetworkSend(nalHandle_t* handle, const void* buf, size_t len, uint32_t timeout_ms)
@@ -657,7 +657,7 @@ int32_t nalNetworkSend(nalHandle_t* handle, const void* buf, size_t len, uint32_
         lwip_setsockopt(handle->sockfd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
     }
 
-#if defined(SYS_USE_MBEDTLS) || defined(ESP_PLATFORM_MBEDTLS)
+#if defined(SYS_USE_MBEDTLS) || defined(CMAKE_ESP_PLATFORM_MBEDTLS)
     if(handle->scheme == NAL_SCHEME_TLS)
     {
         return mbedtls_ssl_write(&handle->ssl, buf, len);
@@ -683,7 +683,7 @@ int32_t nalNetworkRecv(nalHandle_t* handle, void* buf, size_t len, uint32_t time
         lwip_setsockopt(handle->sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
     }
 
-#if defined(SYS_USE_MBEDTLS) || defined(ESP_PLATFORM_MBEDTLS)
+#if defined(SYS_USE_MBEDTLS) || defined(CMAKE_ESP_PLATFORM_MBEDTLS)
     if(handle->scheme == NAL_SCHEME_TLS)
     {
         return mbedtls_ssl_read(&handle->ssl, buf, len);
@@ -704,19 +704,19 @@ bsp_err_sts_t nalNetworkStartAsync(nalHandle_t* handle, nalEventCallback_t cb, v
 {
     if(!handle || !cb)
     {
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     /* must have a valid socket (connected) */
     if(handle->sockfd < 0)
     {
-        return BSP_ERR_STS_CONN_FAILED;
+        return PLT_ERR_STS_CONN_FAILED;
     }
 
     nalAsyncCtx_t* ctx = get_free_ctx();
     if(!ctx)
     {
-        return BSP_ERR_STS_BUSY;
+        return PLT_ERR_STS_BUSY;
     }
     memset(ctx, 0, sizeof(*ctx));
     ctx->used         = true;
@@ -734,14 +734,14 @@ bsp_err_sts_t nalNetworkStartAsync(nalHandle_t* handle, nalEventCallback_t cb, v
     {
         /* failed to create mutex */
         free_ctx(ctx);
-        return BSP_ERR_STS_FAIL;
+        return PLT_ERR_STS_FAIL;
     }
     /* create exit semaphore for join/stop */
     ctx->exit_sem = osSemaphoreNew(1, 0, NULL);
     if(ctx->exit_sem == NULL)
     {
         free_ctx(ctx);
-        return BSP_ERR_STS_FAIL;
+        return PLT_ERR_STS_FAIL;
     }
     ctx->running = true;
 
@@ -756,10 +756,10 @@ bsp_err_sts_t nalNetworkStartAsync(nalHandle_t* handle, nalEventCallback_t cb, v
         osMutexDelete(ctx->lock);
         osSemaphoreDelete(ctx->exit_sem);
         free_ctx(ctx);
-        return BSP_ERR_STS_BUSY;
+        return PLT_ERR_STS_BUSY;
     }
 
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -767,13 +767,13 @@ bsp_err_sts_t nalNetworkStopAsync(nalHandle_t* handle)
 {
     if(!handle)
     {
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     nalAsyncCtx_t* ctx = get_ctx_by_sockfd((int)handle->sockfd);
     if(!ctx)
     {
-        return BSP_ERR_STS_NOT_INIT;
+        return PLT_ERR_STS_NOT_INIT;
     }
 
     /* signal thread to stop */
@@ -790,7 +790,7 @@ bsp_err_sts_t nalNetworkStopAsync(nalHandle_t* handle)
 
     /* cleanup context */
     free_ctx(ctx);
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -804,13 +804,13 @@ bsp_err_sts_t nalNetworkConnectAsync(nalHandle_t* handle,
 {
     if(!handle || !host || !cb)
     {
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     nalAsyncCtx_t* c = get_free_ctx();
     if(!c)
     {
-        return BSP_ERR_STS_BUSY;
+        return PLT_ERR_STS_BUSY;
     }
 
     memset(c, 0, sizeof(*c));
@@ -828,7 +828,7 @@ bsp_err_sts_t nalNetworkConnectAsync(nalHandle_t* handle,
     if(c->lock == NULL)
     {
         free_ctx(c);
-        return BSP_ERR_STS_FAIL;
+        return PLT_ERR_STS_FAIL;
     }
     /* create exit semaphore for join/stop */
     c->exit_sem = osSemaphoreNew(1, 0, NULL);
@@ -836,7 +836,7 @@ bsp_err_sts_t nalNetworkConnectAsync(nalHandle_t* handle,
     {
         osMutexDelete(c->lock);
         free_ctx(c);
-        return BSP_ERR_STS_FAIL;
+        return PLT_ERR_STS_FAIL;
     }
     c->running = 1;
 
@@ -847,7 +847,7 @@ bsp_err_sts_t nalNetworkConnectAsync(nalHandle_t* handle,
         osMutexDelete(c->lock);
         osSemaphoreDelete(c->exit_sem);
         free_ctx(c);
-        return BSP_ERR_STS_INTERNAL_ERROR;
+        return PLT_ERR_STS_INTERNAL_ERROR;
     }
     job->ctx    = c;
     job->host   = strdup(host);
@@ -867,10 +867,10 @@ bsp_err_sts_t nalNetworkConnectAsync(nalHandle_t* handle,
         osMutexDelete(c->lock);
         osSemaphoreDelete(c->exit_sem);
         free_ctx(c);
-        return BSP_ERR_STS_BUSY;
+        return PLT_ERR_STS_BUSY;
     }
 
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 }
 
 
@@ -879,13 +879,13 @@ bsp_err_sts_t nalNetworkSendAsync(nalHandle_t* handle, const void* data, size_t 
 {
     if(!handle || !data || len == 0)
     {
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     nalAsyncCtx_t* c = get_ctx_by_sockfd((int)handle->sockfd);
     if(!c)
     {
-        return BSP_ERR_STS_NOT_INIT;
+        return PLT_ERR_STS_NOT_INIT;
     }
 
     osMutexAcquire(c->lock, osWaitForever);
@@ -893,14 +893,14 @@ bsp_err_sts_t nalNetworkSendAsync(nalHandle_t* handle, const void* data, size_t 
     {
         /* already a send pending */
         osMutexRelease(c->lock);
-        return BSP_ERR_STS_BUSY;
+        return PLT_ERR_STS_BUSY;
     }
 
     void* copy = malloc(len);
     if(!copy)
     {
         osMutexRelease(c->lock);
-        return BSP_ERR_STS_INTERNAL_ERROR;
+        return PLT_ERR_STS_INTERNAL_ERROR;
     }
     memcpy(copy, data, len);
     c->send_buf  = copy;
@@ -908,7 +908,7 @@ bsp_err_sts_t nalNetworkSendAsync(nalHandle_t* handle, const void* data, size_t 
     c->want_send = 1;
     osMutexRelease(c->lock);
 
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -916,13 +916,13 @@ bsp_err_sts_t nalNetworkRecvAsync(nalHandle_t* handle, void* recv_buf, size_t re
 {
     if(!handle)
     {
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     nalAsyncCtx_t* c = get_ctx_by_sockfd((int)handle->sockfd);
     if(!c)
     {
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     osMutexAcquire(c->lock, osWaitForever);
@@ -930,16 +930,16 @@ bsp_err_sts_t nalNetworkRecvAsync(nalHandle_t* handle, void* recv_buf, size_t re
     c->recv_buf_len = recv_len;
     osMutexRelease(c->lock);
 
-    return BSP_ERR_STS_OK;
+    return PLT_ERR_STS_OK;
 }
 
 /* ------------------------------------------------------------------------- */
 bsp_err_sts_t nalSetCaCert(nalHandle_t* handle, const uint8_t* ca_pem, size_t len)
 {
-#if defined(SYS_USE_MBEDTLS) || defined(ESP_PLATFORM_MBEDTLS)
+#if defined(SYS_USE_MBEDTLS) || defined(CMAKE_ESP_PLATFORM_MBEDTLS)
     if(!handle || !ca_pem || len == 0)
     {
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     // Free any previously loaded cert
@@ -954,32 +954,32 @@ bsp_err_sts_t nalSetCaCert(nalHandle_t* handle, const uint8_t* ca_pem, size_t le
     handle->ca_cert_buf = (uint8_t*)malloc(len);
     if(!handle->ca_cert_buf)
     {
-        return BSP_ERR_STS_NO_MEM;
+        return PLT_ERR_STS_NO_MEM;
     }
 
     memcpy(handle->ca_cert_buf, ca_pem, len);
     handle->ca_cert_len = len;
-#endif // #if defined(SYS_USE_MBEDTLS ) || defined(ESP_PLATFORM_MBEDTLS)
-    return BSP_ERR_STS_OK;
+#endif // #if defined(SYS_USE_MBEDTLS ) || defined(CMAKE_ESP_PLATFORM_MBEDTLS)
+    return PLT_ERR_STS_OK;
 }
 
 /* ------------------------------------------------------------------------- */
 bsp_err_sts_t nalGetCaCert(nalHandle_t* handle, const uint8_t** out_ca_pem, size_t* out_len)
 {
-#if defined(SYS_USE_MBEDTLS) || defined(ESP_PLATFORM_MBEDTLS)
+#if defined(SYS_USE_MBEDTLS) || defined(CMAKE_ESP_PLATFORM_MBEDTLS)
     if(!handle || !out_ca_pem || !out_len)
     {
-        return BSP_ERR_STS_INVALID_PARAM;
+        return PLT_ERR_STS_INVALID_PARAM;
     }
 
     if(!handle->ca_cert_buf || handle->ca_cert_len == 0)
     {
-        return BSP_ERR_STS_NOT_FOUND;
+        return PLT_ERR_STS_NOT_FOUND;
     }
 
     *out_ca_pem = handle->ca_cert_buf;
     *out_len    = handle->ca_cert_len;
-#endif // #if defined(SYS_USE_MBEDTLS ) || defined(ESP_PLATFORM_MBEDTLS)
-    return BSP_ERR_STS_OK;
+#endif // #if defined(SYS_USE_MBEDTLS ) || defined(CMAKE_ESP_PLATFORM_MBEDTLS)
+    return PLT_ERR_STS_OK;
 }
 /* ------------------------------------------------------------------------- */

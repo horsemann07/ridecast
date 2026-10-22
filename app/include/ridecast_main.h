@@ -15,7 +15,7 @@ extern "C" {
 /**
  * @brief  Initialise all RideCast subsystems.
  *         Call once after RTOS scheduler has started.
- * @return BSP_ERR_STS_OK on success, error code on failure.
+ * @return PLT_ERR_STS_OK on success, error code on failure.
  */
 bsp_err_sts_t ridecast_init(void);
 

@@ -569,9 +569,9 @@ extern "C"
      *
      * @param[in,out] handle Pointer to BSP Wi-Fi handle.
      *
-     * @return BSP_ERR_STS_OK           Initialization successful.
-     * @return BSP_ERR_STS_INVALID_PARAM Handle pointer is NULL.
-     * @return BSP_ERR_STS_NO_MEM       Failed to allocate required RTOS resources.
+     * @return PLT_ERR_STS_OK           Initialization successful.
+     * @return PLT_ERR_STS_INVALID_PARAM Handle pointer is NULL.
+     * @return PLT_ERR_STS_NO_MEM       Failed to allocate required RTOS resources.
      */
     bsp_err_sts_t bspWifiInit(bspWifiHandle_t* handle);
 
@@ -587,8 +587,8 @@ extern "C"
      *
      * @param[in,out] handle Pointer to BSP Wi-Fi handle.
      *
-     * @return BSP_ERR_STS_OK            Deinitialization successful.
-     * @return BSP_ERR_STS_INVALID_PARAM Handle or platform context is NULL.
+     * @return PLT_ERR_STS_OK            Deinitialization successful.
+     * @return PLT_ERR_STS_INVALID_PARAM Handle or platform context is NULL.
      */
     bsp_err_sts_t bspWifiDeInit(bspWifiHandle_t* handle);
 
@@ -605,10 +605,10 @@ extern "C"
      *                        - AP       → bspWifiApConfig_t
      *                        - AP+STA   → bspWifiApStaConfig_t
      *
-     * @return BSP_ERR_STS_OK             Wi-Fi started successfully.
-     * @return BSP_ERR_STS_INVALID_PARAM  Invalid parameters.
-     * @return BSP_ERR_STS_UNSUPPORTED    Mode not supported.
-     * @return BSP_ERR_STS_FAIL           Platform failure.
+     * @return PLT_ERR_STS_OK             Wi-Fi started successfully.
+     * @return PLT_ERR_STS_INVALID_PARAM  Invalid parameters.
+     * @return PLT_ERR_STS_UNSUPPORTED    Mode not supported.
+     * @return PLT_ERR_STS_FAIL           Platform failure.
      */
     bsp_err_sts_t bspWifiOn(bspWifiHandle_t* handle, bspWifiMode_t mode, void* pvParam);
 
@@ -620,8 +620,8 @@ extern "C"
      *
      * @param[in,out] handle BSP Wi-Fi handle.
      *
-     * @return BSP_ERR_STS_OK            Wi-Fi stopped successfully.
-     * @return BSP_ERR_STS_INVALID_PARAM Handle is NULL.
+     * @return PLT_ERR_STS_OK            Wi-Fi stopped successfully.
+     * @return PLT_ERR_STS_INVALID_PARAM Handle is NULL.
      */
     bsp_err_sts_t bspWifiOff(bspWifiHandle_t* handle);
 
@@ -642,10 +642,10 @@ extern "C"
      *
      * @param[in,out] handle BSP Wi-Fi handle.
      *
-     * @return BSP_ERR_STS_OK             Connection initiated successfully.
-     * @return BSP_ERR_STS_INVALID_PARAM  Invalid handle.
-     * @return BSP_ERR_STS_INVALID_STATE  Wi-Fi not initialized.
-     * @return BSP_ERR_STS_FAIL           Platform error.
+     * @return PLT_ERR_STS_OK             Connection initiated successfully.
+     * @return PLT_ERR_STS_INVALID_PARAM  Invalid handle.
+     * @return PLT_ERR_STS_INVALID_STATE  Wi-Fi not initialized.
+     * @return PLT_ERR_STS_FAIL           Platform error.
      */
     bsp_err_sts_t bspWifiConnectToAp(bspWifiHandle_t* handle);
 
@@ -657,9 +657,9 @@ extern "C"
      *
      * @param[in,out] handle BSP Wi-Fi handle.
      *
-     * @return BSP_ERR_STS_OK             Successfully disconnected.
-     * @return BSP_ERR_STS_INVALID_PARAM  Invalid handle.
-     * @return BSP_ERR_STS_TIMEOUT        Disconnect confirmation timeout.
+     * @return PLT_ERR_STS_OK             Successfully disconnected.
+     * @return PLT_ERR_STS_INVALID_PARAM  Invalid handle.
+     * @return PLT_ERR_STS_TIMEOUT        Disconnect confirmation timeout.
      */
     bsp_err_sts_t bspWifiDisconnectToAp(bspWifiHandle_t* handle);
 
@@ -674,9 +674,9 @@ extern "C"
      * @param[out]    numStations  Number of stations returned.
      * @param[in]     maxStations  Maximum number of stations to return.
      *
-     * @return BSP_ERR_STS_OK             Success.
-     * @return BSP_ERR_STS_NOT_READY      AP not running.
-     * @return BSP_ERR_STS_INVALID_PARAM  Invalid arguments.
+     * @return PLT_ERR_STS_OK             Success.
+     * @return PLT_ERR_STS_NOT_READY      AP not running.
+     * @return PLT_ERR_STS_INVALID_PARAM  Invalid arguments.
      */
     bsp_err_sts_t bspWifiGetConnStations(bspWifiHandle_t* handle,
                                          bspWifiStationInfo_t* stations,
@@ -692,9 +692,9 @@ extern "C"
      * @param[in,out] handle BSP Wi-Fi handle.
      * @param[in]     mac    MAC address of the station.
      *
-     * @return BSP_ERR_STS_OK             Station disconnected.
-     * @return BSP_ERR_STS_INVALID_STATE  AP not running.
-     * @return BSP_ERR_STS_INVALID_PARAM  Invalid parameters.
+     * @return PLT_ERR_STS_OK             Station disconnected.
+     * @return PLT_ERR_STS_INVALID_STATE  AP not running.
+     * @return PLT_ERR_STS_INVALID_PARAM  Invalid parameters.
      */
     bsp_err_sts_t bspWifiDisconnectStation(bspWifiHandle_t* handle,
                                            const uint8_t mac[BSP_WIFI_MAC_ADDR_MAX_LEN]);
@@ -709,9 +709,9 @@ extern "C"
      * @param[in,out] handle  BSP Wi-Fi handle.
      * @param[in]     station STA configuration to store.
      *
-     * @return BSP_ERR_STS_OK             Profile stored successfully.
-     * @return BSP_ERR_STS_INVALID_PARAM  Invalid arguments.
-     * @return BSP_ERR_STS_FAIL           Storage failure.
+     * @return PLT_ERR_STS_OK             Profile stored successfully.
+     * @return PLT_ERR_STS_INVALID_PARAM  Invalid arguments.
+     * @return PLT_ERR_STS_FAIL           Storage failure.
      */
     bsp_err_sts_t bspWifiStoreStationProfile(bspWifiHandle_t* handle,
                                              bspWifiStaConfig_t* station);
@@ -724,9 +724,9 @@ extern "C"
      * @param[in]     index   Profile index.
      * @param[out]    sta_cfg Output STA configuration.
      *
-     * @return BSP_ERR_STS_OK             Profile retrieved.
-     * @return BSP_ERR_STS_INVALID_PARAM  Invalid arguments.
-     * @return BSP_ERR_STS_FAIL           Profile not found.
+     * @return PLT_ERR_STS_OK             Profile retrieved.
+     * @return PLT_ERR_STS_INVALID_PARAM  Invalid arguments.
+     * @return PLT_ERR_STS_FAIL           Profile not found.
      */
     bsp_err_sts_t bspWifiGetStationProfile(bspWifiHandle_t* handle,
                                            uint8_t index,
@@ -739,9 +739,9 @@ extern "C"
      * @param[in]     ssid     SSID of profile to remove.
      * @param[in]     ssid_len Length of SSID.
      *
-     * @return BSP_ERR_STS_OK             Profile removed.
-     * @return BSP_ERR_STS_INVALID_PARAM  Invalid arguments.
-     * @return BSP_ERR_STS_FAIL           Removal failed.
+     * @return PLT_ERR_STS_OK             Profile removed.
+     * @return PLT_ERR_STS_INVALID_PARAM  Invalid arguments.
+     * @return PLT_ERR_STS_FAIL           Removal failed.
      */
     bsp_err_sts_t bspWifiRemoveStationProfile(bspWifiHandle_t* handle,
                                               const uint8_t* ssid,
@@ -761,9 +761,9 @@ extern "C"
      * @param[in,out] handle BSP Wi-Fi handle.
      * @param[in]     apCfg  Access Point configuration.
      *
-     * @return BSP_ERR_STS_OK             AP started successfully.
-     * @return BSP_ERR_STS_INVALID_PARAM  Invalid parameters.
-     * @return BSP_ERR_STS_FAIL           Platform failure.
+     * @return PLT_ERR_STS_OK             AP started successfully.
+     * @return PLT_ERR_STS_INVALID_PARAM  Invalid parameters.
+     * @return PLT_ERR_STS_FAIL           Platform failure.
      */
     bsp_err_sts_t bspWifiStartAP(bspWifiHandle_t* handle, const bspWifiApConfig_t* apCfg);
 
@@ -774,8 +774,8 @@ extern "C"
      *
      * @param[in,out] handle BSP Wi-Fi handle.
      *
-     * @return BSP_ERR_STS_OK             AP stopped successfully.
-     * @return BSP_ERR_STS_INVALID_PARAM  Invalid handle.
+     * @return PLT_ERR_STS_OK             AP stopped successfully.
+     * @return PLT_ERR_STS_INVALID_PARAM  Invalid handle.
      */
     bsp_err_sts_t bspWifiStopAP(bspWifiHandle_t* handle);
 
@@ -786,9 +786,9 @@ extern "C"
      * @param[in,out] handle BSP Wi-Fi handle.
      * @param[out]    apCfg  Output AP configuration.
      *
-     * @return BSP_ERR_STS_OK             Success.
-     * @return BSP_ERR_STS_NOT_RUNNING    AP not active.
-     * @return BSP_ERR_STS_INVALID_PARAM  Invalid arguments.
+     * @return PLT_ERR_STS_OK             Success.
+     * @return PLT_ERR_STS_NOT_RUNNING    AP not active.
+     * @return PLT_ERR_STS_INVALID_PARAM  Invalid arguments.
      */
     bsp_err_sts_t bspWifiGetAPConfig(bspWifiHandle_t* handle, bspWifiApConfig_t* apCfg);
 
@@ -801,9 +801,9 @@ extern "C"
      * @param[in,out] handle BSP Wi-Fi handle.
      * @param[out]    stats  Output statistics structure.
      *
-     * @return BSP_ERR_STS_OK             Success.
-     * @return BSP_ERR_STS_NOT_RUNNING    AP not active.
-     * @return BSP_ERR_STS_INVALID_PARAM  Invalid arguments.
+     * @return PLT_ERR_STS_OK             Success.
+     * @return PLT_ERR_STS_NOT_RUNNING    AP not active.
+     * @return PLT_ERR_STS_INVALID_PARAM  Invalid arguments.
      */
     bsp_err_sts_t bspWifiGetAPStatistics(bspWifiHandle_t* handle, bspWifiStatistics_t* stats);
 
@@ -823,9 +823,9 @@ extern "C"
      * @param[out]    results  Output scan results.
      * @param[in]     max_results  Maximum number of results to return.
      *
-     * @return BSP_ERR_STS_OK             Scan started.
-     * @return BSP_ERR_STS_BUSY           Scan already in progress.
-     * @return BSP_ERR_STS_INVALID_STATE  Wi-Fi not started.
+     * @return PLT_ERR_STS_OK             Scan started.
+     * @return PLT_ERR_STS_BUSY           Scan already in progress.
+     * @return PLT_ERR_STS_INVALID_STATE  Wi-Fi not started.
      */
     bsp_err_sts_t bspWifiStartScan(bspWifiHandle_t* handle,
                                    bspWifiApScanResult_t* results,
