@@ -29,9 +29,8 @@ extern "C"
 #include <stdbool.h>
 #include "cmsis_os2.h"
 #include "bsp_wifi.h"
-#include "bsp_err_sts.h"
 #include "rc_protocol.h"
-
+#include "bsp_err_sts.h"
 /* =========================================================================
  * CONFIG LIMITS
  * ========================================================================= */
@@ -176,19 +175,19 @@ extern "C"
      * ========================================================================= */
 
     /** @brief Initialise task. Call once at boot. */
-    bsp_err_sts_t wifi_app_init(wifi_app_t* app, const wifi_app_cfg_t* cfg);
+    ret_err_sts_t wifi_app_init(wifi_app_t* app, const wifi_app_cfg_t* cfg);
 
     /** @brief Deinitialise and free resources. */
-    bsp_err_sts_t wifi_app_deinit(wifi_app_t* app);
+    ret_err_sts_t wifi_app_deinit(wifi_app_t* app);
 
     /**
      * @brief  Host sent START command with SSID+PASS.
      *         If sleeping after max retries, this wakes up and starts fresh.
      */
-    bsp_err_sts_t wifi_app_start(wifi_app_t* app, const wifi_app_start_params_t* params);
+    ret_err_sts_t wifi_app_start(wifi_app_t* app, const wifi_app_start_params_t* params);
 
     /** @brief Host sent STOP command. Tears down WiFi+TCP. */
-    bsp_err_sts_t wifi_app_stop(wifi_app_t* app);
+    ret_err_sts_t wifi_app_stop(wifi_app_t* app);
 
     /**
      * @brief  Send data to phone over TCP.
@@ -196,7 +195,7 @@ extern "C"
      * @param  data  Bytes to send (max WIFI_APP_TX_BUF_MAX)
      * @param  len   Byte count
      */
-    bsp_err_sts_t wifi_app_send(wifi_app_t* app, const uint8_t* data, uint16_t len);
+    ret_err_sts_t wifi_app_send(wifi_app_t* app, const uint8_t* data, uint16_t len);
 
 #ifdef __cplusplus
 }

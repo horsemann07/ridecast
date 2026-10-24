@@ -15,9 +15,9 @@ typedef enum
 /* --------------------------------------------------------
  *        BSP THREAD CONFIGURATION
  * -------------------------------------------------------- */
-#if defined(CMAKE_ESP_PLATFORM)
+#if defined(CMAKE_ESPx_PLATFORM)
     BSP_THREAD_OWNER_UART_ASYNC = 1, /**< UART asynchronous thread. only for ESP */
-#endif                               /* CMAKE_ESP_PLATFORM */
+#endif                               /* CMAKE_ESPx_PLATFORM */
     BSP_THREAD_OWNER_MAX             /**< Maximum number of threads. */
 } app_bsp_thread_owner_t;
 

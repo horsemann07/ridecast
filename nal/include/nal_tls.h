@@ -50,11 +50,11 @@ extern "C"
      * @param[out] handle NAL handle
      *
      * @return
-     *  - PLT_ERR_STS_OK              Success
-     *  - PLT_ERR_STS_NO_MEM          Memory allocation failed
-     *  - PLT_ERR_STS_INTERNAL_ERROR  TLS backend initialization failed
+     *  - RET_ERR_STS_OK              Success
+     *  - RET_ERR_STS_NO_MEM          Memory allocation failed
+     *  - RET_ERR_STS_INTERNAL_ERROR  TLS backend initialization failed
      */
-    bsp_err_sts_t nalTlsInit(nalHandle_t* handle);
+    ret_err_sts_t nalTlsInit(nalHandle_t* handle);
 
     /**
      * @brief Perform TLS handshake on an already-connected socket.
@@ -67,12 +67,12 @@ extern "C"
      * @param[in,out] handle NAL handle
      *
      * @return
-     *  - PLT_ERR_STS_OK              Handshake successful
-     *  - PLT_ERR_STS_TIMEOUT         Handshake timed out
-     *  - PLT_ERR_STS_HANDSHAKE_FAIL  TLS handshake failed
-     *  - PLT_ERR_STS_FAIL            Generic TLS error
+     *  - RET_ERR_STS_OK              Handshake successful
+     *  - RET_ERR_STS_TIMEOUT         Handshake timed out
+     *  - RET_ERR_STS_HANDSHAKE_FAIL  TLS handshake failed
+     *  - RET_ERR_STS_FAIL            Generic TLS error
      */
-    bsp_err_sts_t nalTlsHandshake(nalTlsCtx_t* handle);
+    ret_err_sts_t nalTlsHandshake(nalTlsCtx_t* handle);
 
     /**
      * @brief Gracefully shutdown a TLS session.
@@ -82,7 +82,7 @@ extern "C"
      *
      * @param[in,out] handle NAL handle
      */
-    bsp_err_sts_t nalTlsShutdown(nalHandle_t* handle);
+    ret_err_sts_t nalTlsShutdown(nalHandle_t* handle);
 
     /**
      * @brief Free and destroy a TLS context.
@@ -92,7 +92,7 @@ extern "C"
      *
      * @param[in,out] handle NAL handle
      */
-    bsp_err_sts_t nalTlsDeinit(nalHandle_t* handle);
+    ret_err_sts_t nalTlsDeinit(nalHandle_t* handle);
 
     /* =========================================================================
      *  TLS Data I/O
@@ -113,12 +113,12 @@ extern "C"
      * @param[in]     timeout_ms   Timeout in milliseconds (0 = infinite)
      *
      * @return
-     *  - PLT_ERR_STS_OK
-     *  - PLT_ERR_STS_TIMEOUT
-     *  - PLT_ERR_STS_CONN_LOST
-     *  - PLT_ERR_STS_FAIL
+     *  - RET_ERR_STS_OK
+     *  - RET_ERR_STS_TIMEOUT
+     *  - RET_ERR_STS_CONN_LOST
+     *  - RET_ERR_STS_FAIL
      */
-    bsp_err_sts_t
+    ret_err_sts_t
     nalTlsSend(nalHandle_t* handle, const void* data, size_t len, size_t* bytes_sent, uint32_t timeout_ms);
 
     /**
@@ -134,12 +134,12 @@ extern "C"
      * @param[in]     timeout_ms   Timeout in milliseconds
      *
      * @return
-     *  - PLT_ERR_STS_OK
-     *  - PLT_ERR_STS_TIMEOUT
-     *  - PLT_ERR_STS_CONN_LOST
-     *  - PLT_ERR_STS_FAIL
+     *  - RET_ERR_STS_OK
+     *  - RET_ERR_STS_TIMEOUT
+     *  - RET_ERR_STS_CONN_LOST
+     *  - RET_ERR_STS_FAIL
      */
-    bsp_err_sts_t
+    ret_err_sts_t
     nalTlsRecv(nalHandle_t* handle, void* buf, size_t buf_len, size_t* bytes_recv, uint32_t timeout_ms);
 
     /* =========================================================================
@@ -157,11 +157,11 @@ extern "C"
      * @param[in] len    Length of PEM data
      *
      * @return
-     *  - PLT_ERR_STS_OK
-     *  - PLT_ERR_STS_NO_MEM
-     *  - PLT_ERR_STS_INVALID_PARAM
+     *  - RET_ERR_STS_OK
+     *  - RET_ERR_STS_NO_MEM
+     *  - RET_ERR_STS_INVALID_PARAM
      */
-    bsp_err_sts_t nalTlsSetCaCert(nalHandle_t* handle, const uint8_t* ca_pem, size_t len);
+    ret_err_sts_t nalTlsSetCaCert(nalHandle_t* handle, const uint8_t* ca_pem, size_t len);
 
     /**
      * @brief Retrieve stored CA certificate.
@@ -171,10 +171,10 @@ extern "C"
      * @param[out] out_len     Length of cert
      *
      * @return
-     *  - PLT_ERR_STS_OK
-     *  - PLT_ERR_STS_NOT_INITIALIZED
+     *  - RET_ERR_STS_OK
+     *  - RET_ERR_STS_NOT_INITIALIZED
      */
-    bsp_err_sts_t
+    ret_err_sts_t
     nalTlsGetCaCert(nalHandle_t* handle, const uint8_t** out_ca_pem, size_t* out_len);
 
     /**
@@ -185,10 +185,10 @@ extern "C"
      * @param[out] out_len     Length of cert
      *
      * @return
-     *  - PLT_ERR_STS_OK
-     *  - PLT_ERR_STS_NOT_INITIALIZED
+     *  - RET_ERR_STS_OK
+     *  - RET_ERR_STS_NOT_INITIALIZED
      */
-    bsp_err_sts_t
+    ret_err_sts_t
     nalTlsGetCaCert(nalHandle_t* handle, const uint8_t** out_ca_pem, size_t* out_len);
 
 
@@ -215,18 +215,18 @@ extern "C"
      *                            OUT: actual decrypted length
      *
      * @return
-     *  - PLT_ERR_STS_OK              Decryption successful
-     *  - PLT_ERR_STS_NOT_CONNECTED   TLS session not active
-     *  - PLT_ERR_STS_BUF_TOO_SMALL   Output buffer too small
-     *  - PLT_ERR_STS_FAIL            Decryption failed
+     *  - RET_ERR_STS_OK              Decryption successful
+     *  - RET_ERR_STS_NOT_CONNECTED   TLS session not active
+     *  - RET_ERR_STS_BUF_TOO_SMALL   Output buffer too small
+     *  - RET_ERR_STS_FAIL            Decryption failed
      */
-    bsp_err_sts_t nalTlsDecrypt(nalHandle_t* handle,
+    ret_err_sts_t nalTlsDecrypt(nalHandle_t* handle,
                                 const uint8_t* ciphertext,
                                 size_t cipher_len,
                                 uint8_t* plaintext,
                                 size_t* plain_len);
 
-    bsp_err_sts_t nalTlsNetworkAccept(nalHandle_t* handle, uint32_t timeout_ms);
+    ret_err_sts_t nalTlsNetworkAccept(nalHandle_t* handle, uint32_t timeout_ms);
 
 
 #endif /* NAL_USE_TLS */

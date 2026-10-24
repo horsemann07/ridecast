@@ -1,55 +1,120 @@
+# ============================================================================
+# File        : CMakeLists.txt
+# Description : System component configuration for ESP-IDF
+# Author      : Jha Raghav
+# Date        : 2026-10-23
+# Current Dir : system/CMakeLists.txt
+# ============================================================================
 #
-# RideCast System Component CMake Configuration
+# Copyright (c) 2026 Navyantra Tech Private Limited
 #
-# MISRA C:2012 compliant embedded project structure
-# - All dependencies explicitly declared
-# - No duplicate entries in dependency lists
-# - Guard ensures ESP-IDF only build
+# Description:
+#   Configures the reusable system component for the ESP-IDF platform.
 #
+# Responsibilities:
+#   - Register system implementation sources.
+#   - Export system public include directories.
+#   - Declare required ESP-IDF component dependencies.
+#   - Support ESP-IDF component dependency discovery.
+#   - Avoid reliance on top-level application CMake variables.
+#
+# ============================================================================
+# Change Log:
+#
+# Date          Author          Description
+# ------------  --------------  ----------------------------------------------
+# 2026-10-23    Jha Raghav      Fixed ESP-IDF component discovery compatibility
+# 2026-10-23    Jha Raghav      Removed dependency on ESPx_PLATFORM variable
+# 2026-01-01    Jha Raghav      Initial version
+# ============================================================================
 
-# =========================================================================
-# GUARD: This component is only valid under ESP-IDF build system.
-# Fail early and clearly if invoked outside ESP-IDF context.
-# =========================================================================
-if(NOT ESP_PLATFORM)
+# ============================================================================
+# 1. ESP-IDF BUILD SYSTEM VALIDATION
+# ============================================================================
+
+if(NOT COMMAND idf_component_register)
     message(FATAL_ERROR
-        "[RideCast] system component requires ESP-IDF.\n"
-        "           Set ESP_PLATFORM=ON or build via idf.py."
+        "[SYSTEM] This component requires the ESP-IDF build system.\n"
+        "         Build the ESP32 project using idf.py."
     )
 endif()
 
-message(STATUS "[RideCast] Configuring component: system")
+message(STATUS "[SYSTEM] Configuring system component")
 
-# =========================================================================
-# SOURCE FILES
-# =========================================================================
-# All source files must be explicitly listed.
-# Globbing (file GLOB) is forbidden — it hides dependency changes from CMake.
-# =========================================================================
+# ============================================================================
+# 2. COMPONENT DIRECTORY CONFIGURATION
+# ============================================================================
+
+set(SYSTEM_ROOT_DIR
+    "${CMAKE_CURRENT_LIST_DIR}"
+)
+
+set(SYSTEM_INCLUDE_DIR
+    "${SYSTEM_ROOT_DIR}/include"
+)
+
+set(SYSTEM_SOURCE_DIR
+    "${SYSTEM_ROOT_DIR}/src"
+)
+
+# ============================================================================
+# 3. SYSTEM SOURCE FILES
+# ============================================================================
+# Explicit source registration only.
+# Do not use file(GLOB) for source discovery.
+# ============================================================================
+
 set(SYSTEM_SRCS
-    # Add system source files here explicitly, e.g.:
-    # "${CMAKE_CURRENT_LIST_DIR}/src/system.c"
+    # "${SYSTEM_SOURCE_DIR}/system.c"
 )
 
-# =========================================================================
-# INCLUDE DIRECTORIES
-# =========================================================================
-# Public headers exposed to other components via INCLUDE_DIRS.
-# Private headers used only by this component go in PRIV_INCLUDE_DIRS.
-# =========================================================================
+# ============================================================================
+# 4. PUBLIC INCLUDE DIRECTORIES
+# ============================================================================
+
 set(SYSTEM_PUBLIC_INCLUDES
-    "${CMAKE_CURRENT_LIST_DIR}/include"
+    "${SYSTEM_INCLUDE_DIR}"
 )
 
-# =========================================================================
-# COMPONENT REGISTRATION (ESP-IDF)
-# =========================================================================
-# PRIV_REQUIRES: components needed to compile THIS component only.
-# REQUIRES     : components whose headers are exposed in our public headers.
-#
-# MISRA note   : No duplicate entries — mbedtls and lwip appeared twice in
-#                the original; duplicates removed here.
-# =========================================================================
+# ============================================================================
+# 5. PRIVATE INCLUDE DIRECTORIES
+# ============================================================================
+
+set(SYSTEM_PRIVATE_INCLUDES
+)
+
+# ============================================================================
+# 6. PUBLIC COMPONENT DEPENDENCIES
+# ============================================================================
+# Add dependencies here when corresponding types or headers are
+# exposed through system public headers.
+# ============================================================================
+
+set(SYSTEM_PUBLIC_REQUIRES
+)
+
+# ============================================================================
+# 7. PRIVATE COMPONENT DEPENDENCIES
+# ============================================================================
+
+set(SYSTEM_PRIVATE_REQUIRES
+    freertos
+    cmsis_esp
+    mbedtls
+    lwip
+    driver
+    esp_netif
+    esp_wifi
+    esp_event
+    log
+    esp-tls
+    esp_common
+)
+
+# ============================================================================
+# 8. ESP-IDF COMPONENT REGISTRATION
+# ============================================================================
+
 idf_component_register(
     SRCS
         ${SYSTEM_SRCS}
@@ -57,18 +122,17 @@ idf_component_register(
     INCLUDE_DIRS
         ${SYSTEM_PUBLIC_INCLUDES}
 
+    PRIV_INCLUDE_DIRS
+        ${SYSTEM_PRIVATE_INCLUDES}
+
+    REQUIRES
+        ${SYSTEM_PUBLIC_REQUIRES}
+
     PRIV_REQUIRES
-        freertos           # RTOS task / queue APIs
-        cmsis_esp          # CMSIS-RTOS2 wrapper over FreeRTOS
-        mbedtls            # TLS / crypto support
-        lwip               # TCP/IP network stack
-        driver             # ESP peripheral driver APIs
-        esp_netif          # Network interface abstraction
-        esp_wifi           # Wi-Fi driver
-        esp_event          # Event loop library
-        log                # ESP logging macros
-        esp-tls            # TLS connection helper
-        esp_common         # Common ESP-IDF utilities
+        ${SYSTEM_PRIVATE_REQUIRES}
 )
 
-message(STATUS "[RideCast] ✓ system component configured")
+
+# ============================================================================
+# File End
+# ============================================================================

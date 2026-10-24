@@ -148,7 +148,7 @@ static osMessageQueueId_t g_rcCoreRxQueue = NULL;
 
 static bspUartHandle_t* rc_uart_get_handle(void);
 static void
-rc_uart_rx_callback(plt_err_sts_t status, uint8_t* data, uint16_t data_len, void* userContext);
+rc_uart_rx_callback(ret_err_sts_t status, uint8_t* data, uint16_t data_len, void* userContext);
 
 static void rc_uart_process_rx_message(rc_uart_rx_accum_t* accumulator,
                                        const rc_uart_rx_msg_t* msg);
@@ -213,18 +213,18 @@ void vRcUartTxTask(void* arg)
  * =========================================================================
  */
 
-plt_err_sts_t rc_uart_send(const uint8_t* frame, uint16_t len)
+ret_err_sts_t rc_uart_send(const uint8_t* frame, uint16_t len)
 {
     rc_uart_tx_msg_t msg;
 
     if((frame == NULL) || (len == 0U) || (len > (uint16_t)sizeof(msg.buf)))
     {
-        return PLT_ERR_STS_INVALID_PARAM;
+        return RET_ERR_STS_INVALID_PARAM;
     }
 
     if(g_rcUartRunning == false)
     {
-        return PLT_ERR_STS_FAIL;
+        return RET_ERR_STS_FAIL;
     }
 
     /*
@@ -239,10 +239,10 @@ plt_err_sts_t rc_uart_send(const uint8_t* frame, uint16_t len)
      */
     if(osMessageQueuePut(g_rcUartTxQueue, &msg, 0U, 0U) != osOK)
     {
-        return PLT_ERR_STS_FAIL;
+        return RET_ERR_STS_FAIL;
     }
 
-    return PLT_ERR_STS_OK;
+    return RET_ERR_STS_OK;
 }
 
 /* =========================================================================
@@ -311,16 +311,16 @@ void vRcUartRxTask(void* arg)
  * =========================================================================
  */
 
-plt_err_sts_t rc_uart_init(void)
+ret_err_sts_t rc_uart_init(void)
 {
-    plt_err_sts_t status;
+    ret_err_sts_t status;
     bspUartHandle_t* uartHandle;
 
     uartHandle = rc_uart_get_handle();
 
     if(uartHandle == NULL)
     {
-        return PLT_ERR_STS_INVALID_PARAM;
+        return RET_ERR_STS_INVALID_PARAM;
     }
 
     /*
@@ -334,7 +334,7 @@ plt_err_sts_t rc_uart_init(void)
 
     if((g_rcUartRxQueue == NULL) || (g_rcUartTxQueue == NULL) || (g_rcCoreRxQueue == NULL))
     {
-        return PLT_ERR_STS_NOT_INITIALIZED;
+        return RET_ERR_STS_NOT_INITIALIZED;
     }
 
     /*
@@ -342,7 +342,7 @@ plt_err_sts_t rc_uart_init(void)
      */
     status = bspUartInit(uartHandle);
 
-    if(status != PLT_ERR_STS_OK)
+    if(status != RET_ERR_STS_OK)
     {
         return status;
     }
@@ -352,7 +352,7 @@ plt_err_sts_t rc_uart_init(void)
      */
     status = bspUartSetCallback(uartHandle, rc_uart_rx_callback, NULL);
 
-    if(status != PLT_ERR_STS_OK)
+    if(status != RET_ERR_STS_OK)
     {
         (void)bspUartDeInit(uartHandle);
         return status;
@@ -363,7 +363,7 @@ plt_err_sts_t rc_uart_init(void)
      */
     status = bspUartReadAsync(uartHandle, g_rcUartRxAsyncBuf, sizeof(g_rcUartRxAsyncBuf));
 
-    if(status != PLT_ERR_STS_OK)
+    if(status != RET_ERR_STS_OK)
     {
         (void)bspUartSetCallback(uartHandle, NULL, NULL);
 
@@ -376,7 +376,7 @@ plt_err_sts_t rc_uart_init(void)
 
     g_rcUartLastHeartbeatTick = osKernelGetTickCount();
 
-    return PLT_ERR_STS_OK;
+    return RET_ERR_STS_OK;
 }
 
 
@@ -385,7 +385,7 @@ plt_err_sts_t rc_uart_init(void)
  * =========================================================================
  */
 
-plt_err_sts_t rc_uart_deinit(void)
+ret_err_sts_t rc_uart_deinit(void)
 {
     bspUartHandle_t* uartHandle;
 
@@ -393,7 +393,7 @@ plt_err_sts_t rc_uart_deinit(void)
 
     if(uartHandle == NULL)
     {
-        return PLT_ERR_STS_INVALID_PARAM;
+        return RET_ERR_STS_INVALID_PARAM;
     }
 
     g_rcUartRunning = false;
@@ -463,7 +463,7 @@ static void rc_uart_reset_accumulator(rc_uart_rx_accum_t* accumulator)
  * =========================================================================
  */
 static void
-rc_uart_rx_callback(plt_err_sts_t status, uint8_t* data, uint16_t data_len, void* userContext)
+rc_uart_rx_callback(ret_err_sts_t status, uint8_t* data, uint16_t data_len, void* userContext)
 {
     rc_uart_rx_msg_t msg;
     bspUartHandle_t* uartHandle;
@@ -475,7 +475,7 @@ rc_uart_rx_callback(plt_err_sts_t status, uint8_t* data, uint16_t data_len, void
         return;
     }
 
-    if((status != PLT_ERR_STS_OK) || (data == NULL) || (data_len == 0U))
+    if((status != RET_ERR_STS_OK) || (data == NULL) || (data_len == 0U))
     {
         return;
     }

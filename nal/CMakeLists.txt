@@ -10,7 +10,7 @@ set(include
     "${CMAKE_CURRENT_LIST_DIR}/include")
 
     
-if(ESP_PLATFORM)
+if(ESPx_PLATFORM)
     message(STATUS "Configuring ESP-IDF external modules...")
 
     # # This folder acts as the ESP-IDF component for CLI

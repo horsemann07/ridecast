@@ -86,9 +86,9 @@ extern "C"
      *
      * Initializes internal connection state and retry configuration.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    bsp_err_sts_t rc_connection_init(void);
+    ret_err_sts_t rc_connection_init(void);
 
 
     /**
@@ -96,9 +96,9 @@ extern "C"
      *
      * Stops connection management and clears internal state.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    bsp_err_sts_t rc_connection_deinit(void);
+    ret_err_sts_t rc_connection_deinit(void);
 
 
     /* =========================================================================
@@ -113,9 +113,9 @@ extern "C"
      *
      * @param[in] transport Wireless transport to start.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    bsp_err_sts_t rc_connection_start(rc_wireless_transport_t transport);
+    ret_err_sts_t rc_connection_start(rc_wireless_transport_t transport);
 
 
     /**
@@ -123,9 +123,9 @@ extern "C"
      *
      * @param[in] transport Wireless transport to stop.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    bsp_err_sts_t rc_connection_stop(rc_wireless_transport_t transport);
+    ret_err_sts_t rc_connection_stop(rc_wireless_transport_t transport);
 
 
     /**
@@ -135,9 +135,9 @@ extern "C"
      *
      * @param[in] transport Wireless transport to reconnect.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    bsp_err_sts_t rc_connection_reconnect(rc_wireless_transport_t transport);
+    ret_err_sts_t rc_connection_reconnect(rc_wireless_transport_t transport);
 
 
     /* =========================================================================
@@ -150,9 +150,9 @@ extern "C"
      * @param[in] transport Transport for which configuration is applied.
      * @param[in] config    Reconnect configuration.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    bsp_err_sts_t rc_connection_set_reconnect_config(rc_wireless_transport_t transport,
+    ret_err_sts_t rc_connection_set_reconnect_config(rc_wireless_transport_t transport,
                                                      const rc_reconnect_config_t* config);
 
 
@@ -162,9 +162,9 @@ extern "C"
      * @param[in] transport Transport whose configuration is requested.
      * @param[out] config   Reconnect configuration.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    bsp_err_sts_t rc_connection_get_reconnect_config(rc_wireless_transport_t transport,
+    ret_err_sts_t rc_connection_get_reconnect_config(rc_wireless_transport_t transport,
                                                      rc_reconnect_config_t* config);
 
 
@@ -178,9 +178,9 @@ extern "C"
      * @param[in]  transport Transport whose status is requested.
      * @param[out] status    Current connection status.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    bsp_err_sts_t rc_connection_get_status(rc_wireless_transport_t transport,
+    ret_err_sts_t rc_connection_get_status(rc_wireless_transport_t transport,
                                            rc_connection_status_t* status);
 
 
@@ -193,9 +193,9 @@ extern "C"
      * @param[in] transport Transport whose state changed.
      * @param[in] state     New connection state.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    bsp_err_sts_t rc_connection_set_state(rc_wireless_transport_t transport,
+    ret_err_sts_t rc_connection_set_state(rc_wireless_transport_t transport,
                                           rc_connection_event_t state);
 
 
@@ -210,9 +210,9 @@ extern "C"
      *
      * @param[in] transport Transport to retry.
      *
-     * @return PLT_ERR_STS_OK on successful retry initiation.
+     * @return RET_ERR_STS_OK on successful retry initiation.
      */
-    bsp_err_sts_t rc_connection_retry(rc_wireless_transport_t transport);
+    ret_err_sts_t rc_connection_retry(rc_wireless_transport_t transport);
 
 
     /**

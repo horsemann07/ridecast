@@ -332,12 +332,12 @@ uint16_t rc_encode_data(uint8_t* buffer,
  * @param[in]  bufferLen Number of bytes received.
  * @param[out] frame     Decoded frame information.
  *
- * @return PLT_ERR_STS_OK on success.
- * @return PLT_ERR_STS_INVALID_PARAM for invalid parameters.
- * @return PLT_ERR_STS_INVALID_LENGTH for invalid frame length.
- * @return PLT_ERR_STS_CRC_ERROR for CRC failure.
+ * @return RET_ERR_STS_OK on success.
+ * @return RET_ERR_STS_INVALID_PARAM for invalid parameters.
+ * @return RET_ERR_STS_INVALID_LENGTH for invalid frame length.
+ * @return RET_ERR_STS_CRC_ERROR for CRC failure.
  */
-bsp_err_sts_t rc_frame_decode(const uint8_t* buffer, uint16_t bufferLen, rc_frame_t* frame)
+ret_err_sts_t rc_frame_decode(const uint8_t* buffer, uint16_t bufferLen, rc_frame_t* frame)
 {
     uint16_t payloadLen;
     uint16_t expectedLen;
@@ -345,12 +345,12 @@ bsp_err_sts_t rc_frame_decode(const uint8_t* buffer, uint16_t bufferLen, rc_fram
 
     if((buffer == NULL) || (frame == NULL))
     {
-        return PLT_ERR_STS_INVALID_PARAM;
+        return RET_ERR_STS_INVALID_PARAM;
     }
 
     if(bufferLen < RC_FRAME_MIN_LEN)
     {
-        return PLT_ERR_STS_INVALID_LENGTH;
+        return RET_ERR_STS_INVALID_LENGTH;
     }
 
     header = buffer[RC_FRAME_HEADER_OFFSET];
@@ -359,19 +359,19 @@ bsp_err_sts_t rc_frame_decode(const uint8_t* buffer, uint16_t bufferLen, rc_fram
 
     if(payloadLen > RC_MAX_PAYLOAD_LEN)
     {
-        return PLT_ERR_STS_INVALID_LENGTH;
+        return RET_ERR_STS_INVALID_LENGTH;
     }
 
     expectedLen = (uint16_t)(RC_FRAME_FIXED_LEN + payloadLen + RC_FRAME_CRC_LEN);
 
     if(bufferLen != expectedLen)
     {
-        return PLT_ERR_STS_INVALID_LENGTH;
+        return RET_ERR_STS_INVALID_LENGTH;
     }
 
     if(!rc_protocol_validate_crc(buffer, bufferLen))
     {
-        return PLT_ERR_STS_CRC_ERROR;
+        return RET_ERR_STS_CRC_ERROR;
     }
 
     frame->version = rc_get_version(header);
@@ -390,5 +390,5 @@ bsp_err_sts_t rc_frame_decode(const uint8_t* buffer, uint16_t bufferLen, rc_fram
         frame->payload = NULL;
     }
 
-    return PLT_ERR_STS_OK;
+    return RET_ERR_STS_OK;
 }

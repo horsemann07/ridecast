@@ -163,22 +163,22 @@ static rc_wifi_ctx_t g_rcWifi;
 
 static void rc_wifi_task(void* arg);
 
-static plt_err_sts_t rc_wifi_post(
+static ret_err_sts_t rc_wifi_post(
     rc_wifi_cmd_t cmd,
     const uint8_t* data,
     uint16_t len);
 
-static plt_err_sts_t rc_wifi_up(void);
+static ret_err_sts_t rc_wifi_up(void);
 
 static void rc_wifi_down(void);
 
-static plt_err_sts_t rc_wifi_tcp_listen(void);
+static ret_err_sts_t rc_wifi_tcp_listen(void);
 
 static void rc_wifi_tcp_close(void);
 
 static bool rc_wifi_tcp_auth(void);
 
-static plt_err_sts_t rc_wifi_tcp_send(
+static ret_err_sts_t rc_wifi_tcp_send(
     const uint8_t* data,
     uint16_t len);
 
@@ -196,13 +196,13 @@ static void rc_wifi_report(
 
 static void rc_wifi_report(rc_connection_event_t event)
 {
-    plt_err_sts_t status;
+    ret_err_sts_t status;
 
     status = rc_connection_set_state(
         eRcTransportWifi,
         event);
 
-    if(status != PLT_ERR_STS_OK)
+    if(status != RET_ERR_STS_OK)
     {
         ALOGW(
             "rc_wifi_report: connection state update failed "
@@ -217,7 +217,7 @@ static void rc_wifi_report(rc_connection_event_t event)
  * Queue helper
  * ========================================================================= */
 
-static plt_err_sts_t rc_wifi_post(
+static ret_err_sts_t rc_wifi_post(
     rc_wifi_cmd_t cmd,
     const uint8_t* data,
     uint16_t len)
@@ -227,12 +227,12 @@ static plt_err_sts_t rc_wifi_post(
     if(g_rcWifi.wifiQ == NULL)
     {
         ALOGE("rc_wifi_post: WiFi queue not initialized");
-        return PLT_ERR_STS_NOT_INITIALIZED;
+        return RET_ERR_STS_NOT_INITIALIZED;
     }
 
     if((len > 0U) && (data == NULL))
     {
-        return PLT_ERR_STS_INVALID_PARAM;
+        return RET_ERR_STS_INVALID_PARAM;
     }
 
     if(len > (uint16_t)sizeof(msg.data))
@@ -242,7 +242,7 @@ static plt_err_sts_t rc_wifi_post(
             (unsigned int)len,
             (unsigned int)sizeof(msg.data));
 
-        return PLT_ERR_STS_INVALID_SIZE;
+        return RET_ERR_STS_INVALID_SIZE;
     }
 
     (void)memset(&msg, 0, sizeof(msg));
@@ -265,10 +265,10 @@ static plt_err_sts_t rc_wifi_post(
             "rc_wifi_post: queue full cmd=%u",
             (unsigned int)cmd);
 
-        return PLT_ERR_STS_BUSY;
+        return RET_ERR_STS_BUSY;
     }
 
-    return PLT_ERR_STS_OK;
+    return RET_ERR_STS_OK;
 }
 
 
@@ -285,9 +285,9 @@ static plt_err_sts_t rc_wifi_post(
  * We retain that behavior here.
  * ========================================================================= */
 
-static plt_err_sts_t rc_wifi_up(void)
+static ret_err_sts_t rc_wifi_up(void)
 {
-    plt_err_sts_t status;
+    ret_err_sts_t status;
     bspWifiApConfig_t apCfg;
 
     (void)memset(&apCfg, 0, sizeof(apCfg));
@@ -309,7 +309,7 @@ static plt_err_sts_t rc_wifi_up(void)
     {
         status = bspWifiInit(&g_rcWifi.wifi);
 
-        if(status != PLT_ERR_STS_OK)
+        if(status != RET_ERR_STS_OK)
         {
             ALOGE(
                 "rc_wifi_up: bspWifiInit failed status=%u",
@@ -330,7 +330,7 @@ static plt_err_sts_t rc_wifi_up(void)
         eWiFiModeAP,
         &apCfg);
 
-    if(status != PLT_ERR_STS_OK)
+    if(status != RET_ERR_STS_OK)
     {
         ALOGE(
             "rc_wifi_up: bspWifiOn failed status=%u",
@@ -346,7 +346,7 @@ static plt_err_sts_t rc_wifi_up(void)
 
     g_rcWifi.state = eRcWifiStateListen;
 
-    return PLT_ERR_STS_OK;
+    return RET_ERR_STS_OK;
 }
 
 
@@ -369,7 +369,7 @@ static void rc_wifi_down(void)
  * TCP listen socket
  * ========================================================================= */
 
-static plt_err_sts_t rc_wifi_tcp_listen(void)
+static ret_err_sts_t rc_wifi_tcp_listen(void)
 {
     struct sockaddr_in addr;
     int32_t fd;
@@ -387,7 +387,7 @@ static plt_err_sts_t rc_wifi_tcp_listen(void)
             "rc_wifi_tcp_listen: socket failed errno=%d",
             errno);
 
-        return PLT_ERR_STS_FAIL;
+        return RET_ERR_STS_FAIL;
     }
 
     /*
@@ -425,7 +425,7 @@ static plt_err_sts_t rc_wifi_tcp_listen(void)
 
         (void)lwip_close((int)fd);
 
-        return PLT_ERR_STS_FAIL;
+        return RET_ERR_STS_FAIL;
     }
 
     if(lwip_listen((int)fd, 1) != 0)
@@ -436,7 +436,7 @@ static plt_err_sts_t rc_wifi_tcp_listen(void)
 
         (void)lwip_close((int)fd);
 
-        return PLT_ERR_STS_FAIL;
+        return RET_ERR_STS_FAIL;
     }
 
     /*
@@ -455,7 +455,7 @@ static plt_err_sts_t rc_wifi_tcp_listen(void)
 
         (void)lwip_close((int)fd);
 
-        return PLT_ERR_STS_FAIL;
+        return RET_ERR_STS_FAIL;
     }
 
     if(lwip_fcntl(
@@ -469,7 +469,7 @@ static plt_err_sts_t rc_wifi_tcp_listen(void)
 
         (void)lwip_close((int)fd);
 
-        return PLT_ERR_STS_FAIL;
+        return RET_ERR_STS_FAIL;
     }
 
     g_rcWifi.listenFd = fd;
@@ -478,7 +478,7 @@ static plt_err_sts_t rc_wifi_tcp_listen(void)
         "rc_wifi_tcp_listen: listening port=%u",
         (unsigned int)g_rcWifi.config.tcpPort);
 
-    return PLT_ERR_STS_OK;
+    return RET_ERR_STS_OK;
 }
 
 
@@ -612,7 +612,7 @@ static bool rc_wifi_tcp_auth(void)
  * Only the RC Wi-Fi task writes to the socket.
  * ========================================================================= */
 
-static plt_err_sts_t rc_wifi_tcp_send(
+static ret_err_sts_t rc_wifi_tcp_send(
     const uint8_t* data,
     uint16_t len)
 {
@@ -620,12 +620,12 @@ static plt_err_sts_t rc_wifi_tcp_send(
 
     if((data == NULL) || (len == 0U))
     {
-        return PLT_ERR_STS_INVALID_PARAM;
+        return RET_ERR_STS_INVALID_PARAM;
     }
 
     if(g_rcWifi.clientFd < 0)
     {
-        return PLT_ERR_STS_NOT_READY;
+        return RET_ERR_STS_NOT_READY;
     }
 
     sent = (int32_t)lwip_send(
@@ -639,14 +639,14 @@ static plt_err_sts_t rc_wifi_tcp_send(
         if((errno == EAGAIN) ||
            (errno == EWOULDBLOCK))
         {
-            return PLT_ERR_STS_BUSY;
+            return RET_ERR_STS_BUSY;
         }
 
         ALOGW(
             "rc_wifi_tcp_send: send failed errno=%d",
             errno);
 
-        return PLT_ERR_STS_TX_FAILED;
+        return RET_ERR_STS_TX_FAILED;
     }
 
     if(sent != (int32_t)len)
@@ -656,10 +656,10 @@ static plt_err_sts_t rc_wifi_tcp_send(
             (long)sent,
             (unsigned int)len);
 
-        return PLT_ERR_STS_TX_FAILED;
+        return RET_ERR_STS_TX_FAILED;
     }
 
-    return PLT_ERR_STS_OK;
+    return RET_ERR_STS_OK;
 }
 
 
@@ -759,7 +759,7 @@ static void rc_wifi_task(void* arg)
                         g_rcWifi.state =
                             eRcWifiStateStarting;
 
-                        if(rc_wifi_up() != PLT_ERR_STS_OK)
+                        if(rc_wifi_up() != RET_ERR_STS_OK)
                         {
                             g_rcWifi.state =
                                 eRcWifiStateIdle;
@@ -809,7 +809,7 @@ static void rc_wifi_task(void* arg)
                         g_rcWifi.state =
                             eRcWifiStateStarting;
 
-                        if(rc_wifi_up() != PLT_ERR_STS_OK)
+                        if(rc_wifi_up() != RET_ERR_STS_OK)
                         {
                             g_rcWifi.state =
                                 eRcWifiStateIdle;
@@ -828,7 +828,7 @@ static void rc_wifi_task(void* arg)
                     {
                         if(rc_wifi_tcp_send(
                                msg.data,
-                               msg.len) != PLT_ERR_STS_OK)
+                               msg.len) != RET_ERR_STS_OK)
                         {
                             ALOGW(
                                 "rc_wifi_task: TCP TX failed");
@@ -880,7 +880,7 @@ static void rc_wifi_task(void* arg)
              */
             if(g_rcWifi.listenFd < 0)
             {
-                if(rc_wifi_tcp_listen() != PLT_ERR_STS_OK)
+                if(rc_wifi_tcp_listen() != RET_ERR_STS_OK)
                 {
                     ALOGE(
                         "rc_wifi_task: TCP listen failed");
@@ -1105,11 +1105,11 @@ static void rc_wifi_task(void* arg)
  * PUBLIC API
  * ========================================================================= */
 
-plt_err_sts_t rc_wifi_init(void)
+ret_err_sts_t rc_wifi_init(void)
 {
     if(g_rcWifi.initialized)
     {
-        return PLT_ERR_STS_ALREADY_INIT;
+        return RET_ERR_STS_ALREADY_INIT;
     }
 
     (void)memset(
@@ -1132,7 +1132,7 @@ plt_err_sts_t rc_wifi_init(void)
         ALOGE(
             "rc_wifi_init: RC WiFi queue not initialized");
 
-        return PLT_ERR_STS_NOT_INITIALIZED;
+        return RET_ERR_STS_NOT_INITIALIZED;
     }
 
     g_rcWifi.coreRxQ =
@@ -1144,7 +1144,7 @@ plt_err_sts_t rc_wifi_init(void)
         ALOGE(
             "rc_wifi_init: core RX queue not initialized");
 
-        return PLT_ERR_STS_NOT_INITIALIZED;
+        return RET_ERR_STS_NOT_INITIALIZED;
     }
 
     g_rcWifi.taskId =
@@ -1156,7 +1156,7 @@ plt_err_sts_t rc_wifi_init(void)
         ALOGE(
             "rc_wifi_init: RC WiFi task not initialized");
 
-        return PLT_ERR_STS_NOT_INITIALIZED;
+        return RET_ERR_STS_NOT_INITIALIZED;
     }
 
     g_rcWifi.state =
@@ -1165,7 +1165,7 @@ plt_err_sts_t rc_wifi_init(void)
     g_rcWifi.initialized =
         true;
 
-    return PLT_ERR_STS_OK;
+    return RET_ERR_STS_OK;
 }
 
 
@@ -1173,11 +1173,11 @@ plt_err_sts_t rc_wifi_init(void)
  * Deinitialization
  * ========================================================================= */
 
-plt_err_sts_t rc_wifi_deinit(void)
+ret_err_sts_t rc_wifi_deinit(void)
 {
     if(!g_rcWifi.initialized)
     {
-        return PLT_ERR_STS_NOT_INITIALIZED;
+        return RET_ERR_STS_NOT_INITIALIZED;
     }
 
     g_rcWifi.running = false;
@@ -1201,7 +1201,7 @@ plt_err_sts_t rc_wifi_deinit(void)
     g_rcWifi.initialized =
         false;
 
-    return PLT_ERR_STS_OK;
+    return RET_ERR_STS_OK;
 }
 
 
@@ -1209,28 +1209,28 @@ plt_err_sts_t rc_wifi_deinit(void)
  * Configuration
  * ========================================================================= */
 
-plt_err_sts_t rc_wifi_set_config(
+ret_err_sts_t rc_wifi_set_config(
     const rc_wifi_config_t* config)
 {
     if(config == NULL)
     {
-        return PLT_ERR_STS_INVALID_PARAM;
+        return RET_ERR_STS_INVALID_PARAM;
     }
 
     if(!g_rcWifi.initialized)
     {
-        return PLT_ERR_STS_NOT_INITIALIZED;
+        return RET_ERR_STS_NOT_INITIALIZED;
     }
 
     if(g_rcWifi.wifiInitialized ||
        (g_rcWifi.state != eRcWifiStateIdle))
     {
-        return PLT_ERR_STS_BUSY;
+        return RET_ERR_STS_BUSY;
     }
 
     if(config->tcpPort == 0U)
     {
-        return PLT_ERR_STS_INVALID_PARAM;
+        return RET_ERR_STS_INVALID_PARAM;
     }
 
     (void)memcpy(
@@ -1238,7 +1238,7 @@ plt_err_sts_t rc_wifi_set_config(
         config,
         sizeof(g_rcWifi.config));
 
-    return PLT_ERR_STS_OK;
+    return RET_ERR_STS_OK;
 }
 
 
@@ -1246,11 +1246,11 @@ plt_err_sts_t rc_wifi_set_config(
  * Start
  * ========================================================================= */
 
-plt_err_sts_t rc_wifi_start(void)
+ret_err_sts_t rc_wifi_start(void)
 {
     if(!g_rcWifi.initialized)
     {
-        return PLT_ERR_STS_NOT_INITIALIZED;
+        return RET_ERR_STS_NOT_INITIALIZED;
     }
 
     return rc_wifi_post(
@@ -1264,11 +1264,11 @@ plt_err_sts_t rc_wifi_start(void)
  * Stop
  * ========================================================================= */
 
-plt_err_sts_t rc_wifi_stop(void)
+ret_err_sts_t rc_wifi_stop(void)
 {
     if(!g_rcWifi.initialized)
     {
-        return PLT_ERR_STS_NOT_INITIALIZED;
+        return RET_ERR_STS_NOT_INITIALIZED;
     }
 
     return rc_wifi_post(
@@ -1285,11 +1285,11 @@ plt_err_sts_t rc_wifi_stop(void)
  * rc_connection.c decides when this API should be called.
  * ========================================================================= */
 
-plt_err_sts_t rc_wifi_reconnect(void)
+ret_err_sts_t rc_wifi_reconnect(void)
 {
     if(!g_rcWifi.initialized)
     {
-        return PLT_ERR_STS_NOT_INITIALIZED;
+        return RET_ERR_STS_NOT_INITIALIZED;
     }
 
     return rc_wifi_post(
@@ -1303,23 +1303,23 @@ plt_err_sts_t rc_wifi_reconnect(void)
  * Send data to phone
  * ========================================================================= */
 
-plt_err_sts_t rc_wifi_send(
+ret_err_sts_t rc_wifi_send(
     const uint8_t* data,
     uint16_t len)
 {
     if((data == NULL) || (len == 0U))
     {
-        return PLT_ERR_STS_INVALID_PARAM;
+        return RET_ERR_STS_INVALID_PARAM;
     }
 
     if(!g_rcWifi.initialized)
     {
-        return PLT_ERR_STS_NOT_INITIALIZED;
+        return RET_ERR_STS_NOT_INITIALIZED;
     }
 
     if(len > RC_MAX_PAYLOAD_LEN)
     {
-        return PLT_ERR_STS_INVALID_SIZE;
+        return RET_ERR_STS_INVALID_SIZE;
     }
 
     return rc_wifi_post(

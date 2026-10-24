@@ -85,7 +85,7 @@ bsp/
 │   ├── bsp_wifi.h
 │   └── core/
 │       ├── bsp_core.h            Init/deinit, version, common types
-│       ├── bsp_err_sts.h         bsp_err_sts_t error/status codes
+│       ├── ret_err_sts.h         ret_err_sts_t error/status codes
 │       ├── bsp_log.h             Logging macros
 │       ├── bsp_osal.h            OS abstraction (task, mutex, queue, delay...)
 │       ├── bsp_os_map.h          Maps OSAL to the chosen RTOS
@@ -142,7 +142,7 @@ The handle hides vendor state. The app never touches its internals.
 |------|-----------|
 | Function names | `bsp<Module><Action>` in camelCase, e.g. `bspUartSetBaudrate` |
 | Types | `bsp<Module><Name>_t`, e.g. `bspUartConfig_t`, `bspUartHandle_t` |
-| Return value | Always `bsp_err_sts_t` (never raw vendor error codes) |
+| Return value | Always `ret_err_sts_t` (never raw vendor error codes) |
 | Output values | Returned through `[out]` pointer parameters |
 | Callbacks | `(event data..., void* userContext)`, may run in ISR context |
 | Doxygen | Every public function has `@brief`, `@param[in/out]`, `@retval` |
@@ -150,10 +150,10 @@ The handle hides vendor state. The app never touches its internals.
 
 ### 4.4 Error handling
 
-All APIs return `bsp_err_sts_t` defined in `include/core/bsp_err_sts.h`.
-Port code must **translate** SDK errors (e.g. `esp_err_t`) into `bsp_err_sts_t`.
-Typical codes: `BSP_OK`, `PLT_ERR_INVALID_PARAM`, `PLT_ERR_NOT_INIT`, `PLT_ERR_BUSY`,
-`PLT_ERR_TIMEOUT`, `PLT_ERR_NO_MEM`, `PLT_ERR_NOT_SUPPORTED`.
+All APIs return `ret_err_sts_t` defined in `bsp_core/bsp_err_sts.h`.
+Port code must **translate** SDK errors (e.g. `esp_err_t`) into `ret_err_sts_t`.
+Typical codes: `BSP_OK`, `RET_ERR_INVALID_PARAM`, `RET_ERR_NOT_INIT`, `RET_ERR_BUSY`,
+`RET_ERR_TIMEOUT`, `RET_ERR_NO_MEM`, `RET_ERR_NOT_SUPPORTED`.
 (Adjust to match the real enum.)
 
 ---
@@ -219,9 +219,9 @@ The build system selects exactly one port folder (see `bsp.cmake`).
 
 1. Create `srcs/port/<sdk>/`.
 2. Implement every function declared in each public header you want to support.
-3. Convert vendor errors to `bsp_err_sts_t`.
+3. Convert vendor errors to `ret_err_sts_t`.
 4. Use OSAL for locking/wait/notify.
-5. Return `PLT_ERR_NOT_SUPPORTED` for functions the hardware cannot do.
+5. Return `RET_ERR_NOT_SUPPORTED` for functions the hardware cannot do.
 6. Add the port to `bsp.cmake` and a `bsp_os_map.h` entry if the RTOS differs.
 7. Do not modify public headers to fit one SDK. If the API is insufficient, extend it in a backward-compatible way.
 
@@ -264,7 +264,7 @@ The application sits on top of the BSP and should be layered too.
 2. Use **callbacks** for async events; keep ISR-context callbacks tiny. Push events into a queue
    (via OSAL) and handle them in a task.
 3. One owner per peripheral handle. Wrap shared handles with a service.
-4. Check every `bsp_err_sts_t`. Log failures using `bsp_log`.
+4. Check every `ret_err_sts_t`. Log failures using `bsp_log`.
 5. Startup order: `bspCoreInit` -> console transport -> `bspConsoleInit` -> CLI -> peripherals -> app services.
 6. Provide app-specific CLI commands in the app, never inside BSP core.
 
@@ -325,8 +325,8 @@ Read this section before generating or modifying code in this repository.
 ### Must do
 - Follow the layering in section 2 and the dependency rules.
 - Follow naming: functions `bsp<Module><Action>`, types `bsp<Module><Name>_t`.
-- Every function returns `bsp_err_sts_t`; outputs go through pointer params.
-- Validate `handle` and pointer args first; return `PLT_ERR_INVALID_PARAM` on NULL.
+- Every function returns `ret_err_sts_t`; outputs go through pointer params.
+- Validate `handle` and pointer args first; return `RET_ERR_INVALID_PARAM` on NULL.
 - Add Doxygen (`@brief`, `@param[in]/[out]`, `@retval`) to every public function.
 - Put SDK-specific code **only** under `srcs/port/<sdk>/`.
 - Use OSAL for tasks, mutex, queues, delays.
@@ -347,7 +347,7 @@ Read this section before generating or modifying code in this repository.
 | Task | Location |
 |------|----------|
 | New public API | `include/bsp_<module>.h` |
-| New error code | `include/core/bsp_err_sts.h` and `srcs/core/bsp_err_sts.c` |
+| New error code | `bsp_core/bsp_err_sts.h` and `srcs/core/bsp_err_sts.c` |
 | ESP32 implementation | `srcs/port/esp32x/bsp_<module>.c` |
 | Board pin mapping | `bsp_config/bsp_cfg_map.*` |
 | Feature flag / buffer size | `bsp_config/bsp_config.h` |
@@ -360,7 +360,7 @@ Read this section before generating or modifying code in this repository.
 Repository: RideCast BSP (layered, SDK-agnostic, see README.md).
 Task: <describe>
 Constraints: follow section 2 dependency rules, section 4 naming/API pattern,
-return bsp_err_sts_t, use OSAL and bsp_log, add Doxygen.
+return ret_err_sts_t, use OSAL and bsp_log, add Doxygen.
 Touch only: <files>
 ```
 

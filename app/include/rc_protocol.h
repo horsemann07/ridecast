@@ -553,12 +553,12 @@ static inline uint16_t rc_encode_data(uint8_t* buf,
  * @param[in]  rawLen Number of bytes received.
  * @param[out] frame  Decoded frame.
  *
- * @return PLT_ERR_STS_OK             Frame is valid.
- * @return PLT_ERR_STS_INVALID_PARAM  Invalid parameter.
- * @return PLT_ERR_STS_INVALID_LENGTH Invalid frame length.
- * @return PLT_ERR_STS_CRC_ERROR      CRC validation failed.
+ * @return RET_ERR_STS_OK             Frame is valid.
+ * @return RET_ERR_STS_INVALID_PARAM  Invalid parameter.
+ * @return RET_ERR_STS_INVALID_LENGTH Invalid frame length.
+ * @return RET_ERR_STS_CRC_ERROR      CRC validation failed.
  */
-static inline bsp_err_sts_t
+static inline ret_err_sts_t
 rc_frame_decode(const uint8_t* rawBuf, uint16_t rawLen, rc_frame_t* frame)
 {
     uint16_t payloadLen;
@@ -566,12 +566,12 @@ rc_frame_decode(const uint8_t* rawBuf, uint16_t rawLen, rc_frame_t* frame)
 
     if((rawBuf == NULL) || (frame == NULL))
     {
-        return PLT_ERR_STS_INVALID_PARAM;
+        return RET_ERR_STS_INVALID_PARAM;
     }
 
     if(rawLen < RC_FRAME_MIN_LEN)
     {
-        return PLT_ERR_STS_INVALID_LENGTH;
+        return RET_ERR_STS_INVALID_LENGTH;
     }
 
     /* Payload length */
@@ -579,7 +579,7 @@ rc_frame_decode(const uint8_t* rawBuf, uint16_t rawLen, rc_frame_t* frame)
 
     if(payloadLen > RC_MAX_PAYLOAD_LEN)
     {
-        return PLT_ERR_STS_INVALID_LENGTH;
+        return RET_ERR_STS_INVALID_LENGTH;
     }
 
     /* Expected complete frame length */
@@ -587,13 +587,13 @@ rc_frame_decode(const uint8_t* rawBuf, uint16_t rawLen, rc_frame_t* frame)
 
     if(rawLen != expectedLen)
     {
-        return PLT_ERR_STS_INVALID_LENGTH;
+        return RET_ERR_STS_INVALID_LENGTH;
     }
 
     /* CRC validation */
     if(!rc_validate_crc(rawBuf, rawLen))
     {
-        return PLT_ERR_STS_CRC_ERROR;
+        return RET_ERR_STS_CRC_ERROR;
     }
 
     /* Decode header */
@@ -617,7 +617,7 @@ rc_frame_decode(const uint8_t* rawBuf, uint16_t rawLen, rc_frame_t* frame)
         frame->payload = NULL;
     }
 
-    return PLT_ERR_STS_OK;
+    return RET_ERR_STS_OK;
 }
 
 

@@ -102,7 +102,7 @@
 #endif
 
 #if defined(UART_APP_ENABLE_DUMMY_HOST)
-extern bsp_err_sts_t test_host_uart_init(uart_app_t* app);
+extern ret_err_sts_t test_host_uart_init(uart_app_t* app);
 #endif // UART_APP_ENABLE_DUMMY_HOST
 
 
@@ -337,11 +337,11 @@ static void on_wifi_rx(const uint8_t* data, uint16_t len, void* user)
 /* =========================================================================
  * ridecast_deinit  (called on shutdown / OTA / fault)
  * ========================================================================= */
-bsp_err_sts_t ridecast_deinit(void)
+ret_err_sts_t ridecast_deinit(void)
 {
     (void)wifi_app_deinit(&gWifiApp);
     (void)uart_app_deinit(&gUartApp);
-    return PLT_ERR_STS_OK;
+    return RET_ERR_STS_OK;
 }
 
 /* =========================================================================
@@ -349,9 +349,9 @@ bsp_err_sts_t ridecast_deinit(void)
  *
  * Called once from main() / app_main() after RTOS scheduler start.
  * ========================================================================= */
-bsp_err_sts_t ridecast_init(void)
+ret_err_sts_t ridecast_init(void)
 {
-    bsp_err_sts_t sts;
+    ret_err_sts_t sts;
 
     /* ------------------------------------------------------------------
      * 1. uart_app  - UART to Host
@@ -372,7 +372,7 @@ bsp_err_sts_t ridecast_init(void)
     uCfg.btUser      = NULL;
 
     sts = uart_app_init(&gUartApp, &uCfg);
-    if(sts != PLT_ERR_STS_OK)
+    if(sts != RET_ERR_STS_OK)
     {
         return sts;
     }
@@ -397,7 +397,7 @@ bsp_err_sts_t ridecast_init(void)
     wCfg.cbUser        = BSP_NULL;
 
     sts = wifi_app_init(&gWifiApp, &wCfg);
-    if(sts != PLT_ERR_STS_OK)
+    if(sts != RET_ERR_STS_OK)
     {
         (void)uart_app_deinit(&gUartApp);
         return sts;
@@ -410,5 +410,5 @@ bsp_err_sts_t ridecast_init(void)
 
     // (void)test_host_uart_init(&gUartApp);
 
-    return PLT_ERR_STS_OK;
+    return RET_ERR_STS_OK;
 }

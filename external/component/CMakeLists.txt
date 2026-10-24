@@ -16,7 +16,7 @@ option(STM32H7_PLATFORM "Build for STM32H7 platform" OFF)
 # These are normally set by parent (external/CMakeLists.txt).
 # Keep defaults here for safety.
 if(NOT DEFINED USE_PLATFORM_LWIP)
-    if(ESP_PLATFORM)
+    if(ESPx_PLATFORM)
         set(USE_PLATFORM_LWIP ON CACHE BOOL "Use platform lwIP" FORCE)
     else()
         set(USE_PLATFORM_LWIP OFF CACHE BOOL "Use platform lwIP" FORCE)
@@ -24,7 +24,7 @@ if(NOT DEFINED USE_PLATFORM_LWIP)
 endif()
 
 if(NOT DEFINED USE_PLATFORM_MBEDTLS)
-    if(ESP_PLATFORM)
+    if(ESPx_PLATFORM)
         set(USE_PLATFORM_MBEDTLS ON CACHE BOOL "Use platform mbedTLS" FORCE)
     else()
         set(USE_PLATFORM_MBEDTLS OFF CACHE BOOL "Use platform mbedTLS" FORCE)
@@ -67,7 +67,7 @@ if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/backoffAlgorithmWrapper/CMakeLists.txt")
 elseif(EXISTS "${CMAKE_CURRENT_LIST_DIR}/backoffAlgorithm/backoffAlgorithmFilePaths.cmake")
     include("${CMAKE_CURRENT_LIST_DIR}/backoffAlgorithm/backoffAlgorithmFilePaths.cmake")
 
-    if(ESP_PLATFORM)
+    if(ESPx_PLATFORM)
         idf_component_register(
             SRCS
                 ${BACKOFF_ALGORITHM_SOURCES}

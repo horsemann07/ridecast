@@ -106,7 +106,7 @@ static rc_connection_ctx_t* rc_connection_get_context(rc_wireless_transport_t tr
  * =========================================================================
  */
 
-plt_err_sts_t rc_connection_init(void)
+ret_err_sts_t rc_connection_init(void)
 {
     uint8_t index;
 
@@ -122,7 +122,7 @@ plt_err_sts_t rc_connection_init(void)
         g_rcConnection[index].retryCount  = 0U;
         g_rcConnection[index].initialized = true;
     }
-    return PLT_ERR_STS_OK;
+    return RET_ERR_STS_OK;
 }
 
 
@@ -131,7 +131,7 @@ plt_err_sts_t rc_connection_init(void)
  * =========================================================================
  */
 
-plt_err_sts_t rc_connection_deinit(void)
+ret_err_sts_t rc_connection_deinit(void)
 {
     uint8_t index;
 
@@ -145,7 +145,7 @@ plt_err_sts_t rc_connection_deinit(void)
         }
     }
 
-    return PLT_ERR_STS_OK;
+    return RET_ERR_STS_OK;
 }
 
 
@@ -154,7 +154,7 @@ plt_err_sts_t rc_connection_deinit(void)
  * =========================================================================
  */
 
-plt_err_sts_t rc_connection_start(rc_wireless_transport_t transport)
+ret_err_sts_t rc_connection_start(rc_wireless_transport_t transport)
 {
     rc_connection_ctx_t* ctx;
 
@@ -162,22 +162,22 @@ plt_err_sts_t rc_connection_start(rc_wireless_transport_t transport)
 
     if(ctx == NULL)
     {
-        return PLT_ERR_STS_INVALID_PARAM;
+        return RET_ERR_STS_INVALID_PARAM;
     }
 
     if(ctx->initialized == false)
     {
-        return PLT_ERR_STS_NOT_INITIALIZED;
+        return RET_ERR_STS_NOT_INITIALIZED;
     }
 
     if(ctx->state == eRcConnEvtConnected)
     {
-        return PLT_ERR_STS_ALREADY_CONNECTED;
+        return RET_ERR_STS_ALREADY_CONNECTED;
     }
 
     if((ctx->state == eRcConnEvtConnecting) || (ctx->state == eRcConnEvtReconnecting))
     {
-        return PLT_ERR_STS_IN_PROGRESS;
+        return RET_ERR_STS_IN_PROGRESS;
     }
 
     ctx->retryCount = 0U;
@@ -187,7 +187,7 @@ plt_err_sts_t rc_connection_start(rc_wireless_transport_t transport)
      */
     ctx->state = eRcConnEvtConnect;
 
-    return PLT_ERR_STS_OK;
+    return RET_ERR_STS_OK;
 }
 
 
@@ -196,7 +196,7 @@ plt_err_sts_t rc_connection_start(rc_wireless_transport_t transport)
  * =========================================================================
  */
 
-plt_err_sts_t rc_connection_stop(rc_wireless_transport_t transport)
+ret_err_sts_t rc_connection_stop(rc_wireless_transport_t transport)
 {
     rc_connection_ctx_t* ctx;
 
@@ -204,24 +204,24 @@ plt_err_sts_t rc_connection_stop(rc_wireless_transport_t transport)
 
     if(ctx == NULL)
     {
-        return PLT_ERR_STS_INVALID_PARAM;
+        return RET_ERR_STS_INVALID_PARAM;
     }
 
     if(ctx->initialized == false)
     {
-        return PLT_ERR_STS_NOT_INITIALIZED;
+        return RET_ERR_STS_NOT_INITIALIZED;
     }
 
     if(ctx->state == eRcConnEvtStop)
     {
-        return PLT_ERR_STS_OK;
+        return RET_ERR_STS_OK;
     }
 
     ctx->retryCount = ctx->reconnectConfig.maxRetry;
 
     ctx->state = eRcConnEvtStop;
 
-    return PLT_ERR_STS_OK;
+    return RET_ERR_STS_OK;
 }
 
 
@@ -230,7 +230,7 @@ plt_err_sts_t rc_connection_stop(rc_wireless_transport_t transport)
  * =========================================================================
  */
 
-plt_err_sts_t rc_connection_reconnect(rc_wireless_transport_t transport)
+ret_err_sts_t rc_connection_reconnect(rc_wireless_transport_t transport)
 {
     rc_connection_ctx_t* ctx;
 
@@ -238,29 +238,29 @@ plt_err_sts_t rc_connection_reconnect(rc_wireless_transport_t transport)
 
     if(ctx == NULL)
     {
-        return PLT_ERR_STS_INVALID_PARAM;
+        return RET_ERR_STS_INVALID_PARAM;
     }
 
     if(ctx->initialized == false)
     {
-        return PLT_ERR_STS_NOT_INITIALIZED;
+        return RET_ERR_STS_NOT_INITIALIZED;
     }
 
     if(ctx->state == eRcConnEvtConnected)
     {
-        return PLT_ERR_STS_ALREADY_CONNECTED;
+        return RET_ERR_STS_ALREADY_CONNECTED;
     }
 
     if(ctx->reconnectConfig.enable == false)
     {
-        return PLT_ERR_STS_UNSUPPORTED;
+        return RET_ERR_STS_UNSUPPORTED;
     }
 
     ctx->retryCount = 0U;
 
     ctx->state = eRcConnEvtReconnect;
 
-    return PLT_ERR_STS_OK;
+    return RET_ERR_STS_OK;
 }
 
 
@@ -269,36 +269,36 @@ plt_err_sts_t rc_connection_reconnect(rc_wireless_transport_t transport)
  * =========================================================================
  */
 
-plt_err_sts_t rc_connection_set_reconnect_config(rc_wireless_transport_t transport,
+ret_err_sts_t rc_connection_set_reconnect_config(rc_wireless_transport_t transport,
                                                  const rc_reconnect_config_t* config)
 {
     rc_connection_ctx_t* ctx;
 
     if(config == NULL)
     {
-        return PLT_ERR_STS_INVALID_PARAM;
+        return RET_ERR_STS_INVALID_PARAM;
     }
 
     ctx = rc_connection_get_context(transport);
 
     if(ctx == NULL)
     {
-        return PLT_ERR_STS_INVALID_PARAM;
+        return RET_ERR_STS_INVALID_PARAM;
     }
 
     if(ctx->initialized == false)
     {
-        return PLT_ERR_STS_NOT_INITIALIZED;
+        return RET_ERR_STS_NOT_INITIALIZED;
     }
 
     if(config->maxRetry == 0U)
     {
-        return PLT_ERR_STS_INVALID_PARAM;
+        return RET_ERR_STS_INVALID_PARAM;
     }
 
     ctx->reconnectConfig = *config;
 
-    return PLT_ERR_STS_OK;
+    return RET_ERR_STS_OK;
 }
 
 
@@ -306,31 +306,31 @@ plt_err_sts_t rc_connection_set_reconnect_config(rc_wireless_transport_t transpo
  * Get Reconnect Configuration
  * =========================================================================
  */
-plt_err_sts_t rc_connection_get_reconnect_config(rc_wireless_transport_t transport,
+ret_err_sts_t rc_connection_get_reconnect_config(rc_wireless_transport_t transport,
                                                  rc_reconnect_config_t* config)
 {
     rc_connection_ctx_t* ctx;
 
     if(config == NULL)
     {
-        return PLT_ERR_STS_INVALID_PARAM;
+        return RET_ERR_STS_INVALID_PARAM;
     }
 
     ctx = rc_connection_get_context(transport);
 
     if(ctx == NULL)
     {
-        return PLT_ERR_STS_INVALID_PARAM;
+        return RET_ERR_STS_INVALID_PARAM;
     }
 
     if(ctx->initialized == false)
     {
-        return PLT_ERR_STS_NOT_INITIALIZED;
+        return RET_ERR_STS_NOT_INITIALIZED;
     }
 
     *config = ctx->reconnectConfig;
 
-    return PLT_ERR_STS_OK;
+    return RET_ERR_STS_OK;
 }
 
 
@@ -339,26 +339,26 @@ plt_err_sts_t rc_connection_get_reconnect_config(rc_wireless_transport_t transpo
  * =========================================================================
  */
 
-plt_err_sts_t rc_connection_get_status(rc_wireless_transport_t transport,
+ret_err_sts_t rc_connection_get_status(rc_wireless_transport_t transport,
                                        rc_connection_status_t* status)
 {
     rc_connection_ctx_t* ctx;
 
     if(status == NULL)
     {
-        return PLT_ERR_STS_INVALID_PARAM;
+        return RET_ERR_STS_INVALID_PARAM;
     }
 
     ctx = rc_connection_get_context(transport);
 
     if(ctx == NULL)
     {
-        return PLT_ERR_STS_INVALID_PARAM;
+        return RET_ERR_STS_INVALID_PARAM;
     }
 
     if(ctx->initialized == false)
     {
-        return PLT_ERR_STS_NOT_INITIALIZED;
+        return RET_ERR_STS_NOT_INITIALIZED;
     }
 
     status->wireless_transport = ctx->transport;
@@ -366,7 +366,7 @@ plt_err_sts_t rc_connection_get_status(rc_wireless_transport_t transport,
     status->retryCount         = ctx->retryCount;
     status->maxRetry           = ctx->reconnectConfig.maxRetry;
 
-    return PLT_ERR_STS_OK;
+    return RET_ERR_STS_OK;
 }
 
 
@@ -375,7 +375,7 @@ plt_err_sts_t rc_connection_get_status(rc_wireless_transport_t transport,
  * =========================================================================
  */
 
-plt_err_sts_t rc_connection_set_state(rc_wireless_transport_t transport, rc_connection_event_t state)
+ret_err_sts_t rc_connection_set_state(rc_wireless_transport_t transport, rc_connection_event_t state)
 {
     rc_connection_ctx_t* ctx;
 
@@ -383,12 +383,12 @@ plt_err_sts_t rc_connection_set_state(rc_wireless_transport_t transport, rc_conn
 
     if(ctx == NULL)
     {
-        return PLT_ERR_STS_INVALID_PARAM;
+        return RET_ERR_STS_INVALID_PARAM;
     }
 
     if(ctx->initialized == false)
     {
-        return PLT_ERR_STS_NOT_INITIALIZED;
+        return RET_ERR_STS_NOT_INITIALIZED;
     }
 
     ctx->state = state;
@@ -398,7 +398,7 @@ plt_err_sts_t rc_connection_set_state(rc_wireless_transport_t transport, rc_conn
         ctx->retryCount = 0U;
     }
 
-    return PLT_ERR_STS_OK;
+    return RET_ERR_STS_OK;
 }
 
 
@@ -407,7 +407,7 @@ plt_err_sts_t rc_connection_set_state(rc_wireless_transport_t transport, rc_conn
  * =========================================================================
  */
 
-plt_err_sts_t rc_connection_retry(rc_wireless_transport_t transport)
+ret_err_sts_t rc_connection_retry(rc_wireless_transport_t transport)
 {
     rc_connection_ctx_t* ctx;
 
@@ -415,31 +415,31 @@ plt_err_sts_t rc_connection_retry(rc_wireless_transport_t transport)
 
     if(ctx == NULL)
     {
-        return PLT_ERR_STS_INVALID_PARAM;
+        return RET_ERR_STS_INVALID_PARAM;
     }
 
     if(ctx->initialized == false)
     {
-        return PLT_ERR_STS_NOT_INITIALIZED;
+        return RET_ERR_STS_NOT_INITIALIZED;
     }
 
     if(ctx->reconnectConfig.enable == false)
     {
-        return PLT_ERR_STS_UNSUPPORTED;
+        return RET_ERR_STS_UNSUPPORTED;
     }
 
     if(ctx->retryCount >= ctx->reconnectConfig.maxRetry)
     {
         ctx->state = eRcConnEvtFailed;
 
-        return PLT_ERR_STS_RETRY_LIMIT;
+        return RET_ERR_STS_RETRY_LIMIT;
     }
 
     ctx->retryCount++;
 
     ctx->state = eRcConnEvtReconnecting;
 
-    return PLT_ERR_STS_OK;
+    return RET_ERR_STS_OK;
 }
 
 

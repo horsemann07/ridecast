@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "bsp_err_sts.h"
 #include "rc_protocol.h"
 #include "rc_connection.h"
 
@@ -72,9 +73,9 @@ extern "C"
      *
      * Initializes the Bluetooth Classic stack/hardware and internal state.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    bsp_err_sts_t rc_bt_classic_init(void);
+    ret_err_sts_t rc_bt_classic_init(void);
 
 
     /**
@@ -82,9 +83,9 @@ extern "C"
      *
      * Stops Bluetooth Classic and releases associated resources.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    bsp_err_sts_t rc_bt_classic_deinit(void);
+    ret_err_sts_t rc_bt_classic_deinit(void);
 
 
     /* =========================================================================
@@ -99,9 +100,9 @@ extern "C"
      *
      * @param[in] config Bluetooth Classic configuration.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    bsp_err_sts_t rc_bt_classic_set_config(const rc_bt_classic_config_t* config);
+    ret_err_sts_t rc_bt_classic_set_config(const rc_bt_classic_config_t* config);
 
 
     /**
@@ -109,9 +110,9 @@ extern "C"
      *
      * @param[out] config Bluetooth Classic configuration.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    bsp_err_sts_t rc_bt_classic_get_config(rc_bt_classic_config_t* config);
+    ret_err_sts_t rc_bt_classic_get_config(rc_bt_classic_config_t* config);
 
 
     /* =========================================================================
@@ -124,9 +125,9 @@ extern "C"
      * Starts the Bluetooth Classic stack and makes the device
      * available for connection.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    bsp_err_sts_t rc_bt_classic_start(void);
+    ret_err_sts_t rc_bt_classic_start(void);
 
 
     /**
@@ -134,9 +135,9 @@ extern "C"
      *
      * Stops Bluetooth Classic and disconnects any active connection.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    bsp_err_sts_t rc_bt_classic_stop(void);
+    ret_err_sts_t rc_bt_classic_stop(void);
 
 
     /**
@@ -144,25 +145,25 @@ extern "C"
      *
      * Makes RideCast discoverable by remote Bluetooth devices.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    bsp_err_sts_t rc_bt_classic_start_discoverable(void);
+    ret_err_sts_t rc_bt_classic_start_discoverable(void);
 
 
     /**
      * @brief Stop Bluetooth Classic discoverability.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    bsp_err_sts_t rc_bt_classic_stop_discoverable(void);
+    ret_err_sts_t rc_bt_classic_stop_discoverable(void);
 
 
     /**
      * @brief Disconnect the current Bluetooth Classic connection.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    bsp_err_sts_t rc_bt_classic_disconnect(void);
+    ret_err_sts_t rc_bt_classic_disconnect(void);
 
 
     /**
@@ -171,9 +172,9 @@ extern "C"
      * Starts the Bluetooth Classic reconnection procedure according
      * to the configured reconnect policy.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    bsp_err_sts_t rc_bt_classic_reconnect(void);
+    ret_err_sts_t rc_bt_classic_reconnect(void);
 
 
     /* =========================================================================
@@ -185,9 +186,9 @@ extern "C"
      *
      * @param[out] status Current Bluetooth Classic status.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    bsp_err_sts_t rc_bt_classic_get_status(rc_bt_classic_status_t* status);
+    ret_err_sts_t rc_bt_classic_get_status(rc_bt_classic_status_t* status);
 
 
     /**

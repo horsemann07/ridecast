@@ -209,10 +209,10 @@ extern "C"
      *                    Can be NULL if only global init is required.
      *
      * @return
-     *  - PLT_ERR_STS_OK              Initialization successful
-     *  - PLT_ERR_STS_INTERNAL_ERROR  Platform or TLS initialization failed
+     *  - RET_ERR_STS_OK              Initialization successful
+     *  - RET_ERR_STS_INTERNAL_ERROR  Platform or TLS initialization failed
      */
-    bsp_err_sts_t nalNetworkInit(nalHandle_t* handle);
+    ret_err_sts_t nalNetworkInit(nalHandle_t* handle);
 
     /**
      * @brief Deinitialize the Network Abstraction Layer (NAL).
@@ -224,10 +224,10 @@ extern "C"
      *                   Can be NULL for global-only cleanup.
      *
      * @return
-     *  - PLT_ERR_STS_OK              Deinitialization successful
-     *  - PLT_ERR_STS_INTERNAL_ERROR  Cleanup failed
+     *  - RET_ERR_STS_OK              Deinitialization successful
+     *  - RET_ERR_STS_INTERNAL_ERROR  Cleanup failed
      */
-    bsp_err_sts_t nalNetworkDeinit(nalHandle_t* handle);
+    ret_err_sts_t nalNetworkDeinit(nalHandle_t* handle);
 
     /* ========================================================================
      *   CLIENT CONNECTION API
@@ -275,14 +275,14 @@ extern "C"
      * @param[in]     scheme     Connection type (NAL_SCHEME_PLAIN or NAL_SCHEME_TLS).
      * @param[in]     timeout_ms Maximum time to wait for connection.
      *
-     * @return PLT_ERR_STS_OK           Connection successful
-     * @return PLT_ERR_STS_TIMEOUT      Connection timed out
-     * @return PLT_ERR_STS_CONN_FAILED  Connection failed
-     * @return PLT_ERR_STS_BUSY         Handle already connected
-     * @return PLT_ERR_STS_NO_MEM       Socket allocation failed
+     * @return RET_ERR_STS_OK           Connection successful
+     * @return RET_ERR_STS_TIMEOUT      Connection timed out
+     * @return RET_ERR_STS_CONN_FAILED  Connection failed
+     * @return RET_ERR_STS_BUSY         Handle already connected
+     * @return RET_ERR_STS_NO_MEM       Socket allocation failed
      */
 
-    bsp_err_sts_t nalNetworkConnect(nalHandle_t* handle,
+    ret_err_sts_t nalNetworkConnect(nalHandle_t* handle,
                                     const char* host,
                                     uint16_t port,
                                     nalScheme_t scheme,
@@ -297,10 +297,10 @@ extern "C"
      * @param[in,out] handle Pointer to nalHandle_t
      *
      * @return
-     *  - PLT_ERR_STS_OK              Disconnected successfully
-     *  - PLT_ERR_STS_INTERNAL_ERROR  Socket close or cleanup failed
+     *  - RET_ERR_STS_OK              Disconnected successfully
+     *  - RET_ERR_STS_INTERNAL_ERROR  Socket close or cleanup failed
      */
-    bsp_err_sts_t nalNetworkDisconnect(nalHandle_t* handle);
+    ret_err_sts_t nalNetworkDisconnect(nalHandle_t* handle);
 
     /* ========================================================================
      *  Synchronous Data I/O
@@ -318,12 +318,12 @@ extern "C"
      * @param[in]     timeout_ms   Send timeout in milliseconds
      *
      * @return
-     *  - PLT_ERR_STS_OK              Data sent successfully
-     *  - PLT_ERR_STS_TIMEOUT         Send timed out
-     *  - PLT_ERR_STS_INVALID_PARAM   Invalid arguments
-     *  - PLT_ERR_STS_FAIL            Send failure
+     *  - RET_ERR_STS_OK              Data sent successfully
+     *  - RET_ERR_STS_TIMEOUT         Send timed out
+     *  - RET_ERR_STS_INVALID_PARAM   Invalid arguments
+     *  - RET_ERR_STS_FAIL            Send failure
      */
-    bsp_err_sts_t nalNetworkSendSync(nalHandle_t* handle,
+    ret_err_sts_t nalNetworkSendSync(nalHandle_t* handle,
                                      const void* data,
                                      size_t len,
                                      size_t* bytes_sent,
@@ -347,11 +347,11 @@ extern "C"
      *    the TLS layer (nal_tls.c), keeping this core logic TLS-agnostic.
      *
      * Connection semantics:
-     *  - A return value of PLT_ERR_STS_OK indicates that data was successfully
+     *  - A return value of RET_ERR_STS_OK indicates that data was successfully
      *    received and stored in the user-provided buffer.
      *  - If the remote peer performs an orderly shutdown, the connection is
-     *    marked as disconnected and PLT_ERR_STS_CONN_LOST is returned.
-     *  - Timeouts are treated explicitly and reported as PLT_ERR_STS_TIMEOUT.
+     *    marked as disconnected and RET_ERR_STS_CONN_LOST is returned.
+     *  - Timeouts are treated explicitly and reported as RET_ERR_STS_TIMEOUT.
      *
      * Threading and blocking:
      *  - This API is synchronous and blocking.
@@ -369,15 +369,15 @@ extern "C"
      * @param[in]     timeout_ms   Receive timeout in milliseconds (0 = block indefinitely)
      *
      * @return
-     *  - PLT_ERR_STS_OK            Data received successfully
-     *  - PLT_ERR_STS_TIMEOUT       No data received within timeout
-     *  - PLT_ERR_STS_CONN_LOST     Peer closed the connection
-     *  - PLT_ERR_STS_INVALID_PARAM Invalid arguments
-     *  - PLT_ERR_STS_NOT_CONNECTED Handle is not connected
-     *  - PLT_ERR_STS_FAIL          Transport or socket error
+     *  - RET_ERR_STS_OK            Data received successfully
+     *  - RET_ERR_STS_TIMEOUT       No data received within timeout
+     *  - RET_ERR_STS_CONN_LOST     Peer closed the connection
+     *  - RET_ERR_STS_INVALID_PARAM Invalid arguments
+     *  - RET_ERR_STS_NOT_CONNECTED Handle is not connected
+     *  - RET_ERR_STS_FAIL          Transport or socket error
      */
 
-    bsp_err_sts_t nalNetworkRecvSync(nalHandle_t* handle,
+    ret_err_sts_t nalNetworkRecvSync(nalHandle_t* handle,
                                      void* buf,
                                      size_t buf_len,
                                      size_t* bytes_recv,
@@ -400,11 +400,11 @@ extern "C"
      * @param[in,out] arg    Request-specific argument
      *
      * @return
-     *  - PLT_ERR_STS_OK              Operation successful
-     *  - PLT_ERR_STS_INVALID_PARAM   Invalid request or arguments
-     *  - PLT_ERR_STS_FUNC_NOT_SUPPORTED Unsupported request
+     *  - RET_ERR_STS_OK              Operation successful
+     *  - RET_ERR_STS_INVALID_PARAM   Invalid request or arguments
+     *  - RET_ERR_STS_FUNC_NOT_SUPPORTED Unsupported request
      */
-    bsp_err_sts_t nalNetworkIoctl(nalHandle_t* handle, nalIoctlReq_t req, void* arg);
+    ret_err_sts_t nalNetworkIoctl(nalHandle_t* handle, nalIoctlReq_t req, void* arg);
 
     /* ========================================================================
      *  Event Callback Registration
@@ -421,10 +421,10 @@ extern "C"
      * @param[in] evt_queue  QueueHandle_t created by the application
      *
      * @return
-     *  - PLT_ERR_STS_OK
-     *  - PLT_ERR_STS_INVALID_PARAM
+     *  - RET_ERR_STS_OK
+     *  - RET_ERR_STS_INVALID_PARAM
      */
-    bsp_err_sts_t nalEnableAsyncEvents(nalHandle_t* handle, osMessageQueueId_t queue);
+    ret_err_sts_t nalEnableAsyncEvents(nalHandle_t* handle, osMessageQueueId_t queue);
 
     /* ========================================================================
      *  Server-side APIs
@@ -441,9 +441,9 @@ extern "C"
      * @param[in]     scheme   NAL_SCHEME_PLAIN or NAL_SCHEME_TLS
      * @param[in]     backlog  Max pending connections
      *
-     * @return PLT_ERR_STS_OK on success
+     * @return RET_ERR_STS_OK on success
      */
-    bsp_err_sts_t
+    ret_err_sts_t
     nalNetworkStartServer(nalHandle_t* handle, uint16_t port, nalScheme_t scheme, uint32_t backlog);
 
     /**
@@ -460,16 +460,16 @@ extern "C"
      * @param[in]  timeout_ms Accept timeout (0 = block forever)
      *
      * @return
-     *  - PLT_ERR_STS_OK
-     *  - PLT_ERR_STS_TIMEOUT
-     *  - PLT_ERR_STS_FAIL
+     *  - RET_ERR_STS_OK
+     *  - RET_ERR_STS_TIMEOUT
+     *  - RET_ERR_STS_FAIL
      */
-    bsp_err_sts_t nalNetworkAccept(nalHandle_t* server, nalHandle_t* client, uint32_t timeout_ms);
+    ret_err_sts_t nalNetworkAccept(nalHandle_t* server, nalHandle_t* client, uint32_t timeout_ms);
 
     /**
      * @brief Stop server and close listening socket.
      */
-    bsp_err_sts_t nalNetworkStopServer(nalHandle_t* handle);
+    ret_err_sts_t nalNetworkStopServer(nalHandle_t* handle);
     /* ------------------------------------------------------------------------- */
 
 #ifdef __cplusplus

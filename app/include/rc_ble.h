@@ -73,9 +73,9 @@ extern "C"
      *
      * Initializes the BLE hardware/stack and internal state.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    plt_err_sts_t rc_ble_init(void);
+    ret_err_sts_t rc_ble_init(void);
 
 
     /**
@@ -83,9 +83,9 @@ extern "C"
      *
      * Stops BLE and releases BLE resources.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    plt_err_sts_t rc_ble_deinit(void);
+    ret_err_sts_t rc_ble_deinit(void);
 
 
     /* =========================================================================
@@ -100,9 +100,9 @@ extern "C"
      *
      * @param[in] config BLE configuration.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    plt_err_sts_t rc_ble_set_config(const rc_ble_config_t* config);
+    ret_err_sts_t rc_ble_set_config(const rc_ble_config_t* config);
 
 
     /**
@@ -110,9 +110,9 @@ extern "C"
      *
      * @param[out] config Current BLE configuration.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    plt_err_sts_t rc_ble_get_config(rc_ble_config_t* config);
+    ret_err_sts_t rc_ble_get_config(rc_ble_config_t* config);
 
 
     /* =========================================================================
@@ -125,9 +125,9 @@ extern "C"
      * Starts the BLE stack and begins advertising using
      * the configured device name.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    plt_err_sts_t rc_ble_start(void);
+    ret_err_sts_t rc_ble_start(void);
 
 
     /**
@@ -135,9 +135,9 @@ extern "C"
      *
      * Stops advertising and disconnects any active BLE connection.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    plt_err_sts_t rc_ble_stop(void);
+    ret_err_sts_t rc_ble_stop(void);
 
 
     /**
@@ -146,25 +146,25 @@ extern "C"
      * Starts advertising so that the mobile application
      * can discover and connect to RideCast.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    plt_err_sts_t rc_ble_start_advertising(void);
+    ret_err_sts_t rc_ble_start_advertising(void);
 
 
     /**
      * @brief Stop BLE advertising.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    plt_err_sts_t rc_ble_stop_advertising(void);
+    ret_err_sts_t rc_ble_stop_advertising(void);
 
 
     /**
      * @brief Disconnect the current BLE connection.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    plt_err_sts_t rc_ble_disconnect(void);
+    ret_err_sts_t rc_ble_disconnect(void);
 
 
     /**
@@ -173,9 +173,9 @@ extern "C"
      * Starts the BLE reconnection procedure according to
      * the configured reconnect policy.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    plt_err_sts_t rc_ble_reconnect(void);
+    ret_err_sts_t rc_ble_reconnect(void);
 
 
     /* =========================================================================
@@ -187,9 +187,9 @@ extern "C"
      *
      * @param[out] status Current BLE status.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    plt_err_sts_t rc_ble_get_status(rc_ble_status_t* status);
+    ret_err_sts_t rc_ble_get_status(rc_ble_status_t* status);
 
 
     /**

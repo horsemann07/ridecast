@@ -68,17 +68,17 @@
 #define CMSIS_OS2_H_
 
 #ifndef __NO_RETURN
-#if defined(__CC_ARM)
-#define __NO_RETURN __declspec (noreturn)
-#elif defined(__ARMCC_VERSION) && (__ARMCC_VERSION >= 6010050)
-#define __NO_RETURN __attribute__ ((__noreturn__))
-#elif defined(__GNUC__)
-#define __NO_RETURN __attribute__ ((__noreturn__))
-#elif defined(__ICCARM__)
-#define __NO_RETURN __noreturn
-#else
-#define __NO_RETURN
-#endif
+    #if defined(__CC_ARM)
+        #define __NO_RETURN __declspec(noreturn)
+    #elif defined(__ARMCC_VERSION) && (__ARMCC_VERSION >= 6010050)
+        #define __NO_RETURN __attribute__((__noreturn__))
+    #elif defined(__GNUC__)
+        #define __NO_RETURN __attribute__((__noreturn__))
+    #elif defined(__ICCARM__)
+        #define __NO_RETURN __noreturn
+    #else
+        #define __NO_RETURN
+    #endif
 #endif
 
 #include <stdint.h>
@@ -182,10 +182,10 @@ extern "C"
     } osPriority_t;
 
     /// Entry point of a thread.
-    typedef void (*osThreadFunc_t) (void* argument);
+    typedef void (*osThreadFunc_t)(void* argument);
 
     /// Timer callback function.
-    typedef void (*osTimerFunc_t) (void* argument);
+    typedef void (*osTimerFunc_t)(void* argument);
 
     /// Timer type.
     typedef enum
@@ -195,7 +195,7 @@ extern "C"
     } osTimerType_t;
 
 // Timeout value.
-#define osWaitForever 0xFFFFFFFFU ///< Wait forever timeout value.
+#define osWaitForever  0xFFFFFFFFU ///< Wait forever timeout value.
 
 // Flags options (\ref osThreadFlagsWait and \ref osEventFlagsWait).
 #define osFlagsWaitAny 0x00000000U ///< Wait for any flag (default).
@@ -219,11 +219,11 @@ extern "C"
 #define osThreadUnprivileged 0x00000002U ///< Thread runs in unprivileged mode
 #define osThreadPrivileged   0x00000004U ///< Thread runs in privileged mode
 
-#define osThreadZone_Pos     8U ///< MPU protected zone position
+#define osThreadZone_Pos     8U          ///< MPU protected zone position
 #define osThreadZone_Msk \
-    (0x3FUL << osThreadZone_Pos) ///< MPU protected zone mask
+    (0x3FUL << osThreadZone_Pos)         ///< MPU protected zone mask
 #define osThreadZone_Valid \
-    (0x80UL << osThreadZone_Pos) ///< MPU protected zone valid flag
+    (0x80UL << osThreadZone_Pos)         ///< MPU protected zone valid flag
 #define osThreadZone(n) \
     ((((n) << osThreadZone_Pos) & osThreadZone_Msk) | osThreadZone_Valid) ///< MPU zone value in attribute bit field format
 
@@ -237,8 +237,8 @@ extern "C"
 #define osMutexRobust      0x00000008U ///< Robust mutex.
 
 // Object attributes (attr_bits in all objects).
-#define osSafetyClass_Pos 16U ///< Safety class position
-#define osSafetyClass_Msk (0x0FUL << osSafetyClass_Pos) ///< Safety class mask
+#define osSafetyClass_Pos  16U ///< Safety class position
+#define osSafetyClass_Msk  (0x0FUL << osSafetyClass_Pos) ///< Safety class mask
 #define osSafetyClass_Valid \
     (0x10UL << osSafetyClass_Pos) ///< Safety class valid flag
 #define osSafetyClass(n) \
@@ -249,7 +249,7 @@ extern "C"
 #define osSafetyWithLowerClass 0x00000002U ///< Objects with lower safety class.
 
 // Error indication (returned by \ref osThreadGetClass and \ref osThreadGetZone).
-#define osErrorId 0xFFFFFFFFU ///< osError (-1).
+#define osErrorId              0xFFFFFFFFU ///< osError (-1).
 
     /// Status code values returned by CMSIS-RTOS functions.
     typedef enum
@@ -289,7 +289,7 @@ extern "C"
 
 
 #ifndef TZ_MODULEID_T
-#define TZ_MODULEID_T
+    #define TZ_MODULEID_T
     /// \details Data type that identifies secure software modules called by a process.
     typedef uint32_t TZ_ModuleId_t;
 #endif
@@ -368,74 +368,311 @@ extern "C"
     } osMessageQueueAttr_t;
 
 
-    //  ==== Kernel Management Functions ====
+    /* -------------------------------------------------------------------------- */
+    /* CMSIS-RTOS2 Kernel Management */
+    /* -------------------------------------------------------------------------- */
+    /**
+     * @brief Initialize the RTOS kernel.
+     *
+     * @details
+     * Checks whether the FreeRTOS scheduler is already running.
+     *
+     * In ESP-IDF, the FreeRTOS scheduler is initialized and started
+     * by the framework before the application entry point executes.
+     *
+     * Consequently, this function does not initialize or create
+     * any FreeRTOS kernel resources.
+     *
+     * @retval osOK
+     * FreeRTOS scheduler is already running.
+     *
+     * @retval osErrorISR
+     * Function was called from interrupt context.
+     *
+     * @retval osError
+     * FreeRTOS scheduler is not running.
+     *
+     * @note
+     * This function is idempotent while the scheduler is running.
+     *
+     * @warning
+     * ESP-IDF does not support application-managed FreeRTOS
+     * scheduler initialization through this CMSIS wrapper.
+     *
+     * @par MISRA C Considerations
+     * - Interrupt context is explicitly checked.
+     * - Scheduler state is compared against a defined constant.
+     * - All execution paths return a defined status.
+     * - No dynamic memory allocation is performed.
+     */
+    osStatus_t osKernelInitialize(void);
 
-    /// Initialize the RTOS Kernel.
-    /// \return status code that indicates the execution status of the function.
-    osStatus_t osKernelInitialize (void);
+    /**
+     * @brief Retrieve RTOS kernel identification and version information.
+     *
+     * @details
+     * Provides CMSIS-RTOS2 API and kernel version information
+     * through the optional version structure.
+     *
+     * If an identification buffer is supplied, the configured
+     * kernel identification string is copied into it.
+     *
+     * The identification string is truncated when necessary
+     * and explicitly NUL-terminated.
+     *
+     * @param[out] version
+     * Optional pointer to the kernel version structure.
+     *
+     * @param[out] id_buf
+     * Optional destination buffer for the kernel identification.
+     *
+     * @param[in] id_size
+     * Capacity of the identification buffer in bytes.
+     *
+     * @retval osOK
+     * Kernel information retrieval completed.
+     *
+     * @note
+     * Both output parameters are optional.
+     *
+     * @note
+     * The version encoding follows the CMSIS kernel
+     * version representation defined by KERNEL_VERSION.
+     *
+     * @par MISRA C Considerations
+     * - Optional output pointers are checked before use.
+     * - Buffer length is bounded before copying.
+     * - NUL termination is explicitly maintained.
+     * - memcpy() return value is intentionally discarded.
+     * - No dynamic memory allocation is performed.
+     */
+    osStatus_t osKernelGetInfo(osVersion_t* version, char* id_buf, uint32_t id_size);
 
-    ///  Get RTOS Kernel Information.
-    /// \param[out]    version       pointer to buffer for retrieving version information.
-    /// \param[out]    id_buf        pointer to buffer for retrieving kernel identification string.
-    /// \param[in]     id_size       size of buffer for kernel identification string.
-    /// \return status code that indicates the execution status of the function.
-    osStatus_t osKernelGetInfo (osVersion_t* version, char* id_buf, uint32_t id_size);
+    /**
+     *
+     * @details
+     * Queries the native FreeRTOS scheduler state and
+     * translates it into the corresponding CMSIS-RTOS2
+     * kernel state.
+     *
+     * A running FreeRTOS scheduler maps to osKernelRunning.
+     * All other scheduler states map to osKernelInactive.
+     *
+     * @retval osKernelRunning
+     * FreeRTOS scheduler is running.
+     *
+     * @retval osKernelInactive
+     * FreeRTOS scheduler is not running.
+     *
+     * @note
+     * This implementation intentionally does not distinguish
+     * every possible native FreeRTOS scheduler state.
+     *
+     * @par MISRA C Considerations
+     * - Native scheduler state is explicitly compared.
+     * - All execution paths return a defined enumeration value.
+     * - No shared application state is modified.
+     */
+    osKernelState_t osKernelGetState(void);
 
-    /// Get the current RTOS Kernel state.
-    /// \return current RTOS Kernel state.
-    osKernelState_t osKernelGetState (void);
+    /**
+     * @brief Start the RTOS kernel scheduler.
+     *
+     * @details
+     * Provides the CMSIS-RTOS2 scheduler start API.
+     *
+     * ESP-IDF automatically starts the FreeRTOS scheduler
+     * before application execution.
+     *
+     * Therefore, explicit scheduler startup through this
+     * compatibility layer is unsupported.
+     *
+     * @retval osErrorISR
+     * Function was called from interrupt context.
+     *
+     * @retval osError
+     * Explicit scheduler startup is unsupported.
+     *
+     * @warning
+     * Do not call vTaskStartScheduler() from app_main()
+     * when using the ESP-IDF FreeRTOS environment.
+     *
+     * @par MISRA C Considerations
+     * - Interrupt context is explicitly checked.
+     * - Unsupported functionality returns a defined error.
+     * - No scheduler state is modified.
+     */
+    osStatus_t osKernelStart(void);
 
-    /// Start the RTOS Kernel scheduler.
-    /// \return status code that indicates the execution status of the function.
-    osStatus_t osKernelStart (void);
+    /**
+     * @brief Lock the RTOS kernel scheduler.
+     *
+     * @details
+     * Provides the CMSIS-RTOS2 scheduler lock API.
+     *
+     * ESP-IDF FreeRTOS SMP does not provide a directly
+     * equivalent global scheduler lock operation.
+     *
+     * Native vTaskSuspendAll() affects scheduling on
+     * the calling core and does not provide a global
+     * CMSIS-compatible scheduler lock.
+     *
+     * @return
+     * osError converted to int32_t.
+     *
+     * @warning
+     * Scheduler locking is unsupported by this compatibility layer.
+     *
+     * @par MISRA C Considerations
+     * - Unsupported functionality returns a defined error.
+     * - Explicit conversion is used for the return value.
+     * - No native scheduler state is modified.
+     */
+    int32_t osKernelLock(void);
 
-    /// Lock the RTOS Kernel scheduler.
-    /// \return previous lock state (1 - locked, 0 - not locked, error code if negative).
-    int32_t osKernelLock (void);
+    /**
+     * @brief Unlock the RTOS kernel scheduler.
+     *
+     * @details
+     * Provides the CMSIS-RTOS2 scheduler unlock API.
+     *
+     * Global scheduler unlocking cannot be represented
+     * correctly using the ESP-IDF FreeRTOS SMP scheduler APIs.
+     *
+     * @return
+     * osError converted to int32_t.
+     *
+     * @warning
+     * Scheduler unlocking is unsupported by this compatibility layer.
+     *
+     * @par MISRA C Considerations
+     * - Unsupported functionality returns a defined error.
+     * - Explicit conversion is used for the return value.
+     * - No scheduler state is modified.
+     */
+    int32_t osKernelUnlock(void);
 
-    /// Unlock the RTOS Kernel scheduler.
-    /// \return previous lock state (1 - locked, 0 - not locked, error code if negative).
-    int32_t osKernelUnlock (void);
 
-    /// Restore the RTOS Kernel scheduler lock state.
-    /// \param[in]     lock          lock state obtained by \ref osKernelLock or \ref osKernelUnlock.
-    /// \return new lock state (1 - locked, 0 - not locked, error code if negative).
-    int32_t osKernelRestoreLock (int32_t lock);
+    /**
+     * @brief Unlock the RTOS kernel scheduler.
+     *
+     * @details
+     * Provides the CMSIS-RTOS2 scheduler unlock API.
+     *
+     * Global scheduler unlocking cannot be represented
+     * correctly using the ESP-IDF FreeRTOS SMP scheduler APIs.
+     *
+     * @return
+     * osError converted to int32_t.
+     *
+     * @warning
+     * Scheduler unlocking is unsupported by this compatibility layer.
+     *
+     * @par MISRA C Considerations
+     * - Unsupported functionality returns a defined error.
+     * - Explicit conversion is used for the return value.
+     * - No scheduler state is modified.
+     */
+    int32_t osKernelRestoreLock(int32_t lock);
 
-    /// Suspend the RTOS Kernel scheduler.
-    /// \return time in ticks, for how long the system can sleep or power-down.
-    uint32_t osKernelSuspend (void);
 
-    /// Resume the RTOS Kernel scheduler.
-    /// \param[in]     sleep_ticks   time in ticks for how long the system was in sleep or power-down mode.
-    void osKernelResume (uint32_t sleep_ticks);
+    /**
+     * @brief Restore a previous RTOS scheduler lock state.
+     *
+     * @details
+     * Provides the CMSIS-RTOS2 scheduler lock restoration API.
+     *
+     * Since global scheduler locking is unsupported in
+     * ESP-IDF FreeRTOS SMP, the requested lock state
+     * cannot be restored.
+     *
+     * @param[in] lock
+     * Requested scheduler lock state.
+     *
+     * @return
+     * osError converted to int32_t.
+     *
+     * @warning
+     * Scheduler lock restoration is unsupported.
+     *
+     * @par MISRA C Considerations
+     * - Unused parameter is explicitly discarded.
+     * - Unsupported functionality returns a defined error.
+     * - No scheduler state is modified.
+     */
+    uint32_t osKernelSuspend(void);
+
+    /**
+     * @brief Retrieve the current RTOS kernel tick count.
+     *
+     * @details
+     * Returns the native FreeRTOS tick count.
+     *
+     * The appropriate FreeRTOS API is selected based
+     * on the current execution context.
+     *
+     * - Task context: xTaskGetTickCount().
+     * - Interrupt context: xTaskGetTickCountFromISR().
+     *
+     * @return
+     * Current RTOS kernel tick count.
+     *
+     * @note
+     * The tick count wraps according to the native
+     * FreeRTOS TickType_t representation.
+     *
+     * @warning
+     * The ISR variant must only be called from interrupt
+     * priorities supported by the target FreeRTOS port.
+     *
+     * @par MISRA C Considerations
+     * - Execution context is checked before selecting the API.
+     * - Native tick count is explicitly converted to uint32_t.
+     * - No application state is modified.
+     */
+    void osKernelResume(uint32_t sleep_ticks);
 
     /// Protect the RTOS Kernel scheduler access.
     /// \param[in]     safety_class  safety class.
     /// \return status code that indicates the execution status of the function.
-    osStatus_t osKernelProtect (uint32_t safety_class);
+    osStatus_t osKernelProtect(uint32_t safety_class);
 
     /// Destroy objects for specified safety classes.
     /// \param[in]     safety_class  safety class.
     /// \param[in]     mode          safety mode.
     /// \return status code that indicates the execution status of the function.
-    osStatus_t osKernelDestroyClass (uint32_t safety_class, uint32_t mode);
+    osStatus_t osKernelDestroyClass(uint32_t safety_class, uint32_t mode);
 
     /// Get the RTOS kernel tick count.
     /// \return RTOS kernel current tick count.
-    uint32_t osKernelGetTickCount (void);
+    uint32_t osKernelGetTickCount(void);
 
-    /// Get the RTOS kernel tick frequency.
-    /// \return frequency of the kernel tick in hertz, i.e. kernel ticks per second.
-    uint32_t osKernelGetTickFreq (void);
+    /**
+     * @brief Retrieve the RTOS kernel tick frequency.
+     *
+     * @details
+     * Returns the configured FreeRTOS scheduler tick
+     * frequency in hertz.
+     *
+     * The frequency is determined by configTICK_RATE_HZ.
+     *
+     * @return
+     * RTOS kernel tick frequency in hertz.
+     *
+     * @par MISRA C Considerations
+     * - Uses the configured FreeRTOS tick frequency.
+     * - Explicit conversion is used for the return type.
+     * - No shared state is accessed or modified.
+     */
+    uint32_t osKernelGetTickFreq(void);
 
     /// Get the RTOS kernel system timer count.
     /// \return RTOS kernel current system timer count as 32-bit value.
-    uint32_t osKernelGetSysTimerCount (void);
+    uint32_t osKernelGetSysTimerCount(void);
 
     /// Get the RTOS kernel system timer frequency.
     /// \return frequency of the system timer in hertz, i.e. timer ticks per second.
-    uint32_t osKernelGetSysTimerFreq (void);
+    uint32_t osKernelGetSysTimerFreq(void);
 
 
     //  ==== Thread Management Functions ====
@@ -445,131 +682,131 @@ extern "C"
     /// \param[in]     argument      pointer that is passed to the thread function as start argument.
     /// \param[in]     attr          thread attributes; NULL: default values.
     /// \return thread ID for reference by other functions or NULL in case of error.
-    osThreadId_t osThreadNew (osThreadFunc_t func, void* argument, const osThreadAttr_t* attr);
+    osThreadId_t osThreadNew(osThreadFunc_t func, void* argument, const osThreadAttr_t* attr);
 
     /// Get name of a thread.
     /// \param[in]     thread_id     thread ID obtained by \ref osThreadNew or \ref osThreadGetId.
     /// \return name as null-terminated string.
-    const char* osThreadGetName (osThreadId_t thread_id);
+    const char* osThreadGetName(osThreadId_t thread_id);
 
     /// Get safety class of a thread.
     /// \param[in]     thread_id     thread ID obtained by \ref osThreadNew or \ref osThreadGetId.
     /// \return safety class of the specified thread.
-    uint32_t osThreadGetClass (osThreadId_t thread_id);
+    uint32_t osThreadGetClass(osThreadId_t thread_id);
 
     /// Get MPU protected zone of a thread.
     /// \param[in]     thread_id     thread ID obtained by \ref osThreadNew or \ref osThreadGetId.
     /// \return MPU protected zone of the specified thread.
-    uint32_t osThreadGetZone (osThreadId_t thread_id);
+    uint32_t osThreadGetZone(osThreadId_t thread_id);
 
     /// Return the thread ID of the current running thread.
     /// \return thread ID for reference by other functions or NULL in case of error.
-    osThreadId_t osThreadGetId (void);
+    osThreadId_t osThreadGetId(void);
 
     /// Get current thread state of a thread.
     /// \param[in]     thread_id     thread ID obtained by \ref osThreadNew or \ref osThreadGetId.
     /// \return current thread state of the specified thread.
-    osThreadState_t osThreadGetState (osThreadId_t thread_id);
+    osThreadState_t osThreadGetState(osThreadId_t thread_id);
 
     /// Get stack size of a thread.
     /// \param[in]     thread_id     thread ID obtained by \ref osThreadNew or \ref osThreadGetId.
     /// \return stack size in bytes.
-    uint32_t osThreadGetStackSize (osThreadId_t thread_id);
+    uint32_t osThreadGetStackSize(osThreadId_t thread_id);
 
     /// Get available stack space of a thread based on stack watermark recording during execution.
     /// \param[in]     thread_id     thread ID obtained by \ref osThreadNew or \ref osThreadGetId.
     /// \return remaining stack space in bytes.
-    uint32_t osThreadGetStackSpace (osThreadId_t thread_id);
+    uint32_t osThreadGetStackSpace(osThreadId_t thread_id);
 
     /// Change priority of a thread.
     /// \param[in]     thread_id     thread ID obtained by \ref osThreadNew or \ref osThreadGetId.
     /// \param[in]     priority      new priority value for the thread function.
     /// \return status code that indicates the execution status of the function.
-    osStatus_t osThreadSetPriority (osThreadId_t thread_id, osPriority_t priority);
+    osStatus_t osThreadSetPriority(osThreadId_t thread_id, osPriority_t priority);
 
     /// Get current priority of a thread.
     /// \param[in]     thread_id     thread ID obtained by \ref osThreadNew or \ref osThreadGetId.
     /// \return current priority value of the specified thread.
-    osPriority_t osThreadGetPriority (osThreadId_t thread_id);
+    osPriority_t osThreadGetPriority(osThreadId_t thread_id);
 
     /// Pass control to next thread that is in state \b READY.
     /// \return status code that indicates the execution status of the function.
-    osStatus_t osThreadYield (void);
+    osStatus_t osThreadYield(void);
 
     /// Suspend execution of a thread.
     /// \param[in]     thread_id     thread ID obtained by \ref osThreadNew or \ref osThreadGetId.
     /// \return status code that indicates the execution status of the function.
-    osStatus_t osThreadSuspend (osThreadId_t thread_id);
+    osStatus_t osThreadSuspend(osThreadId_t thread_id);
 
     /// Resume execution of a thread.
     /// \param[in]     thread_id     thread ID obtained by \ref osThreadNew or \ref osThreadGetId.
     /// \return status code that indicates the execution status of the function.
-    osStatus_t osThreadResume (osThreadId_t thread_id);
+    osStatus_t osThreadResume(osThreadId_t thread_id);
 
     /// Detach a thread (thread storage can be reclaimed when thread terminates).
     /// \param[in]     thread_id     thread ID obtained by \ref osThreadNew or \ref osThreadGetId.
     /// \return status code that indicates the execution status of the function.
-    osStatus_t osThreadDetach (osThreadId_t thread_id);
+    osStatus_t osThreadDetach(osThreadId_t thread_id);
 
     /// Wait for specified thread to terminate.
     /// \param[in]     thread_id     thread ID obtained by \ref osThreadNew or \ref osThreadGetId.
     /// \return status code that indicates the execution status of the function.
-    osStatus_t osThreadJoin (osThreadId_t thread_id);
+    osStatus_t osThreadJoin(osThreadId_t thread_id);
 
     /// Terminate execution of current running thread.
-    __NO_RETURN void osThreadExit (void);
+    __NO_RETURN void osThreadExit(void);
 
     /// Terminate execution of a thread.
     /// \param[in]     thread_id     thread ID obtained by \ref osThreadNew or \ref osThreadGetId.
     /// \return status code that indicates the execution status of the function.
-    osStatus_t osThreadTerminate (osThreadId_t thread_id);
+    osStatus_t osThreadTerminate(osThreadId_t thread_id);
 
     /// Feed watchdog of the current running thread.
     /// \param[in]     ticks         interval in kernel ticks until the thread watchdog expires, or 0 to stop the watchdog
     /// \return status code that indicates the execution status of the function.
-    osStatus_t osThreadFeedWatchdog (uint32_t ticks);
+    osStatus_t osThreadFeedWatchdog(uint32_t ticks);
 
     /// Protect creation of privileged threads.
     /// \return status code that indicates the execution status of the function.
-    osStatus_t osThreadProtectPrivileged (void);
+    osStatus_t osThreadProtectPrivileged(void);
 
     /// Suspend execution of threads for specified safety classes.
     /// \param[in]     safety_class  safety class.
     /// \param[in]     mode          safety mode.
     /// \return status code that indicates the execution status of the function.
-    osStatus_t osThreadSuspendClass (uint32_t safety_class, uint32_t mode);
+    osStatus_t osThreadSuspendClass(uint32_t safety_class, uint32_t mode);
 
     /// Resume execution of threads for specified safety classes.
     /// \param[in]     safety_class  safety class.
     /// \param[in]     mode          safety mode.
     /// \return status code that indicates the execution status of the function.
-    osStatus_t osThreadResumeClass (uint32_t safety_class, uint32_t mode);
+    osStatus_t osThreadResumeClass(uint32_t safety_class, uint32_t mode);
 
     /// Terminate execution of threads assigned to a specified MPU protected zone.
     /// \param[in]     zone          MPU protected zone.
     /// \return status code that indicates the execution status of the function.
-    osStatus_t osThreadTerminateZone (uint32_t zone);
+    osStatus_t osThreadTerminateZone(uint32_t zone);
 
     /// Set processor affinity mask of a thread.
     /// \param[in]     thread_id     thread ID obtained by \ref osThreadNew or \ref osThreadGetId.
     /// \param[in]     affinity_mask processor affinity mask for the thread.
     /// \return status code that indicates the execution status of the function.
-    osStatus_t osThreadSetAffinityMask (osThreadId_t thread_id, uint32_t affinity_mask);
+    osStatus_t osThreadSetAffinityMask(osThreadId_t thread_id, uint32_t affinity_mask);
 
     /// Get current processor affinity mask of a thread.
     /// \param[in]     thread_id     thread ID obtained by \ref osThreadNew or \ref osThreadGetId.
     /// \return current processor affinity mask of the specified thread.
-    uint32_t osThreadGetAffinityMask (osThreadId_t thread_id);
+    uint32_t osThreadGetAffinityMask(osThreadId_t thread_id);
 
     /// Get number of active threads.
     /// \return number of active threads.
-    uint32_t osThreadGetCount (void);
+    uint32_t osThreadGetCount(void);
 
     /// Enumerate active threads.
     /// \param[out]    thread_array  pointer to array for retrieving thread IDs.
     /// \param[in]     array_items   maximum number of items in array for retrieving thread IDs.
     /// \return number of enumerated threads.
-    uint32_t osThreadEnumerate (osThreadId_t* thread_array, uint32_t array_items);
+    uint32_t osThreadEnumerate(osThreadId_t* thread_array, uint32_t array_items);
 
 
     //  ==== Thread Flags Functions ====
@@ -578,23 +815,23 @@ extern "C"
     /// \param[in]     thread_id     thread ID obtained by \ref osThreadNew or \ref osThreadGetId.
     /// \param[in]     flags         specifies the flags of the thread that shall be set.
     /// \return thread flags after setting or error code if highest bit set.
-    uint32_t osThreadFlagsSet (osThreadId_t thread_id, uint32_t flags);
+    uint32_t osThreadFlagsSet(osThreadId_t thread_id, uint32_t flags);
 
     /// Clear the specified Thread Flags of current running thread.
     /// \param[in]     flags         specifies the flags of the thread that shall be cleared.
     /// \return thread flags before clearing or error code if highest bit set.
-    uint32_t osThreadFlagsClear (uint32_t flags);
+    uint32_t osThreadFlagsClear(uint32_t flags);
 
     /// Get the current Thread Flags of current running thread.
     /// \return current thread flags.
-    uint32_t osThreadFlagsGet (void);
+    uint32_t osThreadFlagsGet(void);
 
     /// Wait for one or more Thread Flags of the current running thread to become signaled.
     /// \param[in]     flags         specifies the flags to wait for.
     /// \param[in]     options       specifies flags options (osFlagsXxxx).
     /// \param[in]     timeout       \ref CMSIS_RTOS_TimeOutValue or 0 in case of no time-out.
     /// \return thread flags before clearing or error code if highest bit set.
-    uint32_t osThreadFlagsWait (uint32_t flags, uint32_t options, uint32_t timeout);
+    uint32_t osThreadFlagsWait(uint32_t flags, uint32_t options, uint32_t timeout);
 
 
     //  ==== Generic Wait Functions ====
@@ -602,12 +839,12 @@ extern "C"
     /// Wait for Timeout (Time Delay).
     /// \param[in]     ticks         \ref CMSIS_RTOS_TimeOutValue "time ticks" value
     /// \return status code that indicates the execution status of the function.
-    osStatus_t osDelay (uint32_t ticks);
+    osStatus_t osDelay(uint32_t ticks);
 
     /// Wait until specified time.
     /// \param[in]     ticks         absolute time in ticks
     /// \return status code that indicates the execution status of the function.
-    osStatus_t osDelayUntil (uint32_t ticks);
+    osStatus_t osDelayUntil(uint32_t ticks);
 
 
     //  ==== Timer Management Functions ====
@@ -619,33 +856,33 @@ extern "C"
     /// \param[in]     attr          timer attributes; NULL: default values.
     /// \return timer ID for reference by other functions or NULL in case of error.
     osTimerId_t
-    osTimerNew (osTimerFunc_t func, osTimerType_t type, void* argument, const osTimerAttr_t* attr);
+    osTimerNew(osTimerFunc_t func, osTimerType_t type, void* argument, const osTimerAttr_t* attr);
 
     /// Get name of a timer.
     /// \param[in]     timer_id      timer ID obtained by \ref osTimerNew.
     /// \return name as null-terminated string.
-    const char* osTimerGetName (osTimerId_t timer_id);
+    const char* osTimerGetName(osTimerId_t timer_id);
 
     /// Start or restart a timer.
     /// \param[in]     timer_id      timer ID obtained by \ref osTimerNew.
     /// \param[in]     ticks         \ref CMSIS_RTOS_TimeOutValue "time ticks" value of the timer.
     /// \return status code that indicates the execution status of the function.
-    osStatus_t osTimerStart (osTimerId_t timer_id, uint32_t ticks);
+    osStatus_t osTimerStart(osTimerId_t timer_id, uint32_t ticks);
 
     /// Stop a timer.
     /// \param[in]     timer_id      timer ID obtained by \ref osTimerNew.
     /// \return status code that indicates the execution status of the function.
-    osStatus_t osTimerStop (osTimerId_t timer_id);
+    osStatus_t osTimerStop(osTimerId_t timer_id);
 
     /// Check if a timer is running.
     /// \param[in]     timer_id      timer ID obtained by \ref osTimerNew.
     /// \return 0 not running, 1 running.
-    uint32_t osTimerIsRunning (osTimerId_t timer_id);
+    uint32_t osTimerIsRunning(osTimerId_t timer_id);
 
     /// Delete a timer.
     /// \param[in]     timer_id      timer ID obtained by \ref osTimerNew.
     /// \return status code that indicates the execution status of the function.
-    osStatus_t osTimerDelete (osTimerId_t timer_id);
+    osStatus_t osTimerDelete(osTimerId_t timer_id);
 
 
     //  ==== Event Flags Management Functions ====
@@ -653,29 +890,29 @@ extern "C"
     /// Create and Initialize an Event Flags object.
     /// \param[in]     attr          event flags attributes; NULL: default values.
     /// \return event flags ID for reference by other functions or NULL in case of error.
-    osEventFlagsId_t osEventFlagsNew (const osEventFlagsAttr_t* attr);
+    osEventFlagsId_t osEventFlagsNew(const osEventFlagsAttr_t* attr);
 
     /// Get name of an Event Flags object.
     /// \param[in]     ef_id         event flags ID obtained by \ref osEventFlagsNew.
     /// \return name as null-terminated string.
-    const char* osEventFlagsGetName (osEventFlagsId_t ef_id);
+    const char* osEventFlagsGetName(osEventFlagsId_t ef_id);
 
     /// Set the specified Event Flags.
     /// \param[in]     ef_id         event flags ID obtained by \ref osEventFlagsNew.
     /// \param[in]     flags         specifies the flags that shall be set.
     /// \return event flags after setting or error code if highest bit set.
-    uint32_t osEventFlagsSet (osEventFlagsId_t ef_id, uint32_t flags);
+    uint32_t osEventFlagsSet(osEventFlagsId_t ef_id, uint32_t flags);
 
     /// Clear the specified Event Flags.
     /// \param[in]     ef_id         event flags ID obtained by \ref osEventFlagsNew.
     /// \param[in]     flags         specifies the flags that shall be cleared.
     /// \return event flags before clearing or error code if highest bit set.
-    uint32_t osEventFlagsClear (osEventFlagsId_t ef_id, uint32_t flags);
+    uint32_t osEventFlagsClear(osEventFlagsId_t ef_id, uint32_t flags);
 
     /// Get the current Event Flags.
     /// \param[in]     ef_id         event flags ID obtained by \ref osEventFlagsNew.
     /// \return current event flags.
-    uint32_t osEventFlagsGet (osEventFlagsId_t ef_id);
+    uint32_t osEventFlagsGet(osEventFlagsId_t ef_id);
 
     /// Wait for one or more Event Flags to become signaled.
     /// \param[in]     ef_id         event flags ID obtained by \ref osEventFlagsNew.
@@ -683,12 +920,12 @@ extern "C"
     /// \param[in]     options       specifies flags options (osFlagsXxxx).
     /// \param[in]     timeout       \ref CMSIS_RTOS_TimeOutValue or 0 in case of no time-out.
     /// \return event flags before clearing or error code if highest bit set.
-    uint32_t osEventFlagsWait (osEventFlagsId_t ef_id, uint32_t flags, uint32_t options, uint32_t timeout);
+    uint32_t osEventFlagsWait(osEventFlagsId_t ef_id, uint32_t flags, uint32_t options, uint32_t timeout);
 
     /// Delete an Event Flags object.
     /// \param[in]     ef_id         event flags ID obtained by \ref osEventFlagsNew.
     /// \return status code that indicates the execution status of the function.
-    osStatus_t osEventFlagsDelete (osEventFlagsId_t ef_id);
+    osStatus_t osEventFlagsDelete(osEventFlagsId_t ef_id);
 
 
     //  ==== Mutex Management Functions ====
@@ -696,33 +933,33 @@ extern "C"
     /// Create and Initialize a Mutex object.
     /// \param[in]     attr          mutex attributes; NULL: default values.
     /// \return mutex ID for reference by other functions or NULL in case of error.
-    osMutexId_t osMutexNew (const osMutexAttr_t* attr);
+    osMutexId_t osMutexNew(const osMutexAttr_t* attr);
 
     /// Get name of a Mutex object.
     /// \param[in]     mutex_id      mutex ID obtained by \ref osMutexNew.
     /// \return name as null-terminated string.
-    const char* osMutexGetName (osMutexId_t mutex_id);
+    const char* osMutexGetName(osMutexId_t mutex_id);
 
     /// Acquire a Mutex or timeout if it is locked.
     /// \param[in]     mutex_id      mutex ID obtained by \ref osMutexNew.
     /// \param[in]     timeout       \ref CMSIS_RTOS_TimeOutValue or 0 in case of no time-out.
     /// \return status code that indicates the execution status of the function.
-    osStatus_t osMutexAcquire (osMutexId_t mutex_id, uint32_t timeout);
+    osStatus_t osMutexAcquire(osMutexId_t mutex_id, uint32_t timeout);
 
     /// Release a Mutex that was acquired by \ref osMutexAcquire.
     /// \param[in]     mutex_id      mutex ID obtained by \ref osMutexNew.
     /// \return status code that indicates the execution status of the function.
-    osStatus_t osMutexRelease (osMutexId_t mutex_id);
+    osStatus_t osMutexRelease(osMutexId_t mutex_id);
 
     /// Get Thread which owns a Mutex object.
     /// \param[in]     mutex_id      mutex ID obtained by \ref osMutexNew.
     /// \return thread ID of owner thread or NULL when mutex was not acquired.
-    osThreadId_t osMutexGetOwner (osMutexId_t mutex_id);
+    osThreadId_t osMutexGetOwner(osMutexId_t mutex_id);
 
     /// Delete a Mutex object.
     /// \param[in]     mutex_id      mutex ID obtained by \ref osMutexNew.
     /// \return status code that indicates the execution status of the function.
-    osStatus_t osMutexDelete (osMutexId_t mutex_id);
+    osStatus_t osMutexDelete(osMutexId_t mutex_id);
 
 
     //  ==== Semaphore Management Functions ====
@@ -732,35 +969,35 @@ extern "C"
     /// \param[in]     initial_count initial number of available tokens.
     /// \param[in]     attr          semaphore attributes; NULL: default values.
     /// \return semaphore ID for reference by other functions or NULL in case of error.
-    osSemaphoreId_t osSemaphoreNew (uint32_t max_count,
-    uint32_t initial_count,
-    const osSemaphoreAttr_t* attr);
+    osSemaphoreId_t osSemaphoreNew(uint32_t max_count,
+                                   uint32_t initial_count,
+                                   const osSemaphoreAttr_t* attr);
 
     /// Get name of a Semaphore object.
     /// \param[in]     semaphore_id  semaphore ID obtained by \ref osSemaphoreNew.
     /// \return name as null-terminated string.
-    const char* osSemaphoreGetName (osSemaphoreId_t semaphore_id);
+    const char* osSemaphoreGetName(osSemaphoreId_t semaphore_id);
 
     /// Acquire a Semaphore token or timeout if no tokens are available.
     /// \param[in]     semaphore_id  semaphore ID obtained by \ref osSemaphoreNew.
     /// \param[in]     timeout       \ref CMSIS_RTOS_TimeOutValue or 0 in case of no time-out.
     /// \return status code that indicates the execution status of the function.
-    osStatus_t osSemaphoreAcquire (osSemaphoreId_t semaphore_id, uint32_t timeout);
+    osStatus_t osSemaphoreAcquire(osSemaphoreId_t semaphore_id, uint32_t timeout);
 
     /// Release a Semaphore token up to the initial maximum count.
     /// \param[in]     semaphore_id  semaphore ID obtained by \ref osSemaphoreNew.
     /// \return status code that indicates the execution status of the function.
-    osStatus_t osSemaphoreRelease (osSemaphoreId_t semaphore_id);
+    osStatus_t osSemaphoreRelease(osSemaphoreId_t semaphore_id);
 
     /// Get current Semaphore token count.
     /// \param[in]     semaphore_id  semaphore ID obtained by \ref osSemaphoreNew.
     /// \return number of tokens available.
-    uint32_t osSemaphoreGetCount (osSemaphoreId_t semaphore_id);
+    uint32_t osSemaphoreGetCount(osSemaphoreId_t semaphore_id);
 
     /// Delete a Semaphore object.
     /// \param[in]     semaphore_id  semaphore ID obtained by \ref osSemaphoreNew.
     /// \return status code that indicates the execution status of the function.
-    osStatus_t osSemaphoreDelete (osSemaphoreId_t semaphore_id);
+    osStatus_t osSemaphoreDelete(osSemaphoreId_t semaphore_id);
 
 
     //  ==== Memory Pool Management Functions ====
@@ -770,51 +1007,51 @@ extern "C"
     /// \param[in]     block_size    memory block size in bytes.
     /// \param[in]     attr          memory pool attributes; NULL: default values.
     /// \return memory pool ID for reference by other functions or NULL in case of error.
-    osMemoryPoolId_t osMemoryPoolNew (uint32_t block_count,
-    uint32_t block_size,
-    const osMemoryPoolAttr_t* attr);
+    osMemoryPoolId_t osMemoryPoolNew(uint32_t block_count,
+                                     uint32_t block_size,
+                                     const osMemoryPoolAttr_t* attr);
 
     /// Get name of a Memory Pool object.
     /// \param[in]     mp_id         memory pool ID obtained by \ref osMemoryPoolNew.
     /// \return name as null-terminated string.
-    const char* osMemoryPoolGetName (osMemoryPoolId_t mp_id);
+    const char* osMemoryPoolGetName(osMemoryPoolId_t mp_id);
 
     /// Allocate a memory block from a Memory Pool.
     /// \param[in]     mp_id         memory pool ID obtained by \ref osMemoryPoolNew.
     /// \param[in]     timeout       \ref CMSIS_RTOS_TimeOutValue or 0 in case of no time-out.
     /// \return address of the allocated memory block or NULL in case of no memory is available.
-    void* osMemoryPoolAlloc (osMemoryPoolId_t mp_id, uint32_t timeout);
+    void* osMemoryPoolAlloc(osMemoryPoolId_t mp_id, uint32_t timeout);
 
     /// Return an allocated memory block back to a Memory Pool.
     /// \param[in]     mp_id         memory pool ID obtained by \ref osMemoryPoolNew.
     /// \param[in]     block         address of the allocated memory block to be returned to the memory pool.
     /// \return status code that indicates the execution status of the function.
-    osStatus_t osMemoryPoolFree (osMemoryPoolId_t mp_id, void* block);
+    osStatus_t osMemoryPoolFree(osMemoryPoolId_t mp_id, void* block);
 
     /// Get maximum number of memory blocks in a Memory Pool.
     /// \param[in]     mp_id         memory pool ID obtained by \ref osMemoryPoolNew.
     /// \return maximum number of memory blocks.
-    uint32_t osMemoryPoolGetCapacity (osMemoryPoolId_t mp_id);
+    uint32_t osMemoryPoolGetCapacity(osMemoryPoolId_t mp_id);
 
     /// Get memory block size in a Memory Pool.
     /// \param[in]     mp_id         memory pool ID obtained by \ref osMemoryPoolNew.
     /// \return memory block size in bytes.
-    uint32_t osMemoryPoolGetBlockSize (osMemoryPoolId_t mp_id);
+    uint32_t osMemoryPoolGetBlockSize(osMemoryPoolId_t mp_id);
 
     /// Get number of memory blocks used in a Memory Pool.
     /// \param[in]     mp_id         memory pool ID obtained by \ref osMemoryPoolNew.
     /// \return number of memory blocks used.
-    uint32_t osMemoryPoolGetCount (osMemoryPoolId_t mp_id);
+    uint32_t osMemoryPoolGetCount(osMemoryPoolId_t mp_id);
 
     /// Get number of memory blocks available in a Memory Pool.
     /// \param[in]     mp_id         memory pool ID obtained by \ref osMemoryPoolNew.
     /// \return number of memory blocks available.
-    uint32_t osMemoryPoolGetSpace (osMemoryPoolId_t mp_id);
+    uint32_t osMemoryPoolGetSpace(osMemoryPoolId_t mp_id);
 
     /// Delete a Memory Pool object.
     /// \param[in]     mp_id         memory pool ID obtained by \ref osMemoryPoolNew.
     /// \return status code that indicates the execution status of the function.
-    osStatus_t osMemoryPoolDelete (osMemoryPoolId_t mp_id);
+    osStatus_t osMemoryPoolDelete(osMemoryPoolId_t mp_id);
 
 
     //  ==== Message Queue Management Functions ====
@@ -824,14 +1061,14 @@ extern "C"
     /// \param[in]     msg_size      maximum message size in bytes.
     /// \param[in]     attr          message queue attributes; NULL: default values.
     /// \return message queue ID for reference by other functions or NULL in case of error.
-    osMessageQueueId_t osMessageQueueNew (uint32_t msg_count,
-    uint32_t msg_size,
-    const osMessageQueueAttr_t* attr);
+    osMessageQueueId_t osMessageQueueNew(uint32_t msg_count,
+                                         uint32_t msg_size,
+                                         const osMessageQueueAttr_t* attr);
 
     /// Get name of a Message Queue object.
     /// \param[in]     mq_id         message queue ID obtained by \ref osMessageQueueNew.
     /// \return name as null-terminated string.
-    const char* osMessageQueueGetName (osMessageQueueId_t mq_id);
+    const char* osMessageQueueGetName(osMessageQueueId_t mq_id);
 
     /// Put a Message into a Queue or timeout if Queue is full.
     /// \param[in]     mq_id         message queue ID obtained by \ref osMessageQueueNew.
@@ -839,10 +1076,10 @@ extern "C"
     /// \param[in]     msg_prio      message priority.
     /// \param[in]     timeout       \ref CMSIS_RTOS_TimeOutValue or 0 in case of no time-out.
     /// \return status code that indicates the execution status of the function.
-    osStatus_t osMessageQueuePut (osMessageQueueId_t mq_id,
-    const void* msg_ptr,
-    uint8_t msg_prio,
-    uint32_t timeout);
+    osStatus_t osMessageQueuePut(osMessageQueueId_t mq_id,
+                                 const void* msg_ptr,
+                                 uint8_t msg_prio,
+                                 uint32_t timeout);
 
     /// Get a Message from a Queue or timeout if Queue is empty.
     /// \param[in]     mq_id         message queue ID obtained by \ref osMessageQueueNew.
@@ -851,37 +1088,37 @@ extern "C"
     /// \param[in]     timeout       \ref CMSIS_RTOS_TimeOutValue or 0 in case of no time-out.
     /// \return status code that indicates the execution status of the function.
     osStatus_t
-    osMessageQueueGet (osMessageQueueId_t mq_id, void* msg_ptr, uint8_t* msg_prio, uint32_t timeout);
+    osMessageQueueGet(osMessageQueueId_t mq_id, void* msg_ptr, uint8_t* msg_prio, uint32_t timeout);
 
     /// Get maximum number of messages in a Message Queue.
     /// \param[in]     mq_id         message queue ID obtained by \ref osMessageQueueNew.
     /// \return maximum number of messages.
-    uint32_t osMessageQueueGetCapacity (osMessageQueueId_t mq_id);
+    uint32_t osMessageQueueGetCapacity(osMessageQueueId_t mq_id);
 
     /// Get maximum message size in a Message Queue.
     /// \param[in]     mq_id         message queue ID obtained by \ref osMessageQueueNew.
     /// \return maximum message size in bytes.
-    uint32_t osMessageQueueGetMsgSize (osMessageQueueId_t mq_id);
+    uint32_t osMessageQueueGetMsgSize(osMessageQueueId_t mq_id);
 
     /// Get number of queued messages in a Message Queue.
     /// \param[in]     mq_id         message queue ID obtained by \ref osMessageQueueNew.
     /// \return number of queued messages.
-    uint32_t osMessageQueueGetCount (osMessageQueueId_t mq_id);
+    uint32_t osMessageQueueGetCount(osMessageQueueId_t mq_id);
 
     /// Get number of available slots for messages in a Message Queue.
     /// \param[in]     mq_id         message queue ID obtained by \ref osMessageQueueNew.
     /// \return number of available slots for messages.
-    uint32_t osMessageQueueGetSpace (osMessageQueueId_t mq_id);
+    uint32_t osMessageQueueGetSpace(osMessageQueueId_t mq_id);
 
     /// Reset a Message Queue to initial empty state.
     /// \param[in]     mq_id         message queue ID obtained by \ref osMessageQueueNew.
     /// \return status code that indicates the execution status of the function.
-    osStatus_t osMessageQueueReset (osMessageQueueId_t mq_id);
+    osStatus_t osMessageQueueReset(osMessageQueueId_t mq_id);
 
     /// Delete a Message Queue object.
     /// \param[in]     mq_id         message queue ID obtained by \ref osMessageQueueNew.
     /// \return status code that indicates the execution status of the function.
-    osStatus_t osMessageQueueDelete (osMessageQueueId_t mq_id);
+    osStatus_t osMessageQueueDelete(osMessageQueueId_t mq_id);
 
 
     //  ==== Handler Functions ====
@@ -889,20 +1126,20 @@ extern "C"
     /// Handler for expired thread watchdogs.
     /// \param[in]     thread_id thread ID obtained by \ref osThreadNew or \ref osThreadGetId.
     /// \return new watchdog reload value or 0 to stop the watchdog.
-    uint32_t osWatchdogAlarm_Handler (osThreadId_t thread_id);
+    uint32_t osWatchdogAlarm_Handler(osThreadId_t thread_id);
 
 
     // ==== Zone Management Function ====
 
     /// Setup MPU protected zone (called when zone changes).
     /// \param[in]     zone          zone number.
-    void osZoneSetup_Callback (uint32_t zone);
+    void osZoneSetup_Callback(uint32_t zone);
 
 
     //  ==== Exception Faults ====
 
     /// Resume normal operation when exiting exception faults
-    void osFaultResume (void);
+    void osFaultResume(void);
 
 
 #ifdef __cplusplus

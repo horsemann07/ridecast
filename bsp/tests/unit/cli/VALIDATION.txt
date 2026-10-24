@@ -1,0 +1,25 @@
+Ridecast CLI CppUTest suite — validation record
+==============================================
+Source under test: User-uploaded cli.c (unmodified).
+Unit test cases: 104.
+
+Validated using a temporary API-compatible local TEST_GROUP/TEST harness
+because the official CppUTest development library is not installed in this
+execution environment. The local harness is NOT part of the deliverable.
+
+Results:
+  - GCC C11 strict warnings: PASS.
+  - G++ C++11 strict warnings for 104 test bodies: PASS.
+  - 104 tests executed with local harness: 104 PASS, 0 FAIL.
+  - AddressSanitizer / UndefinedBehaviorSanitizer: PASS.
+  - GNU gcov instrumentation for src/cli.c:
+      Lines executed: 100.00% of 228.
+      Branches evaluated: 100.00% of 226.
+      Branches taken at least once: 95.13% of 226.
+      Calls executed: 100.00% of 41.
+  - CMake/CTest checked with local shim library: PASS.
+
+Requires separate validation:
+  - Compile and run against official CppUTest.
+  - MISRA static analysis for chosen MISRA edition/project deviations.
+  - Target-board peripheral, RTOS, ISR, concurrency and integration tests.

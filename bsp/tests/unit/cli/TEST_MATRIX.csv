@@ -1,0 +1,105 @@
+Test ID,API group,CppUTest case,Objective,File
+CLI-PARAM-001,CliParameters,ExtractsFirstParameter,Parameters use one-based indexing.,test_cli_accessors.cpp
+CLI-PARAM-002,CliParameters,ExtractsSecondParameter,Accessing second and subsequent parameters works.,test_cli_accessors.cpp
+CLI-PARAM-003,CliParameters,IgnoresWhitespaceBetweenTokens,Leading/trailing spaces and tabs are skipped.,test_cli_accessors.cpp
+CLI-PARAM-004,CliParameters,RejectsNullCommandLine,A NULL command pointer yields NULL and zero length.,test_cli_accessors.cpp
+CLI-PARAM-005,CliParameters,RejectsNullLengthPointer,A NULL length pointer returns NULL.,test_cli_accessors.cpp
+CLI-PARAM-006,CliParameters,RejectsParameterIndexZero,Index zero is invalid.,test_cli_accessors.cpp
+CLI-PARAM-007,CliParameters,RejectsParameterBeyondAvailableCount,Missing parameter returns NULL and zero length.,test_cli_accessors.cpp
+CLI-PARAM-008,CliParameters,RejectsCommandWithNoArguments,A parameter cannot be read from a command-only line.,test_cli_accessors.cpp
+CLI-PARAM-009,CliParameters,RejectsEmptyOrWhitespaceOnlyInput,Empty and whitespace-only lines return NULL.,test_cli_accessors.cpp
+CLI-PARAM-010,CliParameters,PreservesInputString,Original command string is not altered.,test_cli_accessors.cpp
+CLI-PARAM-011,CliParameters,ReturnsPointerIntoOriginalCommandLine,"Returned value is a substring, not NUL-terminated.",test_cli_accessors.cpp
+CLI-BUFFER-001,CliOutputAccessors,PointerIsNullBeforeInit,Buffer pointer is NULL before initialization.,test_cli_accessors.cpp
+CLI-BUFFER-002,CliOutputAccessors,SizeIsZeroBeforeInit,Buffer capacity is zero before initialization.,test_cli_accessors.cpp
+CLI-BUFFER-003,CliOutputAccessors,PointerEqualsConfiguredBuffer,API exposes the exact application-owned buffer.,test_cli_accessors.cpp
+CLI-BUFFER-004,CliOutputAccessors,SizeEqualsConfiguredCapacity,Reported capacity includes NUL terminator.,test_cli_accessors.cpp
+CLI-BUFFER-005,CliOutputAccessors,AccessorsResetAfterDeinit,Getter results reset after deinitialization.,test_cli_accessors.cpp
+CLI-PARAM-012,CliParameters,RejectsHighIndexWhenNoParametersExist,No available parameters when skipping multiple indexes.,test_cli_accessors.cpp
+CLI-REG-001,CliRegistration,RejectsRegistrationBeforeInit,Commands cannot be registered before initialization.,test_cli_commands.cpp
+CLI-REG-002,CliRegistration,RejectsNullCommand,NULL descriptor shall be rejected.,test_cli_commands.cpp
+CLI-REG-003,CliRegistration,RejectsMissingCommandName,Empty or NULL command name shall be rejected.,test_cli_commands.cpp
+CLI-REG-004,CliRegistration,RejectsNullHelpOrCallback,Command description and callback are required.,test_cli_commands.cpp
+CLI-REG-005,CliRegistration,RejectsInvalidCommandNameCharacters,Command names cannot contain whitespace or control characters.,test_cli_commands.cpp
+CLI-REG-006,CliRegistration,RejectsReservedHelpCommand,The built-in help name is reserved.,test_cli_commands.cpp
+CLI-REG-007,CliRegistration,RejectsDuplicateName,Duplicate names are rejected independent of pointer identity.,test_cli_commands.cpp
+CLI-REG-008,CliRegistration,ValidatesExpectedParameterCount,-1 is accepted for variable parameters; -2 is invalid.,test_cli_commands.cpp
+CLI-REG-009,CliRegistration,RegistryCapacityIsBounded,The fixed table rejects entries past its capacity.,test_cli_commands.cpp
+CLI-REG-010,CliRegistration,CommandNamesAreCaseSensitive,Different case constitutes a different command name.,test_cli_commands.cpp
+CLI-EXEC-001,CliExecution,RejectsExecutionBeforeInitialization,Command execution requires initialization.,test_cli_commands.cpp
+CLI-EXEC-002,CliExecution,RejectsNullCommandLine,NULL input is invalid.,test_cli_commands.cpp
+CLI-EXEC-003,CliExecution,IgnoresBlankAndWhitespaceOnlyLines,Blank input does not produce transport traffic.,test_cli_commands.cpp
+CLI-EXEC-004,CliExecution,ExecutesCommandAndWritesOutput,Executing a registered command calls its callback.,test_cli_commands.cpp
+CLI-EXEC-005,CliExecution,SkipsLeadingWhitespace,Leading whitespace is accepted and command line forwarded.,test_cli_commands.cpp
+CLI-EXEC-006,CliExecution,PrefixIsNotAcceptedAsCommand,Command matching shall use complete tokens.,test_cli_commands.cpp
+CLI-EXEC-007,CliExecution,UnknownCommandReportsFriendlyError,Unknown commands report a message without processing error.,test_cli_commands.cpp
+CLI-EXEC-008,CliExecution,RejectsWrongParameterCount,Fixed parameter count prevents callback invocation.,test_cli_commands.cpp
+CLI-EXEC-009,CliExecution,AcceptsCorrectParameterCount,Exact parameter counts handle multiple separators.,test_cli_commands.cpp
+CLI-EXEC-010,CliExecution,AllowsVariableParameterCount,Variable argument count bypasses validation.,test_cli_commands.cpp
+CLI-EXEC-011,CliExecution,HelpIncludesBuiltInAndRegisteredCommands,Built-in help enumerates registered commands.,test_cli_commands.cpp
+CLI-EXEC-012,CliExecution,HelpRejectsArguments,Help refuses extra parameters.,test_cli_commands.cpp
+CLI-EXEC-013,CliExecution,HelpAddsNewlineWhenMissing,Help emits a newline for a help string lacking one.,test_cli_commands.cpp
+CLI-EXEC-014,CliExecution,HelpHandlesEmptyHelpDescription,Empty help strings are handled without underflow.,test_cli_commands.cpp
+CLI-EXEC-015,CliExecution,SupportsMultiChunkOutput,A command can produce multiple output chunks.,test_cli_commands.cpp
+CLI-EXEC-016,CliExecution,RejectsNoProgressWhenMoreOutputRequested,Repeated callback requests with empty output are rejected.,test_cli_commands.cpp
+CLI-EXEC-017,CliExecution,LimitsMaximumOutputChunks,Infinite more-output callbacks are bounded.,test_cli_commands.cpp
+CLI-EXEC-018,CliExecution,PermitsSuccessfulEmptyOutput,A callback can finish without writing data.,test_cli_commands.cpp
+CLI-EXEC-019,CliExecution,SafelyTerminatesCallbackOutput,The final output byte is forced to NUL.,test_cli_commands.cpp
+CLI-EXEC-020,CliExecution,PropagatesWriteFailure,Command write failures are propagated.,test_cli_commands.cpp
+CLI-EXEC-021,CliExecution,PropagatesHelpWriteFailure,Help transport failures propagate immediately.,test_cli_commands.cpp
+CLI-EXEC-022,CliExecution,ForwardsCommandContext,Each registration stores a callback-specific context.,test_cli_commands.cpp
+CLI-EXEC-023,CliExecution,PropagatesHelpIntroductionFailure,Failure writing the help introduction is returned.,test_cli_commands.cpp
+CLI-EXEC-024,CliExecution,PropagatesHelpNewlineFailure,Failure writing an appended newline is returned.,test_cli_commands.cpp
+CLI-INIT-001,CliInitialization,RejectsNullConfiguration,Reject a NULL configuration without dereference.,test_cli_init.cpp
+CLI-INIT-002,CliInitialization,InitializesResourcesAndWritesPrompt,Prompt is emitted once on successful initialization.,test_cli_init.cpp
+CLI-INIT-003,CliInitialization,RejectsDuplicateInitialization,Already initialized state is reported.,test_cli_init.cpp
+CLI-INIT-004,CliInitialization,RejectsMissingWriteCallback,A transport write callback is mandatory.,test_cli_init.cpp
+CLI-INIT-005,CliInitialization,RejectsMissingCommandBuffer,A command buffer pointer is mandatory.,test_cli_init.cpp
+CLI-INIT-006,CliInitialization,RejectsCommandBufferSizesZeroAndOne,Buffer capacity must reserve a NUL byte.,test_cli_init.cpp
+CLI-INIT-007,CliInitialization,RejectsMissingOutputBuffer,An output buffer pointer is mandatory.,test_cli_init.cpp
+CLI-INIT-008,CliInitialization,RejectsOutputBufferSizesZeroAndOne,Output capacity must reserve a NUL byte.,test_cli_init.cpp
+CLI-INIT-009,CliInitialization,RejectsReadCallbackWithoutReadBuffer,Polling requires a valid read buffer.,test_cli_init.cpp
+CLI-INIT-010,CliInitialization,RejectsZeroReadBufferCapacity,Zero read capacity is invalid when read callback exists.,test_cli_init.cpp
+CLI-INIT-011,CliInitialization,RejectsReadBufferCapacityAboveInt32Max,Read callback's int32 return limits its capacity.,test_cli_init.cpp
+CLI-INIT-012,CliInitialization,AllowsPushInputMode,Push-input mode requires no read callback/buffer.,test_cli_init.cpp
+CLI-INIT-013,CliInitialization,InitializesWithoutPrompt,Prompt is optional.,test_cli_init.cpp
+CLI-INIT-014,CliInitialization,RejectsSameCommandAndOutputBuffer,The same buffer cannot back input and output.,test_cli_init.cpp
+CLI-INIT-015,CliInitialization,RejectsReadBufferAliasingCommandBuffer,An RX buffer cannot alias command storage.,test_cli_init.cpp
+CLI-INIT-016,CliInitialization,RejectsReadBufferAliasingOutputBuffer,An RX buffer cannot alias output storage.,test_cli_init.cpp
+CLI-INIT-017,CliInitialization,PromptFailureAllowsRetry,Failed initial prompt write rolls back module state.,test_cli_init.cpp
+CLI-INIT-018,CliInitialization,InitializesCommandAndOutputStrings,Application-owned buffers are cleared on initialization.,test_cli_init.cpp
+CLI-DEINIT-001,CliDeinitialization,RejectsDeinitBeforeInitialization,Calling deinit without init is deterministic.,test_cli_init.cpp
+CLI-DEINIT-002,CliDeinitialization,ClearsStateAndAllowsReinitialization,Deinitialization clears the CLI state.,test_cli_init.cpp
+CLI-DEINIT-003,CliDeinitialization,RemovesRegisteredCommands,All registered command references are removed.,test_cli_init.cpp
+CLI-DEINIT-004,CliDeinitialization,DoesNotDestroyApplicationOwnedBuffers,Deinit does not free or overwrite owned buffers.,test_cli_init.cpp
+CLI-DEINIT-005,CliDeinitialization,DoubleDeinitReturnsNotInitialized,Repeated deinit cannot succeed twice.,test_cli_init.cpp
+CLI-INPUT-001,CliInput,RejectsInputBeforeInitialization,Processing data before initialization fails.,test_cli_input.cpp
+CLI-INPUT-002,CliInput,RejectsNullInputWhenLengthIsNonzero,NULL pointer with nonzero length is invalid.,test_cli_input.cpp
+CLI-INPUT-003,CliInput,AcceptsNullInputWhenLengthIsZero,A NULL pointer with zero length is a no-op.,test_cli_input.cpp
+CLI-INPUT-004,CliInput,AccumulatesPartialInput,Command is accumulated across separate RX calls.,test_cli_input.cpp
+CLI-INPUT-005,CliInput,ExecutesOnCarriageReturn,A carriage return dispatches one command.,test_cli_input.cpp
+CLI-INPUT-006,CliInput,ExecutesOnLineFeed,A line feed dispatches one command.,test_cli_input.cpp
+CLI-INPUT-007,CliInput,SuppressesSplitCrLfPair,"CRLF is one terminator, including across RX chunks.",test_cli_input.cpp
+CLI-INPUT-008,CliInput,SuppressesSplitLfCrPair,"LFCR is one terminator, including across RX chunks.",test_cli_input.cpp
+CLI-INPUT-009,CliInput,ProcessesMultipleCommandsInOneInputFrame,Two full lines in a single frame execute twice.,test_cli_input.cpp
+CLI-INPUT-010,CliInput,HandlesBackspace,Backspace removes exactly one input character.,test_cli_input.cpp
+CLI-INPUT-011,CliInput,HandlesAsciiDelete,ASCII DEL has the same editing effect as backspace.,test_cli_input.cpp
+CLI-INPUT-012,CliInput,IgnoresBackspaceAtStartOfLine,Backspace at index zero does not underflow.,test_cli_input.cpp
+CLI-INPUT-013,CliInput,EchoesPrintableCharactersAndBackspace,Echo echoes printable bytes and erases one byte.,test_cli_input.cpp
+CLI-INPUT-014,CliInput,DoesNotEchoWhenDisabled,Disabled echo never sends typed characters or EOL.,test_cli_input.cpp
+CLI-INPUT-015,CliInput,IgnoresUnsupportedControlBytes,Unsupported controls do not enter the command buffer.,test_cli_input.cpp
+CLI-INPUT-016,CliInput,AcceptsCommandAtMaximumPermittedLength,Exactly capacity - 1 printable bytes fit.,test_cli_input.cpp
+CLI-INPUT-017,CliInput,RejectsOversizedLineWithoutRunningTruncatedPrefix,Any additional printable byte discards whole line.,test_cli_input.cpp
+CLI-INPUT-018,CliInput,RecoversAfterDiscardingOverlongLine,Oversized-line state is retained between reads.,test_cli_input.cpp
+CLI-INPUT-019,CliInput,PropagatesEchoWriteFailure,Input processing propagates transport errors.,test_cli_input.cpp
+CLI-INPUT-020,CliInput,KeepsFirstFailureAcrossInputFrame,The first error wins when processing multiple bytes.,test_cli_input.cpp
+CLI-INPUT-021,CliInput,PropagatesPromptFailureAfterInput,Prompt output failure must be returned to the caller.,test_cli_input.cpp
+CLI-INPUT-022,CliInput,ClearsInputStateWhenCommandExecutionFails,Next line remains valid after command callback error.,test_cli_input.cpp
+CLI-CONSOLE-001,CliConsoleProcessing,RejectsBeforeInitialization,Console processing requires initialization.,test_cli_input.cpp
+CLI-CONSOLE-002,CliConsoleProcessing,RejectsMissingReadCallback,Push-only mode cannot poll a missing read callback.,test_cli_input.cpp
+CLI-CONSOLE-003,CliConsoleProcessing,ReturnsOkWhenReadHasNoData,Zero received bytes are a successful no-op.,test_cli_input.cpp
+CLI-CONSOLE-004,CliConsoleProcessing,ConvertsNegativeReadToRxFailed,Negative transport read result maps to RX_FAILED.,test_cli_input.cpp
+CLI-CONSOLE-005,CliConsoleProcessing,RejectsReportedLengthGreaterThanReadBuffer,Oversized reported RX length is rejected.,test_cli_input.cpp
+CLI-CONSOLE-006,CliConsoleProcessing,ReadsAndProcessesCommand,A valid RX frame dispatches the command.,test_cli_input.cpp
+CLI-CONSOLE-007,CliConsoleProcessing,ReassemblesCommandAcrossTransportReads,RX frames larger than read buffer are accumulated.,test_cli_input.cpp
+CLI-CONSOLE-008,CliConsoleProcessing,PropagatesReceivedCommandFailure,Processing errors propagate through the console API.,test_cli_input.cpp

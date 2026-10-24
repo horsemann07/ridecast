@@ -6,6 +6,7 @@
 
 #include "rc_protocol.h"
 #include "rc_connection.h"
+#include "bsp_err_sts.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -77,9 +78,9 @@ extern "C"
      *
      * Initializes the Wi-Fi hardware/driver and internal state.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    bsp_err_sts_t rc_wifi_init(void);
+    ret_err_sts_t rc_wifi_init(void);
 
 
     /**
@@ -87,9 +88,9 @@ extern "C"
      *
      * Stops Wi-Fi and releases Wi-Fi resources.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    bsp_err_sts_t rc_wifi_deinit(void);
+    ret_err_sts_t rc_wifi_deinit(void);
 
 
     /* =========================================================================
@@ -106,9 +107,9 @@ extern "C"
      *
      * @param[in] config Wi-Fi configuration.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    bsp_err_sts_t rc_wifi_set_config(const rc_wifi_config_t* config);
+    ret_err_sts_t rc_wifi_set_config(const rc_wifi_config_t* config);
 
 
     /**
@@ -116,9 +117,9 @@ extern "C"
      *
      * @param[out] config Current Wi-Fi configuration.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    bsp_err_sts_t rc_wifi_get_config(rc_wifi_config_t* config);
+    ret_err_sts_t rc_wifi_get_config(rc_wifi_config_t* config);
 
 
     /* =========================================================================
@@ -132,9 +133,9 @@ extern "C"
      * - STA mode: connect to configured AP.
      * - AP mode: start configured Access Point.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    bsp_err_sts_t rc_wifi_start(void);
+    ret_err_sts_t rc_wifi_start(void);
 
 
     /**
@@ -142,9 +143,9 @@ extern "C"
      *
      * Stops the Wi-Fi interface and disconnects any active connection.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    bsp_err_sts_t rc_wifi_stop(void);
+    ret_err_sts_t rc_wifi_stop(void);
 
 
     /**
@@ -152,9 +153,9 @@ extern "C"
      *
      * Initiates a Wi-Fi connection using the configured parameters.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    bsp_err_sts_t rc_wifi_connect(void);
+    ret_err_sts_t rc_wifi_connect(void);
 
 
     /**
@@ -162,9 +163,9 @@ extern "C"
      *
      * Disconnects the current Wi-Fi connection.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    bsp_err_sts_t rc_wifi_disconnect(void);
+    ret_err_sts_t rc_wifi_disconnect(void);
 
 
     /**
@@ -172,9 +173,9 @@ extern "C"
      *
      * Starts a new connection attempt using the configured parameters.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    bsp_err_sts_t rc_wifi_reconnect(void);
+    ret_err_sts_t rc_wifi_reconnect(void);
 
 
     /* =========================================================================
@@ -186,9 +187,9 @@ extern "C"
      *
      * @param[out] status Current Wi-Fi status.
      *
-     * @return PLT_ERR_STS_OK on success.
+     * @return RET_ERR_STS_OK on success.
      */
-    bsp_err_sts_t rc_wifi_get_status(rc_wifi_status_t* status);
+    ret_err_sts_t rc_wifi_get_status(rc_wifi_status_t* status);
 
 
     /**

@@ -1,0 +1,18 @@
+# ============================================================================
+# File        : compose.yaml
+# Description : Docker Compose service for RideCast ESP-IDF firmware builds
+# Date        : 2026-10-24
+# ============================================================================
+services:
+  ridecast:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ridecast-idf55:local
+    working_dir: /workspace/ridecast
+    volumes:
+      - ..:/workspace/ridecast
+    environment:
+      IDF_CCACHE_ENABLE: "0"
+    stdin_open: true
+    tty: true

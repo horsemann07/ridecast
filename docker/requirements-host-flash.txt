@@ -1,0 +1,4 @@
+# Windows COM ports are not directly exposed to standard Docker Desktop Linux containers.
+# Install these packages in the HOST Python used to run docker/build.py.
+esptool>=4.8,<5
+pyserial>=3.5,<4

@@ -7,7 +7,7 @@
 # - Keep source/include paths explicit for MISRA-friendly traceability
 # ============================================================================
 
-if(ESP_PLATFORM)
+if(ESPx_PLATFORM)
     message(STATUS "[RideCast:CLI] Platform: ESP32 (ESP-IDF)")
 
     # ESP-IDF component registration
@@ -38,6 +38,6 @@ elseif(STM32H7_PLATFORM)
 else()
     message(FATAL_ERROR
         "[RideCast:CLI] No valid platform selected. "
-        "Set ESP_PLATFORM=ON or STM32H7_PLATFORM=ON"
+        "Set ESPx_PLATFORM=ON or STM32H7_PLATFORM=ON"
     )
 endif()

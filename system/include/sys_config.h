@@ -18,11 +18,11 @@
 // // // #define SYS_USE_MBEDTLS
 
 // // /*automatically defined in by espidf build. */
-// // #ifndef CMAKE_ESP_PLATFORM
-// //     #define CMAKE_ESP_PLATFORM
-// // #endif // CMAKE_ESP_PLATFORM
-// // #define CMAKE_ESP_PLATFORM_LWIP
-// // #define CMAKE_ESP_PLATFORM_MBEDTLS
+// // #ifndef CMAKE_ESPx_PLATFORM
+// //     #define CMAKE_ESPx_PLATFORM
+// // #endif // CMAKE_ESPx_PLATFORM
+// // #define CMAKE_ESPx_PLATFORM_LWIP
+// // #define CMAKE_ESPx_PLATFORM_MBEDTLS
 // //     // #endif
 
 

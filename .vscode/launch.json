@@ -1,17 +1,10 @@
-// {
-//     "version": "0.2.0",
-//     "configurations": [
-//         {
-//             "name": "Debug ESP32",
-//             "type": "espidf",
-//             "request": "launch",
-//             "program": "${workspaceFolder}/build/ridecast.elf",
-//             "cwd": "${workspaceFolder}",
-//             "initGdbCommands": [
-//                 "target remote :3333",
-//                 "monitor reset halt",
-//                 "flushregs"
-//             ]
-//         }
-//     ]
-// }
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "RideCast - ESP32 Debug",
+            "type": "node",
+            "request": "launch"
+        }
+    ]
+}

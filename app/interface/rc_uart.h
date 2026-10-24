@@ -26,9 +26,9 @@ extern "C"
 #include <stdbool.h>
 
 #include "bsp_uart.h"
-#include "bsp_err_sts.h"
 #include "rc_config.h"
 #include "rc_protocol.h"
+#include "bsp_err_sts.h"
 
 #define RC_UART_RX_BUF_LEN (256U)
 #define RC_UART_TX_BUF_LEN (RC_FRAME_MAX_LEN)
@@ -62,20 +62,20 @@ extern "C"
     /**
      * @brief Initialize Host communication UART.
      *
-     * @return PLT_ERR_STS_OK          UART initialized successfully.
-     * @return PLT_ERR_STS_INVALID_PARAM Invalid configuration.
-     * @return PLT_ERR_STS_FAIL         UART initialization failed.
+     * @return RET_ERR_STS_OK          UART initialized successfully.
+     * @return RET_ERR_STS_INVALID_PARAM Invalid configuration.
+     * @return RET_ERR_STS_FAIL         UART initialization failed.
      */
-    plt_err_sts_t rc_uart_init(void);
+    ret_err_sts_t rc_uart_init(void);
 
 
     /**
      * @brief Deinitialize Host communication UART.
      *
-     * @return PLT_ERR_STS_OK   UART deinitialized successfully.
-     * @return PLT_ERR_STS_FAIL UART deinitialization failed.
+     * @return RET_ERR_STS_OK   UART deinitialized successfully.
+     * @return RET_ERR_STS_FAIL UART deinitialization failed.
      */
-    plt_err_sts_t rc_uart_deinit(void);
+    ret_err_sts_t rc_uart_deinit(void);
 
 
     /* =========================================================================
@@ -88,11 +88,11 @@ extern "C"
      * @param[in] data      Data buffer.
      * @param[in] dataLen   Number of bytes to transmit.
      *
-     * @return PLT_ERR_STS_OK          Data transmitted successfully.
-     * @return PLT_ERR_STS_INVALID_PARAM Invalid parameter.
-     * @return PLT_ERR_STS_FAIL         Transmission failed.
+     * @return RET_ERR_STS_OK          Data transmitted successfully.
+     * @return RET_ERR_STS_INVALID_PARAM Invalid parameter.
+     * @return RET_ERR_STS_FAIL         Transmission failed.
      */
-    plt_err_sts_t rc_uart_transmit(const uint8_t* data, uint16_t dataLen);
+    ret_err_sts_t rc_uart_transmit(const uint8_t* data, uint16_t dataLen);
 
 
     /* =========================================================================
@@ -106,12 +106,12 @@ extern "C"
      * @param[in]  dataLen    Maximum number of bytes to receive.
      * @param[out] receivedLen Number of bytes actually received.
      *
-     * @return PLT_ERR_STS_OK          Data received successfully.
-     * @return PLT_ERR_STS_INVALID_PARAM Invalid parameter.
-     * @return PLT_ERR_STS_TIMEOUT      Receive timeout.
-     * @return PLT_ERR_STS_FAIL          Reception failed.
+     * @return RET_ERR_STS_OK          Data received successfully.
+     * @return RET_ERR_STS_INVALID_PARAM Invalid parameter.
+     * @return RET_ERR_STS_TIMEOUT      Receive timeout.
+     * @return RET_ERR_STS_FAIL          Reception failed.
      */
-    plt_err_sts_t rc_uart_receive(uint8_t* data, uint16_t dataLen, uint16_t* receivedLen);
+    ret_err_sts_t rc_uart_receive(uint8_t* data, uint16_t dataLen, uint16_t* receivedLen);
 
 
     /* =========================================================================

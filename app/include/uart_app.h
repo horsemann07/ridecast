@@ -35,9 +35,8 @@ extern "C"
 #include <stdbool.h>
 #include "cmsis_os2.h"
 #include "bsp_uart.h"
-#include "bsp_err_sts.h"
 #include "rc_protocol.h"
-
+#include "bsp_err_sts.h"
 
 /* =========================================================================
  * LIMITS
@@ -134,12 +133,12 @@ extern "C"
      * @brief  Initialise UART app. Call once at boot.
      *         Starts RX task, TX task, heartbeat.
      */
-    bsp_err_sts_t uart_app_init(uart_app_t* app, const uart_app_cfg_t* cfg);
+    ret_err_sts_t uart_app_init(uart_app_t* app, const uart_app_cfg_t* cfg);
 
     /**
      * @brief  Deinitialise and stop all tasks.
      */
-    bsp_err_sts_t uart_app_deinit(uart_app_t* app);
+    ret_err_sts_t uart_app_deinit(uart_app_t* app);
 
     /**
      * @brief  Send a pre-encoded rc_protocol frame to Host.
@@ -147,19 +146,19 @@ extern "C"
      * @param  frame  Encoded bytes (output of rc_encode_* functions)
      * @param  len    Byte count
      */
-    bsp_err_sts_t uart_app_send(uart_app_t* app, const uint8_t* frame, uint16_t len);
+    ret_err_sts_t uart_app_send(uart_app_t* app, const uint8_t* frame, uint16_t len);
 
     /**
      * @brief  Send a STATUS frame to Host (1 byte, no payload).
      *         Convenience wrapper around uart_app_send + rc_encode_simple.
      */
-    bsp_err_sts_t uart_app_send_status(uart_app_t* app, rc_intf_t intf, rc_sts_sub_t sub);
+    ret_err_sts_t uart_app_send_status(uart_app_t* app, rc_intf_t intf, rc_sts_sub_t sub);
 
     /**
      * @brief  Send a DATA frame to Host.
      *         Convenience wrapper around uart_app_send + rc_encode_data.
      */
-    bsp_err_sts_t uart_app_send_data(uart_app_t* app,
+    ret_err_sts_t uart_app_send_data(uart_app_t* app,
                                      rc_intf_t intf,
                                      uint8_t dataSub,
                                      const uint8_t* payload,

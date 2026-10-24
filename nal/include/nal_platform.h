@@ -99,7 +99,7 @@ extern "C"
      * @note
      *  This function does NOT close the underlying socket.
      */
-    bsp_err_sts_t nal_platform_tls_destroy(void* backend_ctx);
+    ret_err_sts_t nal_platform_tls_destroy(void* backend_ctx);
 
     /**
      * @brief Reset TLS session state after a failed handshake.
@@ -114,7 +114,7 @@ extern "C"
      * @param[in] backend_ctx
      *  Pointer to TLS backend context.
      */
-    bsp_err_sts_t nal_platform_tls_reset(void* backend_ctx);
+    ret_err_sts_t nal_platform_tls_reset(void* backend_ctx);
 
     /* =========================================================================
      *  TLS Configuration (Must be called BEFORE handshake)
@@ -137,13 +137,13 @@ extern "C"
      *  Length of CA certificate buffer in bytes.
      *
      * @return
-     *  - PLT_ERR_STS_OK    Configuration successful
-     *  - PLT_ERR_STS_FAIL  Certificate parsing or configuration failed
+     *  - RET_ERR_STS_OK    Configuration successful
+     *  - RET_ERR_STS_FAIL  Certificate parsing or configuration failed
      *
      * @note
      *  Must be called before nal_platform_tls_handshake().
      */
-    bsp_err_sts_t
+    ret_err_sts_t
     nal_platform_tls_set_ca_cert(void* backend_ctx, const uint8_t* ca_pem, size_t len);
 
     /**
@@ -159,13 +159,13 @@ extern "C"
      *  Null-terminated server hostname string.
      *
      * @return
-     *  - PLT_ERR_STS_OK    SNI configured successfully
-     *  - PLT_ERR_STS_FAIL  Failed to set server name
+     *  - RET_ERR_STS_OK    SNI configured successfully
+     *  - RET_ERR_STS_FAIL  Failed to set server name
      *
      * @note
      *  Must be called before nal_platform_tls_handshake().
      */
-    bsp_err_sts_t nal_platform_tls_set_server_name(void* backend_ctx, const char* server_name);
+    ret_err_sts_t nal_platform_tls_set_server_name(void* backend_ctx, const char* server_name);
 
     /**
      * @brief Perform TLS client-side handshake.
@@ -180,15 +180,15 @@ extern "C"
      *  Connected TCP socket file descriptor.
      *
      * @return
-     *  - PLT_ERR_STS_OK              Handshake successful
-     *  - PLT_ERR_STS_HANDSHAKE_FAIL  TLS handshake failed
-     *  - PLT_ERR_STS_INVALID_PARAM   Invalid input parameters
+     *  - RET_ERR_STS_OK              Handshake successful
+     *  - RET_ERR_STS_HANDSHAKE_FAIL  TLS handshake failed
+     *  - RET_ERR_STS_INVALID_PARAM   Invalid input parameters
      *
      * @note
      *  The socket must already be connected.
      *  This function does NOT take ownership of the socket.
      */
-    bsp_err_sts_t nal_platform_tls_handshake(void* backend_ctx, int sockfd);
+    ret_err_sts_t nal_platform_tls_handshake(void* backend_ctx, int sockfd);
 
     /**
      * @brief Send encrypted data over TLS.
@@ -211,12 +211,12 @@ extern "C"
      *  Send timeout in milliseconds (0 = blocking).
      *
      * @return
-     *  - PLT_ERR_STS_OK
-     *  - PLT_ERR_STS_TIMEOUT
-     *  - PLT_ERR_STS_CONN_LOST
-     *  - PLT_ERR_STS_FAIL
+     *  - RET_ERR_STS_OK
+     *  - RET_ERR_STS_TIMEOUT
+     *  - RET_ERR_STS_CONN_LOST
+     *  - RET_ERR_STS_FAIL
      */
-    bsp_err_sts_t nal_platform_tls_send(void* backend_ctx,
+    ret_err_sts_t nal_platform_tls_send(void* backend_ctx,
                                         const uint8_t* data,
                                         size_t len,
                                         size_t* bytes_written,
@@ -243,12 +243,12 @@ extern "C"
      *  Receive timeout in milliseconds.
      *
      * @return
-     *  - PLT_ERR_STS_OK
-     *  - PLT_ERR_STS_TIMEOUT
-     *  - PLT_ERR_STS_CONN_LOST
-     *  - PLT_ERR_STS_FAIL
+     *  - RET_ERR_STS_OK
+     *  - RET_ERR_STS_TIMEOUT
+     *  - RET_ERR_STS_CONN_LOST
+     *  - RET_ERR_STS_FAIL
      */
-    bsp_err_sts_t nal_platform_tls_recv(void* backend_ctx,
+    ret_err_sts_t nal_platform_tls_recv(void* backend_ctx,
                                         uint8_t* buf,
                                         size_t buf_len,
                                         size_t* bytes_read,
@@ -267,11 +267,11 @@ extern "C"
      *  This function does NOT close the socket.
      *
      * @return
-     *  - PLT_ERR_STS_OK
-     *  - PLT_ERR_STS_INVALID_PARAM
-     *  - PLT_ERR_STS_FAIL
+     *  - RET_ERR_STS_OK
+     *  - RET_ERR_STS_INVALID_PARAM
+     *  - RET_ERR_STS_FAIL
      */
-    bsp_err_sts_t nal_platform_tls_shutdown(void* backend_ctx);
+    ret_err_sts_t nal_platform_tls_shutdown(void* backend_ctx);
 
 
     /**
@@ -305,12 +305,12 @@ extern "C"
      *  OUT: number of bytes written
      *
      * @return
-     *  - PLT_ERR_STS_OK
-     *  - PLT_ERR_STS_INVALID_PARAM
-     *  - PLT_ERR_STS_BUF_TOO_SMALL
-     *  - PLT_ERR_STS_FAIL
+     *  - RET_ERR_STS_OK
+     *  - RET_ERR_STS_INVALID_PARAM
+     *  - RET_ERR_STS_BUF_TOO_SMALL
+     *  - RET_ERR_STS_FAIL
      */
-    bsp_err_sts_t nal_platform_crypto_encrypt(const uint8_t* key,
+    ret_err_sts_t nal_platform_crypto_encrypt(const uint8_t* key,
                                               size_t key_len,
                                               const uint8_t* plaintext,
                                               size_t plain_len,
@@ -342,26 +342,26 @@ extern "C"
      *  OUT: number of bytes decrypted
      *
      * @return
-     *  - PLT_ERR_STS_OK
-     *  - PLT_ERR_STS_INVALID_PARAM
-     *  - PLT_ERR_STS_BUF_TOO_SMALL
-     *  - PLT_ERR_STS_FAIL
+     *  - RET_ERR_STS_OK
+     *  - RET_ERR_STS_INVALID_PARAM
+     *  - RET_ERR_STS_BUF_TOO_SMALL
+     *  - RET_ERR_STS_FAIL
      */
-    bsp_err_sts_t nal_platform_crypto_decrypt(const uint8_t* key,
+    ret_err_sts_t nal_platform_crypto_decrypt(const uint8_t* key,
                                               size_t key_len,
                                               const uint8_t* ciphertext,
                                               size_t cipher_len,
                                               uint8_t* plaintext,
                                               size_t* plain_len);
 
-    bsp_err_sts_t nal_platform_tls_server_init(void* tls_backend,
+    ret_err_sts_t nal_platform_tls_server_init(void* tls_backend,
                                                const nalTlsServerCreds_t* creds);
 
-    bsp_err_sts_t nal_platform_tls_server_handshake(void* tls_backend);
+    ret_err_sts_t nal_platform_tls_server_handshake(void* tls_backend);
 
     int nal_platform_tls_network_accept(void* tls_backend, uint32_t timeout_ms);
 
-    bsp_err_sts_t nal_platform_tls_server_close(void* tls_backend);
+    ret_err_sts_t nal_platform_tls_server_close(void* tls_backend);
 
 #ifdef __cplusplus
 }

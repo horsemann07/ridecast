@@ -23,59 +23,59 @@ static size_t nalCryptoKeyLenFromType(nalCryptoKeyType_t type)
     }
 }
 
-bsp_err_sts_t nalCryptoSetKey(nalCryptoKeyType_t key_type, const uint8_t* key)
+ret_err_sts_t nalCryptoSetKey(nalCryptoKeyType_t key_type, const uint8_t* key)
 {
     size_t key_len = nalCryptoKeyLenFromType(key_type);
 
     if(!key || key_len == 0)
     {
-        return PLT_ERR_STS_INVALID_PARAM;
+        return RET_ERR_STS_INVALID_PARAM;
     }
 
     g_crypto_key     = key;
     g_crypto_key_len = key_len;
-    return PLT_ERR_STS_OK;
+    return RET_ERR_STS_OK;
 }
 
-bsp_err_sts_t nalCryptoGetKey(const uint8_t** key, size_t* key_len)
+ret_err_sts_t nalCryptoGetKey(const uint8_t** key, size_t* key_len)
 {
     if(!key || !key_len)
-        return PLT_ERR_STS_INVALID_PARAM;
+        return RET_ERR_STS_INVALID_PARAM;
 
     if(!g_crypto_key)
     {
         /* Crypto used before key initialization */
         NAL_LOGE("Crypto encrypt called before key initialization");
-        return PLT_ERR_STS_NOT_INIT;
+        return RET_ERR_STS_NOT_INIT;
     }
 
     *key     = g_crypto_key;
     *key_len = g_crypto_key_len;
-    return PLT_ERR_STS_OK;
+    return RET_ERR_STS_OK;
 }
 
-bsp_err_sts_t
+ret_err_sts_t
 nalCryptoEncrypt(const uint8_t* plaintext, size_t plain_len, uint8_t* ciphertext, size_t* cipher_len)
 {
     if(!g_crypto_key)
     {
         /* Crypto used before key initialization */
         NAL_LOGE("Crypto encrypt called before key initialization");
-        return PLT_ERR_STS_NOT_INIT;
+        return RET_ERR_STS_NOT_INIT;
     }
 
     return nal_platform_crypto_encrypt(g_crypto_key, g_crypto_key_len, plaintext,
                                        plain_len, ciphertext, cipher_len);
 }
 
-bsp_err_sts_t
+ret_err_sts_t
 nalCryptoDecrypt(const uint8_t* ciphertext, size_t cipher_len, uint8_t* plaintext, size_t* plain_len)
 {
     if(!g_crypto_key)
     {
         /* Crypto used before key initialization */
         NAL_LOGE("Crypto decrypt called before key initialization");
-        return PLT_ERR_STS_NOT_INIT;
+        return RET_ERR_STS_NOT_INIT;
     }
 
     return nal_platform_crypto_decrypt(g_crypto_key, g_crypto_key_len, ciphertext,

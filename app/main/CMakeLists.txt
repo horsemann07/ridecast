@@ -1,90 +1,58 @@
+
+# ============================================================================
+# File        : CMakeLists.txt
+# Description : RideCast BSP and SDK validation build
+# ============================================================================
 #
-# RideCast Application CMake Configuration
+# Purpose:
+#   Build the reusable BSP and its SDK dependencies without compiling
+#   the application implementation, interface, or configuration sources.
 #
-# MISRA C:2012 compliant embedded project structure
-# - No dynamic memory allocation
-# - All sources explicitly listed
-# - Clear component dependencies
-#
+#   This is a temporary validation configuration. The full application
+#   component can be restored after the BSP/SDK build succeeds.
+# ============================================================================
 
 cmake_minimum_required(VERSION 3.16)
 
-message(STATUS "[RideCast] Configuring app/main")
+# ============================================================================
+# 1. BSP AND SDK VALIDATION
+# ============================================================================
 
-# =========================================================================
-# SOURCE FILES
-# =========================================================================
-set(RIDECAST_APP_CFG_SRCS
-    "${CMAKE_SOURCE_DIR}/app/app_config/app_config.c"
+message(STATUS "[RideCast:APP] BSP and SDK validation build enabled")
+
+# ============================================================================
+# 2. COMPONENT DIRECTORY
+# ============================================================================
+
+set(RIDECAST_APP_MAIN_DIR "${CMAKE_CURRENT_LIST_DIR}")
+
+# ============================================================================
+# 3. VALIDATION ENTRY POINT
+# ============================================================================
+
+set(RIDECAST_VALIDATION_SRC
+    "${RIDECAST_APP_MAIN_DIR}/bsp_sdk_check_main.c"
 )
 
-# UART application layer
-set(RIDECAST_APP_SRCS
-    "${CMAKE_SOURCE_DIR}/app/srcs/uart_app.c"
-    "${CMAKE_SOURCE_DIR}/app/srcs/wifi_app.c"
-    "${CMAKE_SOURCE_DIR}/app/srcs/ridecast_main.c"
-)
+if(NOT EXISTS "${RIDECAST_VALIDATION_SRC}")
+    message(FATAL_ERROR
+        "[RideCast:APP] Missing BSP validation entry point: "
+        "${RIDECAST_VALIDATION_SRC}"
+    )
+endif()
 
-# Startup / main entry
-set(APP_ENTRY_SRCS
-    "${CMAKE_SOURCE_DIR}/app/main/app_main.c"
-)
+# ============================================================================
+# 4. ESP-IDF COMPONENT REGISTRATION
+# ============================================================================
 
-# Test app
-set(TEST_SRCS
-    "${CMAKE_SOURCE_DIR}/app/test/test_host_uart.c"
-)
-
-# =========================================================================
-# CMSIS-RTOS2 Wrapper
-# =========================================================================
-set(CMSIS_RTOS2_SRCS
-    "${CMAKE_SOURCE_DIR}/external/os/cmsis_esp/Source/cmsis_os2.c"
-)
-
-# =========================================================================
-# INCLUDE DIRECTORIES
-# =========================================================================
-set(APP_INCLUDE_DIRS
-    "${CMAKE_SOURCE_DIR}/app/app_config"
-    "${CMAKE_SOURCE_DIR}/app/include"
-    "${CMAKE_SOURCE_DIR}/external/os/cmsis_esp/Include"
-    "${CMAKE_BINARY_DIR}/version"
-)
-
-# =========================================================================
-# COMPONENT REGISTRATION (ESP-IDF)
-# =========================================================================
 idf_component_register(
     SRCS
-        ${APP_ENTRY_SRCS}
-        ${RIDECAST_APP_CFG_SRCS}
-        ${RIDECAST_APP_SRCS}
-        ${CMSIS_RTOS2_SRCS}
-        ${TEST_SRCS}
-
-    INCLUDE_DIRS
-        ${APP_INCLUDE_DIRS}
+        "${RIDECAST_VALIDATION_SRC}"
 
     PRIV_REQUIRES
-        freertos
-        cmsis_esp
-        system
-        # mbedtls
-        lwip
-        driver
-        esp_netif
-        esp_wifi
-        esp_event
-        log
-        esp-tls
-        esp_common
         bsp
-        # nal 
-        cli
-        nvs_flash
-        backoffAlgorithmWrapper
+        cmsis_esp
 )
-message(STATUS "[RideCast:BSP] ========================================")
-message(STATUS "[RideCast:APP] ✓ app/main configured")
-message(STATUS "[RideCast:BSP] ========================================")
+# ============================================================================
+# File End
+# ============================================================================

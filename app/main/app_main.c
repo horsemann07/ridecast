@@ -16,7 +16,7 @@ static void startup_task(void* arg)
 {
     (void)arg;
 
-    if(ridecast_init() != PLT_ERR_STS_OK)
+    if(ridecast_init() != RET_ERR_STS_OK)
     {
         /* Fail-stop: do not continue with partially initialized system */
         ALOGE("ridecast_init failed - halting");

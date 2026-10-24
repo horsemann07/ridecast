@@ -61,9 +61,9 @@ extern "C"
      * @param[in] key_type  Crypto key type (algorithm + strength)
      * @param[in] key       Pointer to key material
      *
-     * @return PLT_ERR_STS_OK or error
+     * @return RET_ERR_STS_OK or error
      */
-    bsp_err_sts_t nalCryptoSetKey(nalCryptoKeyType_t key_type, const uint8_t* key);
+    ret_err_sts_t nalCryptoSetKey(nalCryptoKeyType_t key_type, const uint8_t* key);
 
 
     /**
@@ -72,14 +72,14 @@ extern "C"
      * @param[out] key     Pointer to key pointer
      * @param[out] key_len Length of key
      *
-     * @return PLT_ERR_STS_OK or PLT_ERR_STS_NOT_INITIALIZED
+     * @return RET_ERR_STS_OK or RET_ERR_STS_NOT_INITIALIZED
      */
-    bsp_err_sts_t nalCryptoGetKey(const uint8_t** key, size_t* key_len);
+    ret_err_sts_t nalCryptoGetKey(const uint8_t** key, size_t* key_len);
 
     /**
      * @brief Encrypt plaintext data using platform crypto backend.
      */
-    bsp_err_sts_t nalCryptoEncrypt(const uint8_t* plaintext,
+    ret_err_sts_t nalCryptoEncrypt(const uint8_t* plaintext,
                                    size_t plain_len,
                                    uint8_t* ciphertext,
                                    size_t* cipher_len);
@@ -87,7 +87,7 @@ extern "C"
     /**
      * @brief Decrypt encrypted data using platform crypto backend.
      */
-    bsp_err_sts_t nalCryptoDecrypt(const uint8_t* ciphertext,
+    ret_err_sts_t nalCryptoDecrypt(const uint8_t* ciphertext,
                                    size_t cipher_len,
                                    uint8_t* plaintext,
                                    size_t* plain_len);

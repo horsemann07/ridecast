@@ -5,9 +5,9 @@
 #include "bsp_log.h"
 #include "bsp_wifi.h"
 
-#if defined(CMAKE_ESP_PLATFORM) && (BSP_UART_ENABLE_ASYNC == BSP_ENABLE)
+#if defined(CMAKE_ESPx_PLATFORM) && (BSP_UART_ENABLE_ASYNC == BSP_ENABLE)
 extern void bspUartEventThread(void* arg);
-#endif /* CMAKE_ESP_PLATFORM */
+#endif /* CMAKE_ESPx_PLATFORM */
 
 
        // clang-format off
@@ -15,7 +15,7 @@ extern void bspUartEventThread(void* arg);
  * ------------------------------------------------------------------------
  */
 os_thread_map_t g_bspThreadCfg[BSP_THREAD_OWNER_MAX] = {
-#if defined(CMAKE_ESP_PLATFORM) && (BSP_UART_ENABLE_ASYNC == BSP_ENABLE)
+#if defined(CMAKE_ESPx_PLATFORM) && (BSP_UART_ENABLE_ASYNC == BSP_ENABLE)
     [BSP_THREAD_OWNER_UART_ASYNC] = {
 
         .func = bspUartEventThread,
@@ -30,7 +30,7 @@ os_thread_map_t g_bspThreadCfg[BSP_THREAD_OWNER_MAX] = {
         },
         .handle = NULL
     },
-#endif /* CMAKE_ESP_PLATFORM */
+#endif /* CMAKE_ESPx_PLATFORM */
 };
 
 /*

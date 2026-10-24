@@ -83,7 +83,7 @@ static void wapp_notify(wifi_app_t* app, wifi_app_sts_t sts, uint32_t arg)
 /* =========================================================================
  * Helper: post a command to the internal queue (thread-safe)
  * ========================================================================= */
-static bsp_err_sts_t
+static ret_err_sts_t
 wapp_post(wifi_app_t* app, uint8_t cmd, const uint8_t* data, uint16_t len, const wifi_app_start_params_t* sp)
 {
     wifi_app_msg_t m;
@@ -91,7 +91,7 @@ wapp_post(wifi_app_t* app, uint8_t cmd, const uint8_t* data, uint16_t len, const
     if((app == NULL) || (app->wifiQ == NULL))
     {
         ALOGE("wapp_post: invalid app/wifiQ");
-        return PLT_ERR_STS_INVALID_PARAM;
+        return RET_ERR_STS_INVALID_PARAM;
     }
 
     if((len > 0U) && (len > (uint16_t)sizeof(m.data)))
@@ -99,7 +99,7 @@ wapp_post(wifi_app_t* app, uint8_t cmd, const uint8_t* data, uint16_t len, const
         ALOGE("wapp_post: len too large cmd=%" PRIu8 " len=%" PRIu16
               " max=%" PRIu16,
               cmd, len, (uint16_t)sizeof(m.data));
-        return PLT_ERR_STS_INVALID_PARAM;
+        return RET_ERR_STS_INVALID_PARAM;
     }
 
     (void)memset(&m, 0, sizeof(m));
@@ -114,10 +114,10 @@ wapp_post(wifi_app_t* app, uint8_t cmd, const uint8_t* data, uint16_t len, const
     if(osMessageQueuePut(app->wifiQ, &m, 0U, 0U) != osOK)
     {
         ALOGW("wapp_post: queue full/drop cmd=%" PRIu8 " len=%" PRIu16, cmd, len);
-        return PLT_ERR_STS_FAIL;
+        return RET_ERR_STS_FAIL;
     }
 
-    return PLT_ERR_STS_OK;
+    return RET_ERR_STS_OK;
 }
 
 /* =========================================================================
@@ -125,7 +125,7 @@ wapp_post(wifi_app_t* app, uint8_t cmd, const uint8_t* data, uint16_t len, const
  * On success: notifies eWifiAppStsWifiReady
  * On fail:    returns FAIL so caller can retry
  * ========================================================================= */
-static bsp_err_sts_t wapp_wifi_up(wifi_app_t* app)
+static ret_err_sts_t wapp_wifi_up(wifi_app_t* app)
 {
     bspWifiApConfig_t apCfg;
 
@@ -142,15 +142,15 @@ static bsp_err_sts_t wapp_wifi_up(wifi_app_t* app)
 
     (void)bspWifiInit(&app->wifi);
 
-    if(bspWifiOn(&app->wifi, eWiFiModeAP, &apCfg) == PLT_ERR_STS_OK)
+    if(bspWifiOn(&app->wifi, eWiFiModeAP, &apCfg) == RET_ERR_STS_OK)
     {
         ALOGD("WiFi AP up");
         app->wifiRetry = 0U;
         wapp_notify(app, eWifiAppStsWifiReady, 0U);
-        return PLT_ERR_STS_OK;
+        return RET_ERR_STS_OK;
     }
 
-    return PLT_ERR_STS_FAIL;
+    return RET_ERR_STS_FAIL;
 }
 
 /* =========================================================================
@@ -166,7 +166,7 @@ static void wapp_wifi_down(wifi_app_t* app)
  * TCP: open non-blocking listen socket
  * On success: fires eWifiAppStsTcpListening
  * ========================================================================= */
-static bsp_err_sts_t wapp_tcp_listen(wifi_app_t* app)
+static ret_err_sts_t wapp_tcp_listen(wifi_app_t* app)
 {
     struct sockaddr_in addr;
     int32_t fd;
@@ -177,7 +177,7 @@ static bsp_err_sts_t wapp_tcp_listen(wifi_app_t* app)
     if(fd < 0)
     {
         ALOGE("tcp_listen: socket failed errno=%d", errno);
-        return PLT_ERR_STS_FAIL;
+        return RET_ERR_STS_FAIL;
     }
 
     opt = 1;
@@ -192,14 +192,14 @@ static bsp_err_sts_t wapp_tcp_listen(wifi_app_t* app)
     {
         ALOGE("tcp_listen: bind failed port=%" PRIu16 " errno=%d", app->cfg.tcpPort, errno);
         (void)lwip_close((int)fd);
-        return PLT_ERR_STS_FAIL;
+        return RET_ERR_STS_FAIL;
     }
 
     if(lwip_listen((int)fd, 1) != 0)
     {
         ALOGE("tcp_listen: listen failed errno=%d", errno);
         (void)lwip_close((int)fd);
-        return PLT_ERR_STS_FAIL;
+        return RET_ERR_STS_FAIL;
     }
 
     /* Non-blocking accept so task loop never stalls */
@@ -209,7 +209,7 @@ static bsp_err_sts_t wapp_tcp_listen(wifi_app_t* app)
     app->listenFd = fd;
     ALOGD("tcp_listen: ready port=%" PRIu16, app->cfg.tcpPort);
     wapp_notify(app, eWifiAppStsTcpListening, (uint32_t)app->cfg.tcpPort);
-    return PLT_ERR_STS_OK;
+    return RET_ERR_STS_OK;
 }
 
 /* =========================================================================
@@ -389,7 +389,7 @@ static void wapp_task(void* arg)
          * ------------------------------------------------------------------ */
         if(app->state == eWifiAppStateWifiUp)
         {
-            if(wapp_wifi_up(app) == PLT_ERR_STS_OK)
+            if(wapp_wifi_up(app) == RET_ERR_STS_OK)
             {
                 /* WiFi AP up -> move to TCP listen */
                 app->tcpRetry = 0U;
@@ -430,7 +430,7 @@ static void wapp_task(void* arg)
             /* Open listen socket if not open yet */
             if(app->listenFd < 0)
             {
-                if(wapp_tcp_listen(app) != PLT_ERR_STS_OK)
+                if(wapp_tcp_listen(app) != RET_ERR_STS_OK)
                 {
                     /* Socket open failed - retry WiFi from scratch */
                     wapp_wifi_down(app);
@@ -607,12 +607,12 @@ static void wapp_task(void* arg)
  * PUBLIC API
  * ========================================================================= */
 
-bsp_err_sts_t wifi_app_init(wifi_app_t* app, const wifi_app_cfg_t* cfg)
+ret_err_sts_t wifi_app_init(wifi_app_t* app, const wifi_app_cfg_t* cfg)
 {
     if((app == NULL) || (cfg == NULL) || (cfg->onStatus == NULL) || (cfg->onRx == NULL))
     {
         ALOGE("wifi_app_init: invalid param");
-        return PLT_ERR_STS_INVALID_PARAM;
+        return RET_ERR_STS_INVALID_PARAM;
     }
 
     (void)memset(app, 0, sizeof(*app));
@@ -626,7 +626,7 @@ bsp_err_sts_t wifi_app_init(wifi_app_t* app, const wifi_app_cfg_t* cfg)
     if(app->wifiQ == NULL)
     {
         ALOGE("wifi_app_init: queue initialization failed");
-        return PLT_ERR_STS_NOT_INITIALIZED;
+        return RET_ERR_STS_NOT_INITIALIZED;
     }
 
     app->running = 1U;
@@ -635,18 +635,18 @@ bsp_err_sts_t wifi_app_init(wifi_app_t* app, const wifi_app_cfg_t* cfg)
     {
         ALOGE("wifi_app_init: task initialization failed");
         (void)osMessageQueueDelete(app->wifiQ);
-        return PLT_ERR_STS_NOT_INITIALIZED;
+        return RET_ERR_STS_NOT_INITIALIZED;
     }
 
-    return PLT_ERR_STS_OK;
+    return RET_ERR_STS_OK;
 }
 
-bsp_err_sts_t wifi_app_deinit(wifi_app_t* app)
+ret_err_sts_t wifi_app_deinit(wifi_app_t* app)
 {
     if(app == NULL)
     {
         ALOGE("wifi_app_deinit: invalid param");
-        return PLT_ERR_STS_INVALID_PARAM;
+        return RET_ERR_STS_INVALID_PARAM;
     }
 
     app->running = 0U;
@@ -659,20 +659,20 @@ bsp_err_sts_t wifi_app_deinit(wifi_app_t* app)
         app->wifiQ = NULL;
     }
 
-    return PLT_ERR_STS_OK;
+    return RET_ERR_STS_OK;
 }
 
-bsp_err_sts_t wifi_app_start(wifi_app_t* app, const wifi_app_start_params_t* params)
+ret_err_sts_t wifi_app_start(wifi_app_t* app, const wifi_app_start_params_t* params)
 {
     return wapp_post(app, (uint8_t)eWifiAppCmdStart, NULL, 0U, params);
 }
 
-bsp_err_sts_t wifi_app_stop(wifi_app_t* app)
+ret_err_sts_t wifi_app_stop(wifi_app_t* app)
 {
     return wapp_post(app, (uint8_t)eWifiAppCmdStop, NULL, 0U, NULL);
 }
 
-bsp_err_sts_t wifi_app_send(wifi_app_t* app, const uint8_t* data, uint16_t len)
+ret_err_sts_t wifi_app_send(wifi_app_t* app, const uint8_t* data, uint16_t len)
 {
     return wapp_post(app, (uint8_t)eWifiAppCmdSend, data, len, NULL);
 }

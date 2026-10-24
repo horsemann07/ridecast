@@ -1,9 +1,9 @@
 message(STATUS "[RideCast:EXT] Configuring external modules...")
 
-# Platform switch (ESP_PLATFORM comes from top-level / ESP-IDF)
+# Platform switch (ESPx_PLATFORM comes from top-level / ESP-IDF)
 option(STM32H7_PLATFORM "Build for STM32H7 platform" OFF)
 
-if(ESP_PLATFORM)
+if(ESPx_PLATFORM)
     message(STATUS "[RideCast:EXT] Platform: ESP32 (ESP-IDF)")
 
     # On ESP32, use ESP-IDF provided stacks
@@ -20,7 +20,7 @@ elseif(STM32H7_PLATFORM)
 else()
     message(FATAL_ERROR
         "[RideCast:EXT] No valid platform selected. "
-        "Set ESP_PLATFORM=ON or -DSTM32H7_PLATFORM=ON"
+        "Set ESPx_PLATFORM=ON or -DSTM32H7_PLATFORM=ON"
     )
 endif()
 

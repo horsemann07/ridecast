@@ -215,7 +215,8 @@ def idf_action(action: str, export_script: str, logger: logging.Logger, port: Op
     Supported actions: clean, build, flash, monitor
     """
     mapping = {
-        "clean": ["fullclean"],
+        "clean": ["clean"],
+        "fullclean": ["fullclean"],
         "build": ["build"],
         "flash": ["flash"],
         "monitor": ["monitor"],
@@ -253,12 +254,13 @@ def main() -> int:
     )
     parser.add_argument("-t", "--target",     type=str,            help="Set IDF target (e.g. esp32s3)")
     parser.add_argument("-b", "--build",      action="store_true", help="Build the project")
-    parser.add_argument("-c", "--clean",      action="store_true", help="Full clean the project")
+    parser.add_argument("-c", "--clean",      action="store_true", help="Clean compiled build artifacts")
+    parser.add_argument("-fc", "--fullclean",action="store_true", help="Remove the complete ESP-IDF build directory")
     parser.add_argument("-f", "--flash",      action="store_true", help="Flash firmware to device")
     parser.add_argument("-m", "--monitor",    action="store_true", help="Open serial monitor")
     parser.add_argument("-p", "--port",       type=str,            help="Serial port (e.g. COM3, /dev/ttyUSB0)")
     parser.add_argument("-l", "--logdebug",   action="store_true", help="Enable verbose debug logging")
-    parser.add_argument("--all",              action="store_true", help="Run: clean → build → flash → monitor")
+    parser.add_argument("--all",              action="store_true", help="Run: fullclean → build → flash → monitor")
     parser.add_argument("--help-usage",       action="store_true", help="Show detailed usage guide with examples")
     args = parser.parse_args()
 
@@ -268,7 +270,7 @@ def main() -> int:
         return 0
 
     if args.all:
-        args.clean   = True
+        args.fullclean = True
         args.build   = True
         args.flash   = True
         args.monitor = True
@@ -283,7 +285,7 @@ def main() -> int:
         logger.debug("SDK path: %s", sdk_base)
         logger.debug("Export script base: %s", idf_export_base)
 
-        if not (args.clean or args.build or args.flash or args.monitor):
+        if not (args.clean or args.fullclean or args.build or args.flash or args.monitor):
             logger.warning("No action selected. Use -b, -c, -f, -m or --all.")
             return 0
 
@@ -295,6 +297,8 @@ def main() -> int:
         # Fixed, deterministic order for reproducible operation
         if args.clean:
             idf_action("clean", export_script, logger, args.port)
+        if args.fullclean:
+            idf_action("fullclean", export_script, logger, args.port)
         if args.build:
             idf_action("build", export_script, logger, args.port)
         if args.flash:
