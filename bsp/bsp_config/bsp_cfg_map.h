@@ -1,83 +1,110 @@
 
+/**
+ * ============================================================================
+ * @file    bsp_cfg_map.h
+ * @brief   BSP-owned RTOS object identifiers.
+ *
+ * @details
+ * Defines the owner IDs used to identify BSP threads, queues, mutexes,
+ * semaphores and event flags.
+ *
+ * These IDs are used to index the BSP object configuration arrays
+ * defined in bsp_cfg_map.c.
+ *
+ * Application integration:
+ *   Application owner IDs may begin at the corresponding BSP_*_OWNER_MAX
+ *   value to avoid overlapping BSP and application identifiers.
+ *
+ * @note
+ *   Only BSP-owned objects are declared here.
+ *   Application-owned objects are declared in the application configuration.
+ *
+ * @warning
+ *   BSP_*_OWNER_MAX values are array boundaries, not usable object IDs.
+ *   Reserved or unconfigured entries must not be created as RTOS objects.
+ *
+ * ============================================================================
+ * Change Log (newest first):
+ * ============================================================================
+ * 2026-10-25  Clarified BSP ownership and platform-dependent thread IDs.
+ * ============================================================================
+ */
+
 #ifndef BSP_CFG_MAP_H
 #define BSP_CFG_MAP_H
 
+/* =========================================================================
+ * BSP THREAD OWNERS
+ * ========================================================================= */
 
-/**********************************************************************
- *
- * ALL THREADS (BSP + APP) MUST BE DEFINED IN THIS FILE
- * - Add thread entries to app_bsp_thread_owner_t enum.
- * - Initialize corresponding os_thread_map_t entry in g_appThreadCfg  array.
- * - Thread handles are filled at runtime after thread creation.
- ***********************************************************************/
 typedef enum
 {
-/* --------------------------------------------------------
- *        BSP THREAD CONFIGURATION
- * -------------------------------------------------------- */
-#if defined(CMAKE_ESPx_PLATFORM)
-    BSP_THREAD_OWNER_UART_ASYNC = 1, /**< UART asynchronous thread. only for ESP */
-#endif                               /* CMAKE_ESPx_PLATFORM */
-    BSP_THREAD_OWNER_MAX             /**< Maximum number of threads. */
+    /*
+     * Reserve index zero to preserve the existing ESP32 UART thread ID.
+     * This entry must not be used to create a thread.
+     */
+
+    BSP_THREAD_OWNER_MAX = 0U /**< Reserved for BSP thread owner IDs. */
+
 } app_bsp_thread_owner_t;
 
 
-/**********************************************************************
- * ALL QUEUES (BSP + APP) MUST BE DEFINED IN THIS FILE
- * - Add queue entries to bsp_queue_owner_t enum.
- * - Initialize corresponding os_queue_map_t entry in g_appBspQueueObj  array.
- * - Queue handles are filled at runtime after queue creation.
- ***********************************************************************/
+/* =========================================================================
+ * BSP QUEUE OWNERS
+ * ========================================================================= */
+
 typedef enum
 {
-    BSP_QUEUE_OWNER_LOG  = 0, /**< Log message queue. */
-    BSP_QUEUE_WIFI_EVENT = 1, /*< WIFI event queue length. */
-    BSP_QUEUE_OWNER_MAX       /*< Maximum number of queues. */
+    BSP_QUEUE_OWNER_LOG_TASK = 0, /**< Task-context logger queue. */
+    BSP_QUEUE_OWNER_LOG_ISR,      /**< ISR-context logger queue. */
+    BSP_QUEUE_WIFI_EVENT,         /**< Wi-Fi event queue. */
+
+    BSP_QUEUE_OWNER_MAX
+
 } bsp_queue_owner_t;
 
 
-/**********************************************************************
- * ALL MUTEXES (BSP + APP) MUST BE DEFINED IN THIS FILE
- * - Add mutex entries to bsp_mutex_owner_t enum.
- * - Initialize corresponding os_mutex_map_t entry in g_bspMutexCfg  array.
- * - Mutex handles are filled at runtime after mutex creation.
- ***********************************************************************/
+/* =========================================================================
+ * BSP MUTEX OWNERS
+ * ========================================================================= */
+
 typedef enum
 {
-    BSP_MUTEX_OWNER_LOG        = 0, /*< Log message mutex. */
-    BSP_MUTEX_OWNER_CLI        = 1, /*< CLI mutex. */
-    BSP_MUTEX_OWNER_WIFI       = 2, /*< WiFi module mutex. */
-    BSP_MUTEX_OWNER_UART_ASYNC = 3, /*< UART asynchronous mutex. */
-    BSP_MUTEX_OWNER_MAX             /*< Maximum number of mutexes. */
+    BSP_MUTEX_OWNER_LOG = 0,    /**< Logger mutex. */
+    BSP_MUTEX_OWNER_CLI,        /**< CLI mutex. */
+    BSP_MUTEX_OWNER_WIFI,       /**< Wi-Fi mutex. */
+    BSP_MUTEX_OWNER_UART_ASYNC, /**< Asynchronous UART mutex. */
+
+    BSP_MUTEX_OWNER_MAX
+
 } bsp_mutex_owner_t;
 
 
-/**********************************************************************
- * ALL SEMAPHORES (BSP + APP) MUST BE DEFINED IN THIS FILE
- * - Add semaphore entries to bsp_semaphore_owner_t enum.
- * - Initialize corresponding os_semaphore_map_t entry in  g_appBspSemaphoreObj                      array.
- * - Semaphore handles are filled at runtime after semaphore creation.
- ***********************************************************************/
+/* =========================================================================
+ * BSP SEMAPHORE OWNERS
+ * ========================================================================= */
+
 typedef enum
 {
-    BSP_SEMAPHORE_OWNER_LOG  = 0, /*< Log message semaphore. */
-    BSP_SEMAPHORE_OWNER_WIFI = 1, /*< WiFi module semaphore. */
-    BSP_SEMAPHORE_OWNER_MAX       /*< Maximum number of semaphores. */
+    BSP_SEMAPHORE_OWNER_LOG = 0, /**< Logger semaphore. */
+    BSP_SEMAPHORE_OWNER_WIFI,    /**< Wi-Fi semaphore. */
+
+    BSP_SEMAPHORE_OWNER_MAX
+
 } bsp_semaphore_owner_t;
 
 
-/**********************************************************************
- * ALL EVENT FLAGS (BSP + APP) MUST BE DEFINED IN THIS FILE
- * - Add event flag entries to bsp_event_flags_owner_t enum.
- * - Initialize corresponding os_event_flags_map_t entry in
- * g_appBspEventFlagsObj array.
- * - Event flag handles are filled at runtime after event flag creation.
- ***********************************************************************/
+/* =========================================================================
+ * BSP EVENT FLAG OWNERS
+ * ========================================================================= */
+
 typedef enum
 {
-    BSP_EVENT_FLAGS_OWNER_LOG  = 0, /*< Log message event flags. */
-    BSP_EVENT_FLAGS_OWNER_WIFI = 1, /*< WiFi module event flags. */
-    BSP_EVENT_FLAGS_OWNER_MAX       /*< Maximum number of event flags. */
+    BSP_EVENT_FLAGS_OWNER_LOG = 0, /**< Logger event flags. */
+    BSP_EVENT_FLAGS_OWNER_WIFI,    /**< Wi-Fi event flags. */
+
+    BSP_EVENT_FLAGS_OWNER_MAX
+
 } bsp_event_flags_owner_t;
 
-#endif                              /* BSP_CFG_MAP_H */
+#endif /* BSP_CFG_MAP_H */

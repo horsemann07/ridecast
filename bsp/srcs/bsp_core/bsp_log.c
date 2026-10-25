@@ -95,12 +95,12 @@
  *
  * Runtime configuration is available only when enabled.
  */
-#ifndef bspCONFIG_LOG_COLOR_SUPPORT
-    #define bspCONFIG_LOG_COLOR_SUPPORT (0U)
+#ifndef  configLOG_COLOR_SUPPORT
+    #define  configLOG_COLOR_SUPPORT (0U)
 #endif
 
-#if (bspCONFIG_LOG_COLOR_SUPPORT != 0U) && (bspCONFIG_LOG_COLOR_SUPPORT != 1U)
-    #error "Invalid bspCONFIG_LOG_COLOR_SUPPORT configuration"
+#if ( configLOG_COLOR_SUPPORT != 0U) && ( configLOG_COLOR_SUPPORT != 1U)
+    #error "Invalid  configLOG_COLOR_SUPPORT configuration"
 #endif
 
 /* -------------------------------------------------------------------------- */
@@ -233,7 +233,7 @@
  * LOGGER ANSI COLOR CONFIGURATION
  * ============================================================================ */
 
-#if (bspCONFIG_LOG_COLOR_SUPPORT == 1U)
+#if ( configLOG_COLOR_SUPPORT == 1U)
 
     #define LOG_COLOR_ERROR         "\x1B[31m"
     #define LOG_COLOR_WARN          "\x1B[33m"
@@ -246,37 +246,8 @@
     #define LOG_COLOR_RESET_LENGTH  (4U)
     #define LOG_COLOR_EXTRA_LENGTH  (9U)
 
-#endif // bspCONFIG_LOG_COLOR_SUPPORT
+#endif //  configLOG_COLOR_SUPPORT
 
-/* -------------------------------------------------------------------------- */
-/* Task Logging Record                                                        */
-/* -------------------------------------------------------------------------- */
-
-typedef struct
-{
-    log_level_t level;
-    const char* file;
-    uint32_t line;
-    const char* function;
-    uint16_t length;
-    char message[configLOG_TASK_MESSAGE_MAX];
-} log_text_record_t;
-
-
-/* -------------------------------------------------------------------------- */
-/* ISR Logging Record                                                         */
-/* -------------------------------------------------------------------------- */
-
-typedef struct
-{
-    log_level_t level;
-    const char* file;
-    uint32_t line;
-    const char* function;
-    log_isr_value_type_t type;
-    log_isr_value_t value;
-    char message[configLOG_ISR_MESSAGE_MAX];
-} log_isr_record_t;
 /* -------------------------------------------------------------------------- */
 /**
  * @brief Internal logging module configuration.
@@ -383,7 +354,7 @@ static uint64_t s_message_number = 0U;
 /* PRIVATE FUNCTION DECLARATIONS                                              */
 /* -------------------------------------------------------------------------- */
 
-#if (bspCONFIG_LOG_COLOR_SUPPORT == 1U)
+#if ( configLOG_COLOR_SUPPORT == 1U)
 /**
  * @brief Return the ANSI color for a logging severity.
  *
@@ -394,7 +365,7 @@ static uint64_t s_message_number = 0U;
  * @note Called only from the logging worker.
  */
 static const char* log_level_color(log_level_t level);
-#endif // bspCONFIG_LOG_COLOR_SUPPORT
+#endif //  configLOG_COLOR_SUPPORT
 
 /**
  * @brief Validate the specified logging severity level.
@@ -947,12 +918,12 @@ ret_err_sts_t log_init(const log_task_config_t* config)
     }
 
 /* Reject color requests when color support is excluded. */
-#if (bspCONFIG_LOG_COLOR_SUPPORT == 0U)
+#if ( configLOG_COLOR_SUPPORT == 0U)
     if(config->format.color_enabled)
     {
         return RET_ERR_STS_NOT_SUPPORTED;
     }
-#endif // bspCONFIG_LOG_COLOR_SUPPORT
+#endif //  configLOG_COLOR_SUPPORT
 
     /* Reserve initialization independently from the initialized flag. */
     if(!atomic_compare_exchange_strong(&s_initializing, &expected, true))
@@ -1198,12 +1169,12 @@ ret_err_sts_t log_set_format(const log_format_config_t* format)
     }
 
     /* Validate compile-time color availability. */
-#if (bspCONFIG_LOG_COLOR_SUPPORT == 0U)
+#if ( configLOG_COLOR_SUPPORT == 0U)
     if(format->color_enabled)
     {
         return RET_ERR_STS_NOT_SUPPORTED;
     }
-#endif // bspCONFIG_LOG_COLOR_SUPPORT
+#endif //  configLOG_COLOR_SUPPORT
 
     if(osMutexAcquire(s_config.format_mutex, osWaitForever) != osOK)
     {
@@ -1392,7 +1363,7 @@ bool log_isr_value(log_level_t level,
 /* PRIVATE FUNCTIONS                                                          */
 /* -------------------------------------------------------------------------- */
 
-#if (bspCONFIG_LOG_COLOR_SUPPORT == 1U)
+#if ( configLOG_COLOR_SUPPORT == 1U)
 
 /**
  * @brief Return the ANSI color for a logging severity.
@@ -1443,7 +1414,7 @@ static const char* log_level_color(log_level_t level)
     return color;
 }
 
-#endif // bspCONFIG_LOG_COLOR_SUPPORT
+#endif //  configLOG_COLOR_SUPPORT
 
 /* -------------------------------------------------------------------------- */
 static bool logger_time_mode_valid(log_time_mode_t mode)
@@ -2013,13 +1984,13 @@ static void emit_record(log_level_t level,
     size_t format_capacity;
     log_format_config_t format;
 
-#if (bspCONFIG_LOG_COLOR_SUPPORT == 1U)
+#if ( configLOG_COLOR_SUPPORT == 1U)
     char output[configLOG_OUTPUT_MAX + LOG_COLOR_EXTRA_LENGTH];
     bool use_color;
     const char* color;
 #else
     char output[configLOG_OUTPUT_MAX];
-#endif // bspCONFIG_LOG_COLOR_SUPPORT
+#endif //  configLOG_COLOR_SUPPORT
 
     /* Obtain a consistent runtime format snapshot. */
     if(osMutexAcquire(s_config.format_mutex, osWaitForever) != osOK)
@@ -2039,7 +2010,7 @@ static void emit_record(log_level_t level,
 
     format_capacity = sizeof(output);
 
-#if (bspCONFIG_LOG_COLOR_SUPPORT == 1U)
+#if ( configLOG_COLOR_SUPPORT == 1U)
 
     use_color = format.color_enabled;
     color     = log_level_color(level);
@@ -2063,7 +2034,7 @@ static void emit_record(log_level_t level,
         use_color = false;
     }
 
-#endif // bspCONFIG_LOG_COLOR_SUPPORT
+#endif //  configLOG_COLOR_SUPPORT
 
     /* Append configured metadata. */
     append_prefix(output, format_capacity, &used, level, file, line, function, &format);
@@ -2077,7 +2048,7 @@ static void emit_record(log_level_t level,
         append_isr_value(output, format_capacity, &used, isr);
     }
 
-#if (bspCONFIG_LOG_COLOR_SUPPORT == 1U)
+#if ( configLOG_COLOR_SUPPORT == 1U)
 
     /* Restore the terminal color before the newline. */
     if(use_color)
@@ -2086,7 +2057,7 @@ static void emit_record(log_level_t level,
         used += LOG_COLOR_RESET_LENGTH;
     }
 
-#endif // bspCONFIG_LOG_COLOR_SUPPORT
+#endif //  configLOG_COLOR_SUPPORT
 
     /* Append carriage return and line feed characters. */
     output[used++] = '\r';

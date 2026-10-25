@@ -1,16 +1,58 @@
-/*
- * bsp_config.h
- * ------------
- * Board Support Package (BSP) compile-time configuration constants.
- */
 
+/**
+ * ============================================================================
+ * @file    bsp_config.h
+ * @brief   Compile-time configuration for the reusable BSP.
+ *
+ * @details
+ * Provides default configuration for BSP logging, CLI, UART and Wi-Fi.
+ *
+ * Configuration naming convention:
+ *   configMODULE_SETTING
+ *
+ * Examples:
+ *   configLOG_COLOR_SUPPORT
+ *   configCLI_MAX_COMMANDS
+ *   configUART_ENABLE_ASYNC
+ *   configWIFI_EVENT_QUEUE_DEPTH
+ *
+ * Standalone BSP:
+ *   All undefined configuration macros use the defaults in this file.
+ *
+ * Application integration:
+ *   Define BSP_USE_APP_CONFIG_OVERRIDES in the build and provide
+ *   app_bsp_overrides.h on the compiler include path.
+ *
+ *   The application overrides only the required settings. All remaining
+ *   settings retain their BSP defaults.
+ *
+ * @warning
+ *   The override header must contain preprocessor definitions only.
+ *   It must not include bsp_config.h or application headers.
+ *
+ *   BSP and application modules must use identical configuration values
+ *   during compilation.
+ *
+ * @note
+ *   BSP RTOS owner identifiers are defined in bsp_cfg_map.h.
+ *   BSP RTOS object configuration arrays are defined in bsp_cfg_map.c.
+ *
+ * ============================================================================
+ * Change Log (newest first):
+ * ============================================================================
+ * 2026-10-25  Standardized BSP configuration on config* macro naming.
+ * ============================================================================
+ */
 
 #ifndef BSP_CONFIG_H
 #define BSP_CONFIG_H
 
-
 #include <stdint.h>
 #include <stddef.h>
+
+#if defined(BSP_USE_APP_CONFIG_OVERRIDES)
+    #include "app_bsp_overrides.h"
+#endif
 
 #include "bsp_os_map.h"
 #include "bsp_cfg_map.h"
@@ -21,161 +63,311 @@ extern "C"
 {
 #endif
 
-    /**********************************************************************
-     * EXTERNAL VARIABLES (Must be fined by user or in bsp_cfg_map.c)
-     ***********************************************************************/
+    /* =========================================================================
+     * BSP RTOS OBJECT MAPS
+     * ========================================================================= */
+
     extern os_thread_map_t g_bspThreadCfg[BSP_THREAD_OWNER_MAX];
     extern os_queue_map_t g_bspQueueCfg[BSP_QUEUE_OWNER_MAX];
     extern os_mutex_map_t g_bspMutexCfg[BSP_MUTEX_OWNER_MAX];
     extern os_semaphore_map_t g_bspSemaphoreCfg[BSP_SEMAPHORE_OWNER_MAX];
     extern os_event_flags_map_t g_bspEventFlagsCfg[BSP_EVENT_FLAGS_OWNER_MAX];
 
-    /* -------------------------------------------------------------------------- */
-    /* BSP Logging Configuration */
-    /* -------------------------------------------------------------------------- */
 
-#ifndef APP_OVERRIDE_LOG_CONFIGURATION
+/* =========================================================================
+ * LOGGER CONFIGURATION
+ * ========================================================================= */
+/*
+ * Compiled logging level:
+ * 0 = NONE
+ * 1 = WARN
+ * 2 = ERROR
+ * 3 = INFO
+ * 4 = DEBUG
+ */
+#ifndef configLOG_COMPILED_LEVEL
+    #define configLOG_COMPILED_LEVEL (4U)
+#endif
 
-    /*
-     * Maximum logging severity compiled into the firmware.
-     *
-     * Valid values:
-     * 0 = BSP_LOG_NONE
-     * 1 = BSP_LOG_WARN
-     * 2 = BSP_LOG_ERROR
-     * 3 = BSP_LOG_INFO
-     * 4 = BSP_LOG_DEBUG
-     *
-     * Runtime logging levels are controlled independently.
-     */
-    #define BSP_COMPILED_LOG_LEVEL            (4)
+#ifndef configLOG_LINE_MAX_LEN
+    #define configLOG_LINE_MAX_LEN (256U)
+#endif
 
-    /* Maximum formatted log line length in bytes. */
-    #define bspCONFIG_LOG_LINE_MAX_LEN        (256U)
+#ifndef configLOG_MUTEX_TIMEOUT_MS
+    #define configLOG_MUTEX_TIMEOUT_MS (100U)
+#endif
 
-    /* Maximum logger mutex acquisition timeout in milliseconds. */
-    #define bspCONFIG_LOG_MUTEX_TIMEOUT_MS    (100U)
+#ifndef configLOG_TASK_MESSAGE_MAX
+    #define configLOG_TASK_MESSAGE_MAX (160U)
+#endif
 
-    /* Maximum ISR log message length in bytes. */
-    #define bspCONFIG_LOG_ISR_MESSAGE_MAX_LEN (96U)
+#ifndef configLOG_ISR_MESSAGE_MAX
+    #define configLOG_ISR_MESSAGE_MAX (96U)
+#endif
 
-    /* Maximum number of pending ISR log messages. */
-    #define bspCONFIG_LOG_ISR_QUEUE_LENGTH    (32U)
+#ifndef configLOG_OUTPUT_MAX
+    #define configLOG_OUTPUT_MAX (320U)
+#endif
 
-    /* Enable ANSI color formatting in log messages. */
-    #define bspCONFIG_LOG_COLOR_SUPPORT       (1)
+#ifndef configLOG_TASK_QUEUE_LENGTH
+    #define configLOG_TASK_QUEUE_LENGTH (32U)
+#endif
 
-#endif /* APP_OVERRIDE_LOG_CONFIGURATION */
 
-    /* -------------------------------------------------------------------------- */
-    /* BSP CLI Configuration */
-    /* -------------------------------------------------------------------------- */
+#ifndef configLOG_ISR_QUEUE_LENGTH
+    #define configLOG_ISR_QUEUE_LENGTH (32U)
+#endif
 
-#ifndef APP_OVERRIDE_CLI_CONFIGURATION
+#ifndef configLOG_COLOR_SUPPORT
+    #define configLOG_COLOR_SUPPORT (1U)
+#endif
 
-    /* Default command-line prompt string. */
-    #define bspCONFIG_CLI_PROMPT                ("> ")
+    /* =========================================================================
+     * LOGGER CONFIGURATION VALIDATION
+     * ========================================================================= */
 
-    /* Maximum CLI formatted output buffer size in bytes. */
-    #define bspCONFIG_CLI_PRINTF_BUF_SIZE       (256U)
+#if (configLOG_COMPILED_LEVEL > 4U)
+    #error "configLOG_COMPILED_LEVEL must be 0..4"
+#endif
 
-    /* Maximum number of command arguments. */
-    #define bspCONFIG_CLI_MAX_ARGS              (16U)
+#if (configLOG_COLOR_SUPPORT != 0U) && (configLOG_COLOR_SUPPORT != 1U)
+    #error "configLOG_COLOR_SUPPORT must be 0 or 1"
+#endif
 
-    /* Number of machine words reserved for the embedded CLI buffer. */
-    #define bspCONFIG_CLI_EMBEDDED_BUFFER_WORDS (512U)
+#if (configLOG_TASK_MESSAGE_MAX < 8U) || (configLOG_TASK_MESSAGE_MAX > UINT16_MAX)
+    #error "Invalid configLOG_TASK_MESSAGE_MAX"
+#endif
 
-    /* CLI receive buffer capacity in bytes. */
-    #define bspCONFIG_CLI_RX_BUF_SIZE           (64U)
+#if (configLOG_ISR_MESSAGE_MAX < 2U) || (configLOG_ISR_MESSAGE_MAX > UINT16_MAX)
+    #error "Invalid configLOG_ISR_MESSAGE_MAX"
+#endif
 
-    /* CLI transmit buffer capacity in bytes. */
-    #define bspCONFIG_CLI_TX_BUF_SIZE           (256U)
+#if (configLOG_OUTPUT_MAX < 48U) || (configLOG_OUTPUT_MAX > UINT16_MAX)
+    #error "Invalid configLOG_OUTPUT_MAX"
+#endif
 
-    /* Maximum command input buffer size in bytes. */
-    #define bspCONFIG_CLI_CMD_BUF_SIZE          (256U)
+#if (configLOG_LINE_MAX_LEN < 1U) || (configLOG_LINE_MAX_LEN > UINT16_MAX)
+    #error "Invalid configLOG_LINE_MAX_LEN"
+#endif
 
-    /* CLI ring buffer capacity in bytes. */
-    #define bspCONFIG_CLI_RING_SIZE             (256U)
+#if (configLOG_MUTEX_TIMEOUT_MS < 1U)
+    #error "configLOG_MUTEX_TIMEOUT_MS must be nonzero"
+#endif
 
-    /* Maximum number of registered CLI bindings. */
-    #define bspCONFIG_CLI_MAX_BINDINGS          (16U)
+#if (configLOG_ISR_QUEUE_LENGTH < 1U)
+    #error "configLOG_ISR_QUEUE_LENGTH must be nonzero"
+#endif
 
-    /* CLI mutex acquisition timeout in milliseconds. */
-    #define bspCONFIG_CLI_MUTEX_TIMEOUT_MS      (100U)
 
-    /* Default firmware identification string. */
-    #define bspCONFIG_CLI_FW_NAME               ("Firmware")
+    /* =========================================================================
+     * CLI CONFIGURATION
+     * ========================================================================= */
 
-    /* Default firmware version string. */
-    #define bspCONFIG_CLI_FW_VERSION            ("1.0.0")
+#ifndef configCLI_PROMPT
+    #define configCLI_PROMPT ("> ")
+#endif
 
-    /* Enable or disable CLI autocomplete support (0U: disabled, 1U: enabled). */
-    #define bspCONFIG_CLI_AUTOCOMPLETE          (0U)
+#ifndef configCLI_PRINTF_BUF_SIZE
+    #define configCLI_PRINTF_BUF_SIZE (256U)
+#endif
 
-#endif /* APP_OVERRIDE_CLI_CONFIGURATION */
+#ifndef configCLI_MAX_ARGS
+    #define configCLI_MAX_ARGS (16U)
+#endif
 
-    /* -------------------------------------------------------------------------- */
-    /* BSP UART Configuration */
-    /* -------------------------------------------------------------------------- */
+#ifndef configCLI_EMBEDDED_BUFFER_WORDS
+    #define configCLI_EMBEDDED_BUFFER_WORDS (512U)
+#endif
 
-#ifndef APP_OVERRIDE_UART_CONFIGURATION
+#ifndef configCLI_RX_BUF_SIZE
+    #define configCLI_RX_BUF_SIZE (64U)
+#endif
 
-    /* Enable asynchronous UART operations (0U: disabled, 1U: enabled). */
-    #define bspCONFIG_UART_ENABLE_ASYNC          (1U)
+#ifndef configCLI_TX_BUF_SIZE
+    #define configCLI_TX_BUF_SIZE (256U)
+#endif
 
-    /* Native UART transmit and receive buffer capacity in bytes. */
-    #define bspCONFIG_UART_RXTX_BUFFER_SIZE      (1024U)
+#ifndef configCLI_CMD_BUF_SIZE
+    #define configCLI_CMD_BUF_SIZE (256U)
+#endif
 
-    /* Maximum number of pending asynchronous UART events. */
-    #define bspCONFIG_UART_ASYNC_EVENT_QUEUE_LEN (16U)
+#ifndef configCLI_RING_SIZE
+    #define configCLI_RING_SIZE (256U)
+#endif
 
-    /* UART worker task stack allocation in bytes. */
-    #define bspCONFIG_UART_TASK_STACK_BYTES      (4096U)
+#ifndef configCLI_MAX_BINDINGS
+    #define configCLI_MAX_BINDINGS (16U)
+#endif
 
-    /* UART worker scheduling priority. */
-    #define bspCONFIG_UART_TASK_PRIORITY         (8U)
+#ifndef configCLI_MUTEX_TIMEOUT_MS
+    #define configCLI_MUTEX_TIMEOUT_MS (100U)
+#endif
 
-    /* UART event polling interval in milliseconds. */
-    #define bspCONFIG_UART_POLL_MS               (10U)
+#ifndef configCLI_FW_NAME
+    #define configCLI_FW_NAME ("Firmware")
+#endif
 
-    /* UART worker shutdown timeout in milliseconds. */
-    #define bspCONFIG_UART_SHUTDOWN_MS           (1000U)
+#ifndef configCLI_FW_VERSION
+    #define configCLI_FW_VERSION ("1.0.0")
+#endif
 
-#endif /* APP_OVERRIDE_UART_CONFIGURATION */
+#ifndef configCLI_AUTOCOMPLETE
+    #define configCLI_AUTOCOMPLETE (0U)
+#endif
 
-    /* -------------------------------------------------------------------------- */
-    /* BSP Wi-Fi Configuration */
-    /* -------------------------------------------------------------------------- */
+#ifndef configCLI_MAX_COMMANDS
+    #define configCLI_MAX_COMMANDS (24U)
+#endif
 
-#ifndef APP_OVERRIDE_WIFI_CONFIGURATION
+#ifndef configCLI_MAX_OUTPUT_CHUNKS
+    #define configCLI_MAX_OUTPUT_CHUNKS (256U)
+#endif
 
-    /* Maximum SSID field size in bytes. */
-    #define bspCONFIG_WIFI_SSID_MAX_LEN       (32U)
 
-    /* Maximum Wi-Fi password field size in bytes. */
-    #define bspCONFIG_WIFI_PASSWORD_MAX_LEN   (64U)
+    /* =========================================================================
+     * CLI CONFIGURATION VALIDATION
+     * ========================================================================= */
 
-    /* Maximum IP address string size including the NUL terminator. */
-    #define bspCONFIG_WIFI_IP_ADDR_MAX_LEN    (40U)
+#if (configCLI_MAX_COMMANDS < 1U)
+    #error "configCLI_MAX_COMMANDS must be at least 1"
+#endif
 
-    /* MAC address size in raw bytes. */
-    #define bspCONFIG_WIFI_MAC_ADDR_MAX_LEN   (6U)
+#if (configCLI_MAX_OUTPUT_CHUNKS < 1U)
+    #error "configCLI_MAX_OUTPUT_CHUNKS must be at least 1"
+#endif
 
-    /* Maximum number of saved Wi-Fi network configurations. */
-    #define bspCONFIG_WIFI_MAX_SAVED_NETWORKS (5U)
+#if (configCLI_MAX_ARGS < 1U) || (configCLI_MAX_BINDINGS < 1U)
+    #error "CLI argument and binding limits must be nonzero"
+#endif
 
-    /* Maximum number of pending Wi-Fi events. */
-    #define configWIFI_EVENT_QUEUE_DEPTH      (10U)
+#if (configCLI_AUTOCOMPLETE != 0U) && (configCLI_AUTOCOMPLETE != 1U)
+    #error "configCLI_AUTOCOMPLETE must be 0 or 1"
+#endif
 
-    /* Wi-Fi operation timeout in milliseconds. */
-    #define configWIFI_WAIT_TIMEOUT_MS        (5000U)
 
-    /* NVS namespace used to store Wi-Fi configuration. */
-    #define configWIFI_NVS_NAMESPACE          ("bsp_wifi")
+    /* =========================================================================
+     * UART CONFIGURATION
+     * ========================================================================= */
 
-#endif /* APP_OVERRIDE_WIFI_CONFIGURATION */
+#ifndef configUART_ENABLE_ASYNC
+    #define configUART_ENABLE_ASYNC (1U)
+#endif
 
-    /* -------------------------------------------------------------------------- */
+#ifndef configUART_RXTX_BUFFER_SIZE
+    #define configUART_RXTX_BUFFER_SIZE (1024U)
+#endif
+
+#ifndef configUART_ASYNC_EVENT_QUEUE_LEN
+    #define configUART_ASYNC_EVENT_QUEUE_LEN (16U)
+#endif
+
+#ifndef configUART_TASK_STACK_BYTES
+    #define configUART_TASK_STACK_BYTES (4096U)
+#endif
+
+#ifndef configUART_TASK_PRIORITY
+    #define configUART_TASK_PRIORITY (8U)
+#endif
+
+#ifndef configUART_POLL_MS
+    #define configUART_POLL_MS (10U)
+#endif
+
+#ifndef configUART_SHUTDOWN_MS
+    #define configUART_SHUTDOWN_MS (1000U)
+#endif
+
+
+    /* =========================================================================
+     * UART CONFIGURATION VALIDATION
+     * ========================================================================= */
+
+#if (configUART_ENABLE_ASYNC != 0U) && (configUART_ENABLE_ASYNC != 1U)
+    #error "configUART_ENABLE_ASYNC must be 0 or 1"
+#endif
+
+#if (configUART_RXTX_BUFFER_SIZE < 256U)
+    #error "UART driver buffer must be at least 256 bytes"
+#endif
+
+#if (configUART_ENABLE_ASYNC == 1U)
+
+    #if (configUART_ASYNC_EVENT_QUEUE_LEN < 1U) || (configUART_POLL_MS < 1U)
+        #error "UART async queue depth and poll interval must be nonzero"
+    #endif
+
+    #if (configUART_TASK_STACK_BYTES < 1U)
+        #error "UART worker stack size must be nonzero"
+    #endif
+
+#endif
+
+
+    /* =========================================================================
+     * WI-FI CONFIGURATION
+     * ========================================================================= */
+
+#ifndef configWIFI_SSID_MAX_LEN
+    #define configWIFI_SSID_MAX_LEN (32U)
+#endif
+
+#ifndef configWIFI_PASSWORD_MAX_LEN
+    #define configWIFI_PASSWORD_MAX_LEN (64U)
+#endif
+
+#ifndef configWIFI_IP_ADDR_MAX_LEN
+    #define configWIFI_IP_ADDR_MAX_LEN (40U)
+#endif
+
+#ifndef configWIFI_MAC_ADDR_MAX_LEN
+    #define configWIFI_MAC_ADDR_MAX_LEN (6U)
+#endif
+
+#ifndef configWIFI_MAX_SAVED_NETWORKS
+    #define configWIFI_MAX_SAVED_NETWORKS (5U)
+#endif
+
+#ifndef configWIFI_EVENT_QUEUE_DEPTH
+    #define configWIFI_EVENT_QUEUE_DEPTH (10U)
+#endif
+
+#ifndef configWIFI_WAIT_TIMEOUT_MS
+    #define configWIFI_WAIT_TIMEOUT_MS (5000U)
+#endif
+
+#ifndef configWIFI_NVS_NAMESPACE
+    #define configWIFI_NVS_NAMESPACE ("bsp_wifi")
+#endif
+
+
+    /* =========================================================================
+     * WI-FI CONFIGURATION VALIDATION
+     * ========================================================================= */
+
+#if (configWIFI_SSID_MAX_LEN < 32U)
+    #error "configWIFI_SSID_MAX_LEN must be at least 32"
+#endif
+
+#if (configWIFI_PASSWORD_MAX_LEN < 64U)
+    #error "configWIFI_PASSWORD_MAX_LEN must be at least 64"
+#endif
+
+#if (configWIFI_MAC_ADDR_MAX_LEN != 6U)
+    #error "configWIFI_MAC_ADDR_MAX_LEN must equal 6"
+#endif
+
+#if (configWIFI_MAX_SAVED_NETWORKS < 1U) || (configWIFI_MAX_SAVED_NETWORKS > 32U)
+    #error "configWIFI_MAX_SAVED_NETWORKS must be 1..32"
+#endif
+
+#if (configWIFI_EVENT_QUEUE_DEPTH < 1U)
+    #error "configWIFI_EVENT_QUEUE_DEPTH must be at least 1"
+#endif
+
+#if (configWIFI_WAIT_TIMEOUT_MS < 1U)
+    #error "configWIFI_WAIT_TIMEOUT_MS must be nonzero"
+#endif
+
 
 #ifdef __cplusplus
 }

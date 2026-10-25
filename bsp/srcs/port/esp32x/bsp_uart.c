@@ -37,43 +37,44 @@
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 
+
 /* -------------------------------------------------------------------------- */
-/* UART Compile-Time Configuration                                            */
+/* UART Configuration                                                         */
 /* -------------------------------------------------------------------------- */
 
 /* Enable or disable asynchronous UART operations (0U: disabled, 1U: enabled). */
-#ifndef bspCONFIG_UART_ENABLE_ASYNC
-    #define bspCONFIG_UART_ENABLE_ASYNC (1U)
+#ifndef configUART_ENABLE_ASYNC
+    #define configUART_ENABLE_ASYNC (1U)
 #endif
 
 /* Configure the native UART TX and RX buffer size in bytes. */
-#ifndef bspCONFIG_UART_RXTX_BUFFER_SIZE
-    #define bspCONFIG_UART_RXTX_BUFFER_SIZE (1024U)
+#ifndef configUART_RXTX_BUFFER_SIZE
+    #define configUART_RXTX_BUFFER_SIZE (1024U)
 #endif
 
 /* Configure the asynchronous UART event queue depth. */
-#ifndef bspCONFIG_UART_ASYNC_EVENT_QUEUE_LEN
-    #define bspCONFIG_UART_ASYNC_EVENT_QUEUE_LEN (16U)
+#ifndef configUART_ASYNC_EVENT_QUEUE_LEN
+    #define configUART_ASYNC_EVENT_QUEUE_LEN (16U)
 #endif
 
 /* Configure the asynchronous UART worker stack size in bytes. */
-#ifndef bspCONFIG_UART_TASK_STACK_BYTES
-    #define bspCONFIG_UART_TASK_STACK_BYTES (4096U)
+#ifndef configUART_TASK_STACK_BYTES
+    #define configUART_TASK_STACK_BYTES (4096U)
 #endif
 
 /* Configure the asynchronous UART worker task priority. */
-#ifndef bspCONFIG_UART_TASK_PRIORITY
-    #define bspCONFIG_UART_TASK_PRIORITY (8U)
+#ifndef configUART_TASK_PRIORITY
+    #define configUART_TASK_PRIORITY (8U)
 #endif
 
 /* Configure the UART event polling interval in milliseconds. */
-#ifndef bspCONFIG_UART_POLL_MS
-    #define bspCONFIG_UART_POLL_MS (10U)
+#ifndef configUART_POLL_MS
+    #define configUART_POLL_MS (10U)
 #endif
 
 /* Configure the UART worker shutdown timeout in milliseconds. */
-#ifndef bspCONFIG_UART_SHUTDOWN_MS
-    #define bspCONFIG_UART_SHUTDOWN_MS (1000U)
+#ifndef configUART_SHUTDOWN_MS
+    #define configUART_SHUTDOWN_MS (1000U)
 #endif
 
 /* -------------------------------------------------------------------------- */
@@ -81,44 +82,63 @@
 /* -------------------------------------------------------------------------- */
 
 /* Restrict asynchronous UART configuration to supported Boolean values. */
-#if ((bspCONFIG_UART_ENABLE_ASYNC != 0U) && (bspCONFIG_UART_ENABLE_ASYNC != 1U))
-    #error "bspCONFIG_UART_ENABLE_ASYNC must be 0 or 1"
+#if ((configUART_ENABLE_ASYNC != 0U) && (configUART_ENABLE_ASYNC != 1U))
+    #error "configUART_ENABLE_ASYNC must be 0 or 1"
 #endif
 
-/* Ensure the UART driver buffer exceeds the hardware FIFO capacity. */
-#if (bspCONFIG_UART_RXTX_BUFFER_SIZE < 256U)
-    #error "UART driver buffer must exceed the target hardware FIFO"
+/* Ensure the UART driver buffer meets the minimum required size. */
+#if (configUART_RXTX_BUFFER_SIZE < 256U)
+    #error "configUART_RXTX_BUFFER_SIZE must be at least 256 bytes"
 #endif
 
 /* Validate event queue depth and polling interval when async UART is enabled. */
-#if (bspCONFIG_UART_ENABLE_ASYNC == 1U)
-    #if (bspCONFIG_UART_ASYNC_EVENT_QUEUE_LEN < 1U) || (bspCONFIG_UART_POLL_MS < 1U)
-        #error "UART event depth and poll interval must be nonzero"
+#if (configUART_ENABLE_ASYNC == 1U)
+    #if (configUART_ASYNC_EVENT_QUEUE_LEN < 1U)
+        #error "configUART_ASYNC_EVENT_QUEUE_LEN must be nonzero"
+    #endif
+
+    #if (configUART_POLL_MS < 1U)
+        #error "configUART_POLL_MS must be nonzero"
     #endif
 #endif
 
 /* -------------------------------------------------------------------------- */
-/* Private UART Type Definitions                                              */
+/* UART Module-Local Configuration Aliases                                    */
 /* -------------------------------------------------------------------------- */
 
-/**
- * @brief Stores completion information for an asynchronous UART receive.
- *
- * @details Captures callback information and received data before the
- * active RX state is cleared. The callback is invoked outside the port mutex.
- *
- * @note The receive buffer remains owned by the application.
- */
-#if (bspCONFIG_UART_ENABLE_ASYNC == 1U)
-typedef struct
-{
-    bspUartRxCallback_t callback; /**< Registered RX completion callback. */
-    void* callback_context;       /**< Application-defined callback context. */
-    uint8_t* buffer;              /**< Application-owned receive buffer. */
-    size_t length;   /**< Number of bytes received at completion. */
-    size_t received; /**< Additional receive progress storage. */
-} uart_rx_completion_t;
+/* Enable asynchronous UART operations. */
+#define UART_ENABLE_ASYNC          configUART_ENABLE_ASYNC
+
+/* Native UART TX and RX buffer size in bytes. */
+#define UART_RXTX_BUFFER_SIZE      configUART_RXTX_BUFFER_SIZE
+
+/* Asynchronous UART event queue depth. */
+#define UART_ASYNC_EVENT_QUEUE_LEN configUART_ASYNC_EVENT_QUEUE_LEN
+
+/* UART worker task stack size in bytes. */
+#define UART_TASK_STACK_BYTES      configUART_TASK_STACK_BYTES
+
+/* UART worker task priority. */
+#define UART_TASK_PRIORITY         configUART_TASK_PRIORITY
+
+/* UART event polling interval in milliseconds. */
+#define UART_POLL_MS               configUART_POLL_MS
+
+/* UART worker shutdown timeout in milliseconds. */
+#define UART_SHUTDOWN_MS           configUART_SHUTDOWN_MS
+
+#define UART_RX_CHUNK_BYTES        configUART_RX_CHUNK_BYTES
+#define UART_RX_TIMEOUT_SYMBOLS    configUART_RX_TIMEOUT_SYMBOLS
+
+#if ((UART_RX_CHUNK_BYTES == 0U) || (UART_RX_CHUNK_BYTES > 1024U))
+    #error "UART RX chunk size must be between 1 and 1024"
 #endif
+
+#if (UART_RX_TIMEOUT_SYMBOLS > 126U)
+    #error "UART RX timeout symbols must not exceed 126"
+#endif
+/* -------------------------------------------------------------------------- */
+
 
 /* -------------------------------------------------------------------------- */
 
@@ -146,14 +166,7 @@ typedef struct
     uint32_t tx_errors;      /**< Accumulated TX error count. */
     bspUartRxCallback_t rx_callback; /**< Registered RX callback. */
     void* rx_callback_context; /**< Application-defined RX callback context. */
-#if (bspCONFIG_UART_ENABLE_ASYNC == 1U)
-    uint8_t* rx_buffer;        /**< Active application-owned RX buffer. */
-    size_t rx_capacity;        /**< Active RX buffer capacity in bytes. */
-    size_t rx_received; /**< Bytes accumulated in the active RX operation. */
-    QueueHandle_t event_queue; /**< Native ESP-IDF UART event queue. */
-    SemaphoreHandle_t worker_stopped; /**< Worker shutdown acknowledgement semaphore. */
-    TaskHandle_t worker; /**< Asynchronous UART worker task handle. */
-#endif
+    QueueHandle_t event_queue;
 } uart_port_state_t;
 
 /* -------------------------------------------------------------------------- */
@@ -327,52 +340,6 @@ static void release_port(uart_port_state_t* port);
  * @retval RET_ERR_STS_FAIL Other native driver failure.
  */
 static ret_err_sts_t map_driver_error(esp_err_t err);
-
-/* -------------------------------------------------------------------------- */
-/* Private Asynchronous UART Function Declarations                            */
-/* -------------------------------------------------------------------------- */
-
-#if (bspCONFIG_UART_ENABLE_ASYNC == 1U)
-
-/**
- * @brief Capture and reset an active asynchronous receive operation.
- *
- * @param[in,out] port Pointer to the UART runtime state.
- * @param[out] done Receives the callback information, receive buffer,
- * and number of bytes accumulated.
- *
- * @return None.
- *
- * @pre The calling task must hold the UART port mutex.
- *
- * @note This function does not invoke the application callback.
- * Callback execution is performed after releasing the mutex.
- */
-static void complete_rx_locked(uart_port_state_t* port, uart_rx_completion_t* done);
-
-/* -------------------------------------------------------------------------- */
-
-/**
- * @brief Process asynchronous UART events for one hardware port.
- *
- * @param[in] param Pointer to the UART runtime state.
- *
- * @return None.
- *
- * @details
- * Waits for UART events, processes receive data, handles receive
- * errors, and invokes application callbacks after releasing the
- * port mutex.
- *
- * During shutdown, the worker acknowledges the stop request and
- * suspends until the deinitializing task deletes it.
- *
- * @note The function is intended to execute as a FreeRTOS task.
- */
-static void uart_async_thread(void* param);
-
-#endif /* (bspCONFIG_UART_ENABLE_ASYNC == 1U) */
-
 /* -------------------------------------------------------------------------- */
 /* ============================================================================
  * PRIVATE FUNCTIONS DEFINITIONS
@@ -753,206 +720,6 @@ static ret_err_sts_t map_driver_error(esp_err_t err)
     return RET_ERR_STS_FAIL;
 }
 
-/* -------------------------------------------------------------------------- */
-/* Asynchronous UART Private Functions                                        */
-/* -------------------------------------------------------------------------- */
-
-#if (bspCONFIG_UART_ENABLE_ASYNC == 1U)
-
-/* -------------------------------------------------------------------------- */
-/* Asynchronous RX Completion State                                           */
-/* -------------------------------------------------------------------------- */
-
-static void complete_rx_locked(uart_port_state_t* port, uart_rx_completion_t* done)
-{
-    /*
-     * Capture the registered callback, application context, and
-     * receive buffer before clearing the active operation.
-     */
-    done->callback         = port->rx_callback;
-    done->callback_context = port->rx_callback_context;
-    done->buffer           = port->rx_buffer;
-    done->length           = port->rx_received;
-
-    /* Preserve the final received byte count for status queries. */
-    port->rx_count = port->rx_received;
-
-    /*
-     * Clear the active RX state while the port mutex is held.
-     * Callback execution is deferred until the caller releases the lock.
-     */
-    port->rx_buffer   = NULL;
-    port->rx_capacity = 0U;
-    port->rx_received = 0U;
-    port->rx_busy     = false;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Asynchronous UART Event Worker                                             */
-/* -------------------------------------------------------------------------- */
-
-static void uart_async_thread(void* param)
-{
-    uart_port_state_t* port = (uart_port_state_t*)param;
-    const uart_port_t id    = (uart_port_t)(port - &s_ports[0]);
-    uart_event_t event;
-
-    /* Continue processing UART events until shutdown is requested. */
-    for(;;)
-    {
-        bool received_event;
-        bool completed                 = false;
-        ret_err_sts_t completed_status = RET_ERR_STS_OK;
-        uart_rx_completion_t done      = { 0 };
-        size_t available               = 0U;
-
-        /*
-         * Wait for a UART event with a bounded timeout.
-         * Periodic wakeups also permit polling for buffered RX data
-         * and checking the worker shutdown request.
-         */
-        received_event = (xQueueReceive(port->event_queue, &event,
-                                        ticks_from_ms(bspCONFIG_UART_POLL_MS)) == pdTRUE);
-
-        /* Synchronize access to the UART receive and shutdown state. */
-        (void)xSemaphoreTake(port->mutex, portMAX_DELAY);
-
-        if(port->stopping)
-        {
-            /*
-             * Acknowledge shutdown only after leaving the protected
-             * state and stop processing additional UART events.
-             */
-            (void)xSemaphoreGive(port->mutex);
-            (void)xSemaphoreGive(port->worker_stopped);
-
-            /* Remain parked until the deinitializing task deletes us. */
-            vTaskSuspend(NULL);
-
-            /*
-             * Prevent the worker from returning if execution is
-             * unexpectedly resumed after the shutdown request.
-             */
-            for(;;)
-            {
-                vTaskDelay(portMAX_DELAY);
-            }
-        }
-
-        /*
-         * Handle UART receive errors before consuming more data.
-         * Framing, parity, break, and buffer overflow events invalidate
-         * the pending receive data.
-         */
-        if(received_event &&
-           ((event.type == UART_FIFO_OVF) || (event.type == UART_BUFFER_FULL) ||
-            (event.type == UART_PARITY_ERR) || (event.type == UART_FRAME_ERR) ||
-            (event.type == UART_BREAK)))
-        {
-            /* Record the receive error and discard affected buffered data. */
-            port->rx_errors++;
-
-            /*
-             * Do not deliver potentially corrupt bytes on a subsequent
-             * RX request after framing, parity, break, or overflow errors.
-             */
-            (void)uart_flush_input(id);
-            (void)xQueueReset(port->event_queue);
-
-            /* Distinguish receive overflow from other UART line errors. */
-            if((event.type == UART_FIFO_OVF) || (event.type == UART_BUFFER_FULL))
-            {
-                completed_status = RET_ERR_STS_BUFFER_OVERFLOW;
-            }
-            else
-            {
-                completed_status = RET_ERR_STS_FRAME_ERROR;
-            }
-
-            /*
-             * Capture and clear any active receive operation.
-             * The application callback is invoked after unlocking.
-             */
-            if(port->rx_busy)
-            {
-                complete_rx_locked(port, &done);
-                completed = true;
-            }
-        }
-
-        /*
-         * Process buffered receive data only when an asynchronous
-         * operation is active and the driver reports available bytes.
-         */
-        else if(port->rx_busy && (uart_get_buffered_data_len(id, &available) == ESP_OK) &&
-                (available != 0U))
-        {
-            /* Limit the read to the remaining application buffer capacity. */
-            size_t wanted = port->rx_capacity - port->rx_received;
-
-            if(available < wanted)
-            {
-                wanted = available;
-            }
-
-            /* Limit the transfer length to the native driver's size range. */
-            if(wanted > (size_t)UINT32_MAX)
-            {
-                wanted = (size_t)UINT32_MAX;
-            }
-
-            /* Read buffered UART data without blocking the worker. */
-            int read_count = uart_read_bytes(id, &port->rx_buffer[port->rx_received],
-                                             (uint32_t)wanted, (TickType_t)0);
-
-            if(read_count < 0)
-            {
-                /*
-                 * Record the native receive failure and complete
-                 * the pending operation with an error status.
-                 */
-                port->rx_errors++;
-                completed_status = RET_ERR_STS_RX_FAILED;
-                complete_rx_locked(port, &done);
-                completed = true;
-            }
-            else if(read_count > 0)
-            {
-                /* Update the accumulated receive length and status counter. */
-                port->rx_received += (size_t)read_count;
-                port->rx_count = port->rx_received;
-
-                /*
-                 * Complete the receive only when the requested
-                 * number of bytes has been accumulated.
-                 */
-                if(port->rx_received == port->rx_capacity)
-                {
-                    complete_rx_locked(port, &done);
-                    completed = true;
-                }
-            }
-        }
-
-        /* Release the port mutex before executing application code. */
-        (void)xSemaphoreGive(port->mutex);
-
-        /*
-         * Invoke the captured callback only for a completed operation.
-         * Executing outside the critical region avoids holding the
-         * port mutex during application callback processing.
-         */
-        if(completed && (done.callback != NULL))
-        {
-            done.callback(completed_status, done.buffer, done.length, done.callback_context);
-        }
-    }
-}
-
-/* -------------------------------------------------------------------------- */
-
-#endif /* (bspCONFIG_UART_ENABLE_ASYNC == 1U) */
-
 
 /* ============================================================================
  * UART PUBLIC API IMPLEMENTATION
@@ -962,338 +729,165 @@ ret_err_sts_t bspUartInit(bspUartHandle_t* handle)
 {
     ret_err_sts_t result;
     esp_err_t err;
-    uart_port_state_t* port;
+    uart_port_state_t* portState;
 
-    /* Validate the caller-provided handle before accessing its members. */
     if(handle == NULL)
     {
         return RET_ERR_STS_INVALID_PARAM;
     }
 
-    /*
-     * Validate the complete UART configuration before reserving the
-     * hardware resource or allocating any RTOS objects.
-     */
     result = validate_config(&handle->config);
+
     if(result != RET_ERR_STS_OK)
     {
         return result;
     }
 
-    /* Select the internal runtime state associated with the UART port. */
-    port = &s_ports[(unsigned)handle->config.port];
+    portState = &s_ports[(unsigned)handle->config.port];
 
-    /*
-     * Protect the port reservation against concurrent initialization
-     * attempts from different application tasks.
-     *
-     * The critical section is limited to the reservation operation.
-     * No memory allocation or blocking operation occurs while held.
-     */
+    /* Reserve the hardware UART port. */
     portENTER_CRITICAL(&s_claim_lock);
 
-    if(port->reserved)
+    if(portState->reserved)
     {
         portEXIT_CRITICAL(&s_claim_lock);
         return RET_ERR_STS_ALREADY_INIT;
     }
 
-    port->reserved = true;
+    portState->reserved = true;
 
     portEXIT_CRITICAL(&s_claim_lock);
 
-    /*
-     * Store the application handle and validated configuration.
-     * Subsequent UART operations use these values to identify
-     * the owner and access the hardware instance.
-     */
-    port->owner  = handle;
-    port->config = handle->config;
+    portState->owner  = handle;
+    portState->config = handle->config;
 
-    /*
-     * Create a per-port mutex to serialize access to runtime state
-     * and UART driver operations performed by application tasks.
-     */
-    port->mutex = xSemaphoreCreateMutex();
+    portState->mutex = xSemaphoreCreateMutex();
 
-    if(port->mutex == NULL)
+    if(portState->mutex == NULL)
     {
         result = RET_ERR_STS_NO_MEM;
-        goto fail;
+        goto init_failed;
     }
 
-#if (bspCONFIG_UART_ENABLE_ASYNC == 1U)
-
     /*
-     * Create a synchronization object used by the asynchronous
-     * worker to acknowledge completion of its shutdown sequence.
-     */
-    port->worker_stopped = xSemaphoreCreateBinary();
-
-    if(port->worker_stopped == NULL)
-    {
-        result = RET_ERR_STS_NO_MEM;
-        goto fail;
-    }
-
-#endif
-
-    /*
-     * Install the native UART driver and configure its TX/RX buffers.
+     * Install ESP-IDF UART driver.
      *
-     * When asynchronous support is enabled, request an ESP-IDF
-     * event queue for the UART event processing worker.
-     */
-    err = uart_driver_install(uart_id(&port->config), (int)bspCONFIG_UART_RXTX_BUFFER_SIZE,
-                              (int)bspCONFIG_UART_RXTX_BUFFER_SIZE,
-#if (bspCONFIG_UART_ENABLE_ASYNC == 1U)
-                              (int)bspCONFIG_UART_ASYNC_EVENT_QUEUE_LEN, &port->event_queue,
-#else
-                              0, NULL,
-#endif
-                              0);
-
-    if(err != ESP_OK)
-    {
-        /* Map the native driver error and release allocated resources. */
-        result = map_driver_error(err);
-        goto fail;
-    }
-
-    /*
-     * Apply the validated communication settings and GPIO routing.
+     * The native event queue belongs to the BSP, but the
+     * application RX thread consumes it through bspUartProcessRx().
      *
-     * If configuration fails after driver installation,
-     * the installed UART driver must also be released.
+     * No additional BSP task is created.
      */
-    err = apply_config(&port->config);
+    err = uart_driver_install(uart_id(&portState->config), (int)UART_RXTX_BUFFER_SIZE,
+                              (int)UART_RXTX_BUFFER_SIZE, (int)UART_ASYNC_EVENT_QUEUE_LEN,
+                              &portState->event_queue, 0);
 
     if(err != ESP_OK)
     {
         result = map_driver_error(err);
-        goto fail_driver;
+        goto init_failed;
     }
 
-#if (bspCONFIG_UART_ENABLE_ASYNC == 1U)
+    err = apply_config(&portState->config);
+
+    if(err != ESP_OK)
+    {
+        result = map_driver_error(err);
+        goto driver_failed;
+    }
+
+#if (UART_ENABLE_ASYNC == 1U)
 
     /*
-     * Create the UART event processing task only after the
-     * hardware driver and port configuration are available.
-     *
-     * The port runtime state is passed as the task argument.
+     * Trigger RX activity on an idle gap even when the
+     * received data is smaller than the FIFO threshold.
      */
-    if(xTaskCreate(uart_async_thread, "bsp_uart", bspCONFIG_UART_TASK_STACK_BYTES,
-                   port, bspCONFIG_UART_TASK_PRIORITY, &port->worker) != pdPASS)
+    err = uart_set_rx_timeout(uart_id(&portState->config), (uint8_t)UART_RX_TIMEOUT_SYMBOLS);
+
+    if(err != ESP_OK)
     {
-        result = RET_ERR_STS_NO_MEM;
-        goto fail_driver;
+        result = map_driver_error(err);
+        goto driver_failed;
     }
 
 #endif
 
-    /*
-     * Mark initialization successful only after all mandatory
-     * resources have been created and configured.
-     */
-    port->initialized = true;
+    portState->initialized = true;
 
     return RET_ERR_STS_OK;
 
-    /*
-     * Driver cleanup path.
-     *
-     * This label is reached only after successful driver
-     * installation followed by a later initialization failure.
-     */
-fail_driver:
+driver_failed:
+    (void)uart_driver_delete(uart_id(&portState->config));
 
-    (void)uart_driver_delete(uart_id(&port->config));
-
-    /*
-     * Common initialization failure cleanup.
-     *
-     * Release resources created before the failure and restore
-     * the runtime state for a subsequent initialization attempt.
-     */
-fail:
-
-#if (bspCONFIG_UART_ENABLE_ASYNC == 1U)
-
-    if(port->worker_stopped != NULL)
+init_failed:
+    if(portState->mutex != NULL)
     {
-        vSemaphoreDelete(port->worker_stopped);
+        vSemaphoreDelete(portState->mutex);
     }
 
-#endif
-
-    if(port->mutex != NULL)
-    {
-        vSemaphoreDelete(port->mutex);
-    }
-
-    /*
-     * Initialization is serialized by the reservation flag.
-     * Clear the state to release ownership of the UART instance.
-     */
-    memset(port, 0, sizeof(*port));
+    portENTER_CRITICAL(&s_claim_lock);
+    (void)memset(portState, 0, sizeof(*portState));
+    portEXIT_CRITICAL(&s_claim_lock);
 
     return result;
 }
-
 /* -------------------------------------------------------------------------- */
-
 ret_err_sts_t bspUartDeInit(bspUartHandle_t* handle)
 {
-    uart_port_state_t* port;
+    uart_port_state_t* portState;
     ret_err_sts_t result;
 
-    /* Validate the handle and port number before accessing runtime state. */
     if((handle == NULL) || (!valid_port(handle->config.port)))
     {
         return RET_ERR_STS_INVALID_PARAM;
     }
 
-    /* Resolve the runtime state associated with the requested port. */
-    port = &s_ports[(unsigned)handle->config.port];
+    portState = &s_ports[(unsigned)handle->config.port];
 
-#if (bspCONFIG_UART_ENABLE_ASYNC == 1U)
-
-    /*
-     * Prevent the UART worker from invoking its own shutdown routine.
-     * Waiting for self-termination would prevent normal completion.
-     */
-    if(xTaskGetCurrentTaskHandle() == port->worker)
-    {
-        return RET_ERR_STS_INVALID_STATE;
-    }
-
-#endif
-
-    /*
-     * The mutex must exist before deinitialization can synchronize
-     * with other UART operations.
-     *
-     * This check also supports another deinitialization attempt
-     * after a previous shutdown timeout.
-     */
-    if(port->mutex == NULL)
+    if(portState->mutex == NULL)
     {
         return RET_ERR_STS_NOT_INITIALIZED;
     }
 
-    /* Acquire exclusive access before modifying the shutdown state. */
-    if(xSemaphoreTake(port->mutex, portMAX_DELAY) != pdTRUE)
+    if(xSemaphoreTake(portState->mutex, portMAX_DELAY) != pdTRUE)
     {
         return RET_ERR_STS_FAIL;
     }
 
-    /*
-     * Ensure that the requesting handle owns the UART instance
-     * and that the port has completed initialization.
-     */
-    if((port->owner != handle) || (!port->initialized))
+    if((portState->owner != handle) || (!portState->initialized))
     {
-        release_port(port);
+        release_port(portState);
         return RET_ERR_STS_NOT_INITIALIZED;
     }
 
     /*
-     * Prevent new UART operations while shutdown is in progress.
-     * Release the mutex before waiting for the worker to stop.
+     * The application RX thread must already have returned.
+     * Prevent new BSP operations during hardware teardown.
      */
-    port->stopping = true;
+    portState->stopping = true;
 
-    release_port(port);
+    release_port(portState);
 
-#if (bspCONFIG_UART_ENABLE_ASYNC == 1U)
+    result = map_driver_error(uart_driver_delete(uart_id(&portState->config)));
 
-    /*
-     * Wait for the asynchronous worker to acknowledge shutdown.
-     *
-     * On timeout, retain the stopping state so normal UART
-     * operations remain rejected until shutdown is retried.
-     */
-    if(xSemaphoreTake(port->worker_stopped, ticks_from_ms(bspCONFIG_UART_SHUTDOWN_MS)) != pdTRUE)
+    if(result != RET_ERR_STS_OK)
     {
-        /* Keep stopping=true. A subsequent DeInit retries safely; normal
-         * UART operations remain rejected while shutdown is pending. */
-        return RET_ERR_STS_TIMEOUT;
+        /* Retain state for a possible subsequent cleanup attempt. */
+        return result;
     }
 
-    /*
-     * The worker has acknowledged that it no longer accesses
-     * the port runtime state. Reclaim its RTOS task resources.
-     */
-    vTaskDelete(port->worker);
+    vSemaphoreDelete(portState->mutex);
 
-#endif
+    portENTER_CRITICAL(&s_claim_lock);
+    (void)memset(portState, 0, sizeof(uart_port_state_t));
+    portEXIT_CRITICAL(&s_claim_lock);
 
-#if (bspCONFIG_UART_ENABLE_ASYNC == 1U)
-
-    /*
-     * Preserve completion information for an outstanding RX operation.
-     *
-     * The application callback must be invoked after releasing
-     * the port mutex to avoid callback-induced deadlocks.
-     */
-    uart_rx_completion_t cancelled = { 0 };
-
-    /* Synchronize access to the pending receive state. */
-    (void)xSemaphoreTake(port->mutex, portMAX_DELAY);
-
-    bool pending_rx = port->rx_busy;
-
-    if(pending_rx)
-    {
-        complete_rx_locked(port, &cancelled);
-    }
-
-    release_port(port);
-
-    /*
-     * Notify the application about the cancelled receive.
-     *
-     * The callback is not permitted to recursively deinitialize
-     * the same UART instance while cleanup is in progress.
-     */
-    if(pending_rx && (cancelled.callback != NULL))
-    {
-        cancelled.callback(RET_ERR_STS_CANCELLED, cancelled.buffer,
-                           cancelled.length, cancelled.callback_context);
-    }
-
-#endif
-
-    /*
-     * Uninstall the native UART driver after the asynchronous
-     * worker has stopped accessing its event queue.
-     */
-    result = map_driver_error(uart_driver_delete(uart_id(&port->config)));
-
-#if (bspCONFIG_UART_ENABLE_ASYNC == 1U)
-
-    /* Release the worker shutdown synchronization object. */
-    vSemaphoreDelete(port->worker_stopped);
-
-#endif
-
-    /* Release the per-port synchronization resource. */
-    vSemaphoreDelete(port->mutex);
-
-    /*
-     * Clear ownership, configuration, and runtime state.
-     * The UART port becomes available for future initialization.
-     */
-    memset(port, 0, sizeof(*port));
-
-    return result;
+    return RET_ERR_STS_OK;
 }
-
 /* -------------------------------------------------------------------------- */
 
 ret_err_sts_t bspUartSendAsync(bspUartHandle_t* handle, const uint8_t* buffer, size_t length)
 {
-    uart_port_state_t* port;
+    uart_port_state_t* portState;
     ret_err_sts_t result;
     int written;
 
@@ -1313,7 +907,7 @@ ret_err_sts_t bspUartSendAsync(bspUartHandle_t* handle, const uint8_t* buffer, s
      * Validate ownership and acquire the port mutex.
      * The mutex protects the shared UART runtime information.
      */
-    result = acquire_port(handle, &port);
+    result = acquire_port(handle, &portState);
 
     if(result != RET_ERR_STS_OK)
     {
@@ -1321,9 +915,9 @@ ret_err_sts_t bspUartSendAsync(bspUartHandle_t* handle, const uint8_t* buffer, s
     }
 
     /* Reject transmission when the configured UART mode disables TX. */
-    if(!tx_enabled(port->config.mode))
+    if(!tx_enabled(portState->config.mode))
     {
-        release_port(port);
+        release_port(portState);
         return RET_ERR_STS_NOT_SUPPORTED;
     }
 
@@ -1333,12 +927,12 @@ ret_err_sts_t bspUartSendAsync(bspUartHandle_t* handle, const uint8_t* buffer, s
      * Successful submission does not indicate that all bytes
      * have completed physical transmission.
      */
-    written = uart_write_bytes(uart_id(&port->config), buffer, length);
+    written = uart_write_bytes(uart_id(&portState->config), buffer, length);
 
     /* Update the number of bytes accepted by the native driver. */
     if(written > 0)
     {
-        port->tx_count += (size_t)written;
+        portState->tx_count += (size_t)written;
     }
 
     /*
@@ -1347,11 +941,11 @@ ret_err_sts_t bspUartSendAsync(bspUartHandle_t* handle, const uint8_t* buffer, s
      */
     if((written < 0) || ((size_t)written != length))
     {
-        port->tx_errors++;
+        portState->tx_errors++;
     }
 
     /* Release the port mutex before returning the operation status. */
-    release_port(port);
+    release_port(portState);
 
     return (written == (int)length) ? RET_ERR_STS_OK : RET_ERR_STS_TX_FAILED;
 }
@@ -1525,7 +1119,7 @@ bspUartSetRxCallback(bspUartHandle_t* handle, bspUartRxCallback_t callback, void
         return result;
     }
 
-#if (bspCONFIG_UART_ENABLE_ASYNC == 1U)
+#if (UART_ENABLE_ASYNC == 1U)
 
     /*
      * Callback registration must not change while a receive
@@ -1595,23 +1189,40 @@ bspUartSetTxCallback(bspUartHandle_t* handle, bspUartTxCallback_t callback, void
 }
 
 /* -------------------------------------------------------------------------- */
-
-ret_err_sts_t bspUartReadAsync(bspUartHandle_t* handle, uint8_t* buffer, size_t length)
+/**
+ * @brief Process one available UART RX chunk.
+ *
+ * @details
+ * Receives native UART events and transfers available bytes
+ * to the registered callback in the caller's thread.
+ *
+ * A partially filled buffer is delivered immediately rather
+ * than waiting for an exact number of bytes.
+ */
+ret_err_sts_t bspUartProcessRx(bspUartHandle_t* handle, uint32_t timeout_ms)
 {
+#if (UART_ENABLE_ASYNC == 1U)
     uart_port_state_t* port;
     ret_err_sts_t result;
+    uart_event_t event = { 0 };
+
+    QueueHandle_t eventQueue;
+    uart_port_t uartId;
+
+    bspUartRxCallback_t callback = NULL;
+    void* callbackContext        = NULL;
+
+    uint8_t rxChunk[UART_RX_CHUNK_BYTES];
+
+    size_t available = 0U;
+    size_t bytesToRead;
+    int received = 0;
+    BaseType_t hasEvent;
 
     /*
-     * Validate the application-owned receive buffer.
-     * The buffer must remain available until the receive
-     * operation completes or is cancelled.
+     * Acquire the port to validate ownership and copy the
+     * event queue and native port identifier.
      */
-    if((buffer == NULL) || (length == 0U))
-    {
-        return RET_ERR_STS_INVALID_PARAM;
-    }
-
-    /* Validate the UART handle and synchronize RX state modification. */
     result = acquire_port(handle, &port);
 
     if(result != RET_ERR_STS_OK)
@@ -1619,112 +1230,195 @@ ret_err_sts_t bspUartReadAsync(bspUartHandle_t* handle, uint8_t* buffer, size_t 
         return result;
     }
 
-#if (bspCONFIG_UART_ENABLE_ASYNC == 1U)
-
-    /* Verify that the current UART configuration permits reception. */
     if(!rx_enabled(port->config.mode))
     {
-        result = RET_ERR_STS_NOT_SUPPORTED;
+        release_port(port);
+        return RET_ERR_STS_NOT_SUPPORTED;
     }
 
-    /*
-     * Require a registered receive callback before accepting
-     * a new asynchronous operation.
-     */
-    else if(port->rx_callback == NULL)
+    if(port->event_queue == NULL)
     {
-        result = RET_ERR_STS_NOT_READY;
+        release_port(port);
+        return RET_ERR_STS_NOT_READY;
     }
 
-    /* Prevent more than one outstanding receive on the same UART. */
-    else if(port->rx_busy)
+    if(port->rx_busy)
     {
-        result = RET_ERR_STS_BUSY;
-    }
-    else
-    {
-        /*
-         * Store the caller-owned buffer and requested capacity.
-         *
-         * Reset the receive progress counters before marking
-         * the asynchronous operation active.
-         */
-        port->rx_buffer   = buffer;
-        port->rx_capacity = length;
-        port->rx_received = 0U;
-        port->rx_count    = 0U;
-        port->rx_busy     = true;
-        result            = RET_ERR_STS_OK;
+        release_port(port);
+        return RET_ERR_STS_BUSY;
     }
 
-#else
+    eventQueue = port->event_queue;
+    uartId     = uart_id(&port->config);
 
-    /* Report unsupported operation when asynchronous RX is disabled. */
-    result = RET_ERR_STS_NOT_SUPPORTED;
-
-#endif
-
-    /* Publish the updated RX state by releasing the port mutex. */
     release_port(port);
 
-    return result;
-}
+    /*
+     * Wait without holding the BSP mutex.
+     *
+     * The application must stop this processing thread before
+     * calling bspUartDeInit(), which deletes the event queue.
+     */
+    hasEvent = xQueueReceive(eventQueue, &event, ticks_from_ms(timeout_ms));
 
-/* -------------------------------------------------------------------------- */
-
-ret_err_sts_t bspUartCancelRx(bspUartHandle_t* handle)
-{
-    uart_port_state_t* port;
-
-    /* Validate the handle and synchronize access to pending RX state. */
-    ret_err_sts_t result = acquire_port(handle, &port);
+    result = acquire_port(handle, &port);
 
     if(result != RET_ERR_STS_OK)
     {
         return result;
     }
 
-#if (bspCONFIG_UART_ENABLE_ASYNC == 1U)
-
     /*
-     * Prepare a local completion record to preserve callback details
-     * after the internal receive state is reset.
+     * Handle hardware RX errors.
+     * Corrupted bytes must not reach the application parser.
      */
-    uart_rx_completion_t done = { 0 };
-    bool had_rx               = port->rx_busy;
-
-    /*
-     * Complete the pending receive using the data accumulated
-     * before cancellation.
-     */
-    if(had_rx)
+    if(hasEvent == pdTRUE)
     {
-        complete_rx_locked(port, &done);
+        if((event.type == UART_FIFO_OVF) || (event.type == UART_BUFFER_FULL) ||
+           (event.type == UART_PARITY_ERR) || (event.type == UART_FRAME_ERR) ||
+           (event.type == UART_BREAK))
+        {
+            port->rx_errors++;
+
+            (void)uart_flush_input(uartId);
+            (void)xQueueReset(eventQueue);
+
+            if((event.type == UART_FIFO_OVF) || (event.type == UART_BUFFER_FULL))
+            {
+                result = RET_ERR_STS_BUFFER_OVERFLOW;
+            }
+            else
+            {
+                result = RET_ERR_STS_FRAME_ERROR;
+            }
+
+            release_port(port);
+            return result;
+        }
     }
 
     /*
-     * Release the mutex before invoking any application callback.
-     * This prevents callback execution while holding the port lock.
+     * Check the driver's RX ring buffer.
+     *
+     * This check also runs when no event was received, allowing
+     * buffered data to be drained without requiring another event.
      */
+    if(uart_get_buffered_data_len(uartId, &available) != ESP_OK)
+    {
+        port->rx_errors++;
+
+        release_port(port);
+        return RET_ERR_STS_RX_FAILED;
+    }
+
+    if(available == 0U)
+    {
+        release_port(port);
+        return RET_ERR_STS_OK;
+    }
+
+    bytesToRead = available;
+
+    if(bytesToRead > sizeof(rxChunk))
+    {
+        bytesToRead = sizeof(rxChunk);
+    }
+
+    /*
+     * The BSP processing call delivers one bounded chunk.
+     * The next application RX loop iteration processes any
+     * remaining buffered data.
+     */
+    received = uart_read_bytes(uartId, rxChunk, (uint32_t)bytesToRead, (TickType_t)0);
+
+    if(received < 0)
+    {
+        port->rx_errors++;
+
+        release_port(port);
+        return RET_ERR_STS_RX_FAILED;
+    }
+
+    if(received > 0)
+    {
+        port->rx_count = (size_t)received;
+
+        callback        = port->rx_callback;
+        callbackContext = port->rx_callback_context;
+    }
+
     release_port(port);
 
-    /* Notify the application only if a pending receive existed. */
-    if(had_rx && (done.callback != NULL))
+    /*
+     * Execute the callback outside the BSP mutex.
+     *
+     * rxChunk remains valid until the callback returns.
+     * The application must copy the data if it needs to
+     * retain it.
+     */
+    if((received > 0) && (callback != NULL))
     {
-        done.callback(RET_ERR_STS_CANCELLED, done.buffer, done.length, done.callback_context);
+        callback(RET_ERR_STS_OK, rxChunk, (size_t)received, callbackContext);
     }
 
     return RET_ERR_STS_OK;
 
 #else
+    (void)handle;
+    (void)timeout_ms;
 
-    /* Release the mutex before reporting unsupported functionality. */
-    release_port(port);
     return RET_ERR_STS_NOT_SUPPORTED;
-
 #endif
 }
 
+/* -------------------------------------------------------------------------- */
+ret_err_sts_t bspUartReadAsync(bspUartHandle_t* handle, uint8_t* buffer, size_t length)
+{
+    uart_port_state_t* port;
+    ret_err_sts_t result;
+
+    if((buffer == NULL) || (length == 0U))
+    {
+        return RET_ERR_STS_INVALID_PARAM;
+    }
+
+    result = acquire_port(handle, &port);
+
+    if(result != RET_ERR_STS_OK)
+    {
+        return result;
+    }
+
+    release_port(port);
+
+    /*
+     * Exact-length asynchronous receive is not supported
+     * by the application-driven RX processing mode.
+     */
+    return RET_ERR_STS_NOT_SUPPORTED;
+}
+
+/* -------------------------------------------------------------------------- */
+ret_err_sts_t bspUartCancelRx(bspUartHandle_t* handle)
+{
+    uart_port_state_t* port;
+    ret_err_sts_t result;
+
+    result = acquire_port(handle, &port);
+
+    if(result != RET_ERR_STS_OK)
+    {
+        return result;
+    }
+
+    /*
+     * The application-driven processing mode does not arm
+     * persistent asynchronous receive operations.
+     */
+    release_port(port);
+
+    return RET_ERR_STS_OK;
+}
 /* -------------------------------------------------------------------------- */
 
 ret_err_sts_t bspUartFlushRx(bspUartHandle_t* handle)
@@ -1752,7 +1446,7 @@ ret_err_sts_t bspUartFlushRx(bspUartHandle_t* handle)
     /* Request the native UART driver to discard buffered input. */
     result = map_driver_error(uart_flush_input(uart_id(&port->config)));
 
-#if (bspCONFIG_UART_ENABLE_ASYNC == 1U)
+#if (UART_ENABLE_ASYNC == 1U)
 
     /*
      * Clear pending UART event notifications after a successful flush

@@ -1334,7 +1334,7 @@ ridecast/
 │
 ├── include/
 │   ├── rc_protocol.h          // Protocol frame format, message IDs, enums, payload structures and protocol APIs
-│   ├── rc_connection.h        // Connection state, retry/reconnect configuration and connection management APIs
+│   ├── conn_manager.h        // Connection state, retry/reconnect configuration and connection management APIs
 │   ├── rc_wifi.h              // Wi-Fi configuration, AP/STA control, connection and Wi-Fi status APIs
 │   ├── rc_ble.h               // BLE configuration, advertising, connection and BLE status APIs
 │   └── rc_bt_classic.h        // Bluetooth Classic configuration, connection and BT status APIs

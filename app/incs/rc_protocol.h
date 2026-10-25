@@ -1,11 +1,108 @@
+
+/**
+ * ============================================================================
+ * @file    rc_protocol.h
+ * @brief   RideCast communication protocol definition and frame utilities.
+ *
+ * @details
+ * This file defines the common binary communication protocol used between
+ * RideCast and the vehicle cluster (Host/Master).
+ *
+ * The protocol supports:
+ *   - Cluster commands for Wi-Fi, BLE and Bluetooth Classic
+ *   - RideCast status and connection events
+ *   - Application data transfer between the cluster and mobile device
+ *   - Sequence numbers for message tracking
+ *   - CRC16 for frame integrity verification
+ *
+ * The implementation is header-only and uses static inline functions.
+ * No separate rc_protocol.c implementation is required.
+ *
+ * Architecture:
+ *
+ *   Vehicle Cluster (Master)
+ *            |
+ *            | UART: RideCast protocol frames
+ *            |
+ *         RideCast
+ *            |
+ *            +---- Wi-Fi
+ *            +---- BLE
+ *            +---- Bluetooth Classic
+ *            |
+ *       Mobile Application
+ *
+ * Responsibilities:
+ *   - Define protocol version, frame format and message identifiers
+ *   - Encode command, acknowledgement and application-data frames
+ *   - Decode and validate complete received frames
+ *   - Calculate and verify CRC16
+ *   - Provide frame-length and header-field utilities
+ *
+ * This file does NOT:
+ *   - Initialize or access UART hardware
+ *   - Start or stop wireless interfaces
+ *   - Manage connections, authentication or reconnection
+ *   - Maintain UART receive buffers or assemble partial frames
+ *   - Interpret application-specific payload contents
+ *
+ * Usage:
+ *   1. Include "rc_protocol.h" in the required application module.
+ *   2. Use rc_encode_simple() for messages without a payload.
+ *   3. Use rc_encode_data() for application-data messages.
+ *   4. Transmit the resulting frame using the UART application layer.
+ *   5. Accumulate incoming UART bytes until a complete frame is available.
+ *   6. Call rc_frame_decode() to validate and decode the complete frame.
+ *   7. Dispatch the decoded message using its type, message ID and transport.
+ *
+ * @note
+ *   The protocol frame contains:
+ *
+ *   HEADER(1) | MSG_ID(1) | TRANSPORT(1) | SEQUENCE(2) |
+ *   LENGTH(2) | PAYLOAD(0..4096) | CRC16(2)
+ *
+ *   All 16-bit fields are encoded in big-endian byte order.
+ *   The minimum frame length is 9 bytes.
+ *   The maximum frame length is 4105 bytes.
+ *
+ * @warning
+ *   - Decoding requires a complete frame, not an arbitrary UART RX chunk.
+ *   - The caller must provide sufficient output-buffer capacity when encoding.
+ *   - A zero return from an encoder indicates failure.
+ *   - The decoded payload pointer references the original receive buffer.
+ *     It must not be retained after that buffer is modified or released.
+ *   - The caller must check the result of rc_frame_decode() before using
+ *     any decoded frame fields.
+ *   - CRC16 provides error detection, not authentication or encryption.
+ *     Wireless security and application authentication are handled elsewhere.
+ *   - This module does not provide thread synchronization. Callers must
+ *     protect shared buffers when accessed by multiple tasks.
+ *
+ * @pre
+ *   The calling module must include the shared BSP error-status definitions
+ *   and provide valid buffers and lengths to the protocol functions.
+ *
+ * @par Dependencies
+ *   - C11-compatible compiler
+ *   - stdint.h
+ *   - stdbool.h
+ *   - bsp_err_sts.h
+ *
+ * ============================================================================
+ * Change Log (newest first):
+ * ============================================================================
+ * 2026-10-25  Added protocol documentation and usage precautions.
+ * ============================================================================
+ */
+
 #ifndef RC_PROTOCOL_H
 #define RC_PROTOCOL_H
 
-#include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
 
 #include "bsp_err_sts.h"
+
 
 
 /* =========================================================================
@@ -130,7 +227,8 @@ typedef enum
     eRcMsgGetVersion = 0x03U,
     eRcMsgGetStatus  = 0x04U,
     eRcMsgReset      = 0x05U,
-
+    eRcMsgStartAll   = 0x06U, /**< Start all supported wireless interfaces. */
+    eRcMsgStopAll    = 0x07U, /**< Stop all active wireless interfaces. */
 
     /* ---------------------------------------------------------------------
      * Wi-Fi control
@@ -189,7 +287,6 @@ typedef enum
     eRcMsgAck = 0xF0U
 
 } rc_msg_id_t;
-
 
 
 /* =========================================================================
@@ -557,6 +654,7 @@ static inline uint16_t rc_encode_data(uint8_t* buf,
  * @return RET_ERR_STS_INVALID_PARAM  Invalid parameter.
  * @return RET_ERR_STS_INVALID_LENGTH Invalid frame length.
  * @return RET_ERR_STS_CRC_ERROR      CRC validation failed.
+ * @return RET_ERR_STS_VERSION_MISMATCH Unsupported protocol version.
  */
 static inline ret_err_sts_t
 rc_frame_decode(const uint8_t* rawBuf, uint16_t rawLen, rc_frame_t* frame)
@@ -590,7 +688,13 @@ rc_frame_decode(const uint8_t* rawBuf, uint16_t rawLen, rc_frame_t* frame)
         return RET_ERR_STS_INVALID_LENGTH;
     }
 
-    /* CRC validation */
+    /* Reject frames using an unsupported protocol version. */
+    if(rc_get_version(rawBuf[0U]) != RC_PROTOCOL_VERSION)
+    {
+        return RET_ERR_STS_VERSION_MISMATCH;
+    }
+
+    /* Validate frame integrity before decoding its contents. */
     if(!rc_validate_crc(rawBuf, rawLen))
     {
         return RET_ERR_STS_CRC_ERROR;

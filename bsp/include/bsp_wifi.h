@@ -40,15 +40,15 @@ extern "C"
 #endif
 
 /* Maximum SSID length supported by the BSP configuration. */
-#define BSP_WIFI_SSID_MAX_LEN         bspCONFIG_WIFI_SSID_MAX_LEN
+#define BSP_WIFI_SSID_MAX_LEN         configWIFI_SSID_MAX_LEN
 /* Maximum password or credential length supported by the BSP configuration. */
-#define BSP_WIFI_PASSWORD_MAX_LEN     bspCONFIG_WIFI_PASSWORD_MAX_LEN
+#define BSP_WIFI_PASSWORD_MAX_LEN     configWIFI_PASSWORD_MAX_LEN
 /* Maximum textual IP address length supported by the BSP configuration. */
-#define BSP_WIFI_IP_ADDR_MAX_LEN      bspCONFIG_WIFI_IP_ADDR_MAX_LEN
+#define BSP_WIFI_IP_ADDR_MAX_LEN      configWIFI_IP_ADDR_MAX_LEN
 /* Maximum MAC address length supported by the BSP configuration. */
-#define BSP_WIFI_MAC_ADDR_MAX_LEN     bspCONFIG_WIFI_MAC_ADDR_MAX_LEN
+#define BSP_WIFI_MAC_ADDR_MAX_LEN     configWIFI_MAC_ADDR_MAX_LEN
 /* Maximum number of saved network profiles supported by the BSP configuration. */
-#define BSP_WIFI_MAX_SAVED_NETWORKS   bspCONFIG_WIFI_MAX_SAVED_NETWORKS
+#define BSP_WIFI_MAX_SAVED_NETWORKS   configWIFI_MAX_SAVED_NETWORKS
 
 /* Size of an IPv4 address in bytes. */
 #define BSP_WIFI_IP4_ADDR_SIZE        (4U)
@@ -63,16 +63,16 @@ extern "C"
 #define BSP_WIFI_STATS_VALID_STATIONS (1UL << 0U)
 
 #if (BSP_WIFI_SSID_MAX_LEN < 32U)
-    #error "bspCONFIG_WIFI_SSID_MAX_LEN must be >= 32"
+    #error "configWIFI_SSID_MAX_LEN must be >= 32"
 #endif
 #if (BSP_WIFI_PASSWORD_MAX_LEN < 64U)
-    #error "bspCONFIG_WIFI_PASSWORD_MAX_LEN must be >= 64"
+    #error "configWIFI_PASSWORD_MAX_LEN must be >= 64"
 #endif
 #if (BSP_WIFI_MAC_ADDR_MAX_LEN != 6U)
-    #error "bspCONFIG_WIFI_MAC_ADDR_MAX_LEN must equal 6"
+    #error "configWIFI_MAC_ADDR_MAX_LEN must equal 6"
 #endif
 #if (BSP_WIFI_MAX_SAVED_NETWORKS < 1U) || (BSP_WIFI_MAX_SAVED_NETWORKS > 32U)
-    #error "bspCONFIG_WIFI_MAX_SAVED_NETWORKS must be 1..32"
+    #error "configWIFI_MAX_SAVED_NETWORKS must be 1..32"
 #endif
 
     /**

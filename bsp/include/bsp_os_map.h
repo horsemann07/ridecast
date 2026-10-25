@@ -2,6 +2,7 @@
 #define BSP_OS_MAP_DEF_H
 
 #include "cmsis_os2.h"
+#include "bsp_err_sts.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -11,12 +12,19 @@ extern "C"
     /* ---------------------------------------------------------------
      * THREAD / TASK descriptor
      * --------------------------------------------------------------- */
+    typedef ret_err_sts_t (*os_thread_init_fn_t)(void);
+    typedef ret_err_sts_t (*os_thread_deinit_fn_t)(void);
+
     typedef struct
     {
-        osThreadFunc_t func; /* Thread entry function              */
-        void* arg;           /* Thread argument                    */
-        osThreadAttr_t attr; /* CMSIS thread attribute block       */
-        osThreadId_t handle; /* Thread handle - filled at runtime  */
+        os_thread_init_fn_t init;
+        osThreadFunc_t thread;
+        os_thread_deinit_fn_t deinit;
+        void* arg;
+
+        osThreadAttr_t attr;
+        osThreadId_t handle;
+
     } os_thread_map_t;
 
     /* ---------------------------------------------------------------

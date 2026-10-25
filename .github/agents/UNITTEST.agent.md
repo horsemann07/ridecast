@@ -672,7 +672,7 @@ Respect all existing feature macros and build-time options.
 Examples:
 
 ```c
-#if (bspCONFIG_UART_ENABLE_ASYNC == 1U)
+#if (configUART_ENABLE_ASYNC == 1U)
 ```
 
 Generate tests for enabled and disabled feature configurations when applicable.

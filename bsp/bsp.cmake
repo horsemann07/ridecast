@@ -61,25 +61,10 @@
 #   This option must not be enabled for an ESP-IDF firmware build.
 # ============================================================================
 
-option(BSP_BUILD_CLI
-    "Build the platform-independent BSP CLI module"
-    ON
-)
-
-option(BSP_BUILD_LOGGER
-    "Build the asynchronous CMSIS-RTOS2 logger module"
-    ON
-)
-
-option(BSP_BUILD_PORT
-    "Build platform-specific BSP hardware drivers"
-    ON
-)
-
-option(BSP_BUILD_TESTS
-    "Enable BSP host unit and integration tests"
-    OFF
-)
+option(BSP_BUILD_CLI "Build the platform-independent BSP CLI module" ON)
+option(BSP_BUILD_LOGGER "Build the asynchronous CMSIS-RTOS2 logger module" ON)
+option(BSP_BUILD_PORT "Build platform-specific BSP hardware drivers" ON)
+option(BSP_BUILD_TESTS "Enable BSP host unit and integration tests" OFF)
 
 # ============================================================================
 # 2. BSP DIRECTORY CONFIGURATION
@@ -109,12 +94,12 @@ option(BSP_BUILD_TESTS
 #     └── integration/
 # ============================================================================
 
-set(_bsp_root "${CMAKE_CURRENT_LIST_DIR}")
-set(_bsp_inc  "${_bsp_root}/include")
-set(_bsp_core "${_bsp_root}/include/bsp_core")
-set(_bsp_cfg  "${_bsp_root}/bsp_config")
-set(_bsp_src  "${_bsp_root}/srcs")
-set(_bsp_test "${_bsp_root}/tests")
+set(BSP_ROOT        "${CMAKE_CURRENT_LIST_DIR}")
+set(BSP_INC_DIR     "${BSP_ROOT}/include")
+set(BSP_CORE_DIR    "${BSP_ROOT}/include/bsp_core")
+set(BSP_CFG_DIR     "${BSP_ROOT}/bsp_config")
+set(BSP_SRC_DIR     "${BSP_ROOT}/srcs")
+set(BSP_TEST_DIR    "${BSP_ROOT}/tests")
 
 
 # ============================================================================
@@ -203,25 +188,34 @@ endif()
 set(BSP_INCLUDE_DIRS "")
 
 list(APPEND BSP_INCLUDE_DIRS
-    "${_bsp_core}"
-    "${_bsp_inc}"
-    "${_bsp_cfg}"
+    "${BSP_CORE_DIR}"
+    "${BSP_INC_DIR}"
+    "${BSP_CFG_DIR}"
 )
 
 
 # ============================================================================
 # 5. PLATFORM-INDEPENDENT BSP SOURCES
 # ============================================================================
-
 set(BSP_COMMON_SRCS "")
-set(_bsp_core_src "${_bsp_src}/bsp_core")
+set(BSP_CORE_SRC "${BSP_SRC_DIR}/bsp_core")
 
+# BSP resource configuration is always required.
 list(APPEND BSP_COMMON_SRCS
-    "${_bsp_core_src}/bsp_cli.c"
-    "${_bsp_core_src}/bsp_log.c"
+    "${BSP_CFG_DIR}/bsp_cfg_map.c"
 )
 
+if(BSP_BUILD_CLI)
+    list(APPEND BSP_COMMON_SRCS
+        "${BSP_CORE_SRC}/bsp_cli.c"
+    )
+endif()
 
+if(BSP_BUILD_LOGGER)
+    list(APPEND BSP_COMMON_SRCS
+        "${BSP_CORE_SRC}/bsp_log.c"
+    )
+endif()
 # ============================================================================
 # 6. PLATFORM-SPECIFIC BSP SOURCES
 # ============================================================================
@@ -229,11 +223,11 @@ list(APPEND BSP_COMMON_SRCS
 set(BSP_PORT_SRCS "")
 
 if(BSP_BUILD_PORT)
-    set(_bsp_port_dir "${_bsp_src}/port/${BOARD_PORT_FOLDER}")
+    set(BSP_PORT_DIR "${BSP_SRC_DIR}/port/${BOARD_PORT_FOLDER}")
 
-    if(NOT IS_DIRECTORY "${_bsp_port_dir}")
+    if(NOT IS_DIRECTORY "${BSP_PORT_DIR}")
         message(FATAL_ERROR
-            "[BSP] Platform port directory not found: ${_bsp_port_dir}"
+            "[BSP] Platform port directory not found: ${BSP_PORT_DIR}"
         )
     endif()
 
@@ -241,9 +235,9 @@ if(BSP_BUILD_PORT)
         bsp_uart.c
         bsp_wifi.c
     )
-        if(EXISTS "${_bsp_port_dir}/${_bsp_driver}")
+        if(EXISTS "${BSP_PORT_DIR}/${_bsp_driver}")
             list(APPEND BSP_PORT_SRCS
-                "${_bsp_port_dir}/${_bsp_driver}"
+                "${BSP_PORT_DIR}/${_bsp_driver}"
             )
         endif()
     endforeach()
@@ -251,7 +245,7 @@ if(BSP_BUILD_PORT)
     if(NOT BSP_PORT_SRCS)
         message(FATAL_ERROR
             "[BSP] No supported platform driver sources found in "
-            "${_bsp_port_dir}"
+            "${BSP_PORT_DIR}. Enable BSP_BUILD_PORT or add supported drivers."
         )
     endif()
 endif()
@@ -435,28 +429,11 @@ if(BSP_BUILD_TESTS)
 
     # Register BSP unit and integration test directories.
     add_subdirectory(
-        "${_bsp_test}"
+        "${BSP_TEST_DIR}"
         "${CMAKE_CURRENT_BINARY_DIR}/bsp_tests"
     )
 
 endif()
-
-
-# ============================================================================
-# 10. CONFIGURATION SUMMARY
-# ============================================================================
-# Display the selected BSP configuration during CMake generation.
-#
-# These messages help developers confirm the selected platform,
-# enabled modules, and source configuration.
-# ============================================================================
-
-message(STATUS "[BSP] Platform       : ${BOARD_PORT_FOLDER}")
-message(STATUS "[BSP] CLI            : ${BSP_BUILD_CLI}")
-message(STATUS "[BSP] Logger         : ${BSP_BUILD_LOGGER}")
-message(STATUS "[BSP] Platform port  : ${BSP_BUILD_PORT}")
-message(STATUS "[BSP] Host tests     : ${BSP_BUILD_TESTS}")
-
 
 # ============================================================================
 # File End

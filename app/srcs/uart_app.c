@@ -1,775 +1,773 @@
 /**
+ * ============================================================================
  * @file    uart_app.c
- * @brief   UART Application Task implementation.
+ * @brief   RideCast UART transport between vehicle cluster and application.
  *
- * ARCHITECTURE:
+ * @details
+ *   Owns the BSP UART handle, receive callback, protocol-frame parser,
+ *   heartbeat, interface dispatch, and serialized UART transmission.
  *
- *   ┌──────────┐   UART RX bytes    ┌────────────┐
- *   │   Host   │ ─────────────────> │  RX Task   │
- *   │  (MPU)   │                    │  decode    │
- *   │          │                    │  rc_frame  │
- *   │          │                    │     │      │
- *   │          │                    │     ▼      │
- *   │          │              intf dispatch      │
- *   │          │            WiFi / BLE / BT      │
- *   │          │                                 │
- *   │          │   UART TX bytes    ┌────────────┐
- *   │          │ <───────────────── │  TX Task   │
- *   │          │                    │  tx queue  │
- *   └──────────┘                    └────────────┘
+ *   Vehicle cluster (MASTER)          RideCast (SLAVE)
+ *           |                               |
+ *           +-- UART bytes --> BSP UART callback
+ *                                            |
+ *                                         RX queue
+ *                                            |
+ *                                        RX thread
+ *                                            |
+ *                                     Protocol decode
+ *                                            |
+ *                                     Wi-Fi / BLE / BT
  *
- *   Any task calls uart_app_send() -> posts to TX queue -> TX task sends via UART
+ *   Application modules -> uart_app_send() -> TX queue -> TX thread -> BSP UART
  *
- * HEARTBEAT:
- *   RX task checks elapsed time each loop.
- *   Every UART_APP_HEARTBEAT_MS it sends a STATUS READY frame to Host.
+ * ============================================================================
+ * RTOS LIFECYCLE
+ * ============================================================================
  *
- * MISRA C:2012:
- *   - No heap
- *   - All return values checked
- *   - Explicit casts
- *   - No recursion
+ *   app_main.c owns the RX/TX queues, TX mutex and the two worker threads.
+ *   The generic OS wrapper invokes:
+ *       uart_app_init(void)
+ *       vAppUartRxTask(arg) / vAppUartTxTask(arg)
+ *       uart_app_deinit(void)
  *
+ *   Both thread descriptors reference uart_app_init and uart_app_deinit.
+ *   Initialization is protected by the existing UART TX mutex and
+ *   executes only once. Cleanup executes after BOTH worker loops return.
+ *   Neither this module nor its callbacks create or terminate threads.
  *
+ *   Thread wrapper MUST pass cfg->arg after cfg->init() returns.
+ *   No wireless radio is started by this UART module.
  *
- * ┌──────────────┐
- *  │   Host PC    │
- *  │  (Python)    │
- *  └──────┬───────┘
- *         │ UART bytes
- *         ▼
- *  ┌──────────────────────────────────────┐
- *  │   Embedded Device (ESP32)            │
- *  ├──────────────────────────────────────┤
- *  │                                      │
- *  │  ┌─────────────────────────────────┐ │
- *  │  │  UART BSP Driver                │ │
- *  │  │  (async RX callback)            │ │
- *  │  └────────┬──────────────────────┬─┘ │
- *  │           │ raw bytes            │   │
- *  │           ▼                      ▼   │
- *  │      ┌──────────┐          ┌──────────────┐
- *  │      │ RX Queue │          │ TX Queue     │
- *  │      │(messages)│          │(frames)      │
- *  │      └────┬─────┘          └──────┬───────┘
- *  │           │                       │
- *  │           ▼                       ▲
- *  │      ┌──────────────┐        ┌────────────┐
- *  │      │  RX Task     │        │  TX Task   │
- *  │      │  decode      │        │  send      │
- *  │      │  dispatch    │        │  via UART  │
- *  │      └──────┬───────┘        └────────────┘
- *  │             │ decoded frame
- *  │             ▼
- *  │        ┌─────────────┐
- *  │        │  Dispatch   │
- *  │        │  WiFi / BLE │
- *  │        │  / BT CB    │
- *  │        └─────────────┘
- *  │
- *  └──────────────────────────────────────┘
+ * ============================================================================
+ * WARNINGS
+ * ============================================================================
+ *
+ *   - UART RX callbacks may contain partial or multiple protocol frames.
+ *   - A decoded payload pointer remains valid only during dispatch.
+ *   - Callbacks must not block for extended periods.
+ *   - The heartbeat currently uses eRcMsgGetStatus as an existing convention.
+ *   - Wi-Fi, BLE and BT Classic register their own frame callbacks.
+ *     Cluster-ready signaling must wait for essential registrations.
+ *   - Global (transport NONE) command dispatch requires a finalized
+ *     application command callback and message IDs.
+ *
+ * ============================================================================
+ * Change Log (newest first):
+ * ============================================================================
+ * 2026-10-25  Integrated central init/thread/deinit lifecycle; UART ownership.
+ * 2026-10-25  Corrected RTOS accessors, context initialization and cleanup.
+ * 2026-10-25  Updated frame parser and error handling.
+ * 2026-05-23  Initial development - J.Raghav.
+ * ============================================================================
  */
 
-/*
- * =========================================================================
- * Change History:
- * Format:
- * YYYY-MM-DD - Developer - Description
- * =========================================================================
- *
- * 2026-05-23 - J.Raghav - Initial development
- */
-
+#include <stdint.h>
+#include <stdbool.h>
 #include <string.h>
 
 #include "app_config.h"
-
+#include "app_logging.h"
 #include "uart_app.h"
 #include "rc_protocol.h"
 
-#include "app_logging.h"
+/* =========================================================================
+ * MODULE CONFIGURATION ALIASES
+ * ========================================================================= */
+
+#define UAPP_RX_BUF_LEN        configUART_APP_RX_BUF_LEN
+#define UAPP_TX_BUF_LEN        configUART_APP_TX_BUF_LEN
+#define UAPP_HEARTBEAT_MS      configUART_APP_HEARTBEAT_MS
+#define UAPP_TX_TIMEOUT_MS     (500U)
+#define UAPP_RX_ERROR_LIMIT    (5U)
+#define UAPP_PARSE_ERROR_LIMIT (5U)
+#define UAPP_RX_POLL_MS        (10U)
+#if (UAPP_RX_BUF_LEN < RC_FRAME_MIN_LEN)
+    #error "UART RX buffer must accommodate the minimum protocol frame"
+#endif
+
+#if (UAPP_TX_BUF_LEN < RC_FRAME_MIN_LEN)
+    #error "UART TX buffer must accommodate the minimum protocol frame"
+#endif
+
+#if (UAPP_HEARTBEAT_MS == 0U)
+    #error "UART heartbeat interval must be greater than zero"
+#endif
 
 /* =========================================================================
- * Fail-stop configuration
+ * MODULE CONTEXT
  * ========================================================================= */
-#define UART_APP_RX_ERROR_LIMIT    (5U)
-#define UART_APP_PARSE_ERROR_LIMIT (5U)
+static uart_app_t gUartApp;
+
+/* BSP must serialize callbacks; no concurrent writes to this message. */
+static uart_app_msg_t g_rxCbMsg;
 
 static volatile uint8_t s_uartRxErrorCount    = 0U;
 static volatile uint8_t s_uartParseErrorCount = 0U;
 static volatile uint8_t s_uartFailStopped     = 0U;
 
-/* =========================================================================
- * Static TX scratch buffer (never on stack)
- * ========================================================================= */
-static uint8_t gTxEncodeBuf[UART_APP_TX_BUF_LEN];
-
-/* =========================================================================
- * Static RX buffer - used by async RX, always listening
- * ========================================================================= */
-static uint8_t gRxAsyncBuf[UART_APP_RX_BUF_LEN];
-
-/* =========================================================================
- * Forward declarations
- * ========================================================================= */
-static void uart_rx_task(void* arg);
-static void uart_tx_task(void* arg);
-static void uart_rx_cb(ret_err_sts_t status, uint8_t* data, uint16_t data_len, void* userContext);
-static void uart_enter_fail_stop(uart_app_t* app, const char* reason);
-static void uart_note_rx_error(uart_app_t* app, const char* reason);
-static void uart_note_parse_error(uart_app_t* app, const char* reason);
-static void uart_note_rx_success(void);
-static void uart_note_parse_success(void);
-
-/* =========================================================================
- * RX frame accumulator
- *
- * Problem: UART RX may give us bytes in chunks.
- * We must collect bytes until we have a complete rc_protocol frame.
- *
- * Strategy:
- *   - Read 1 byte at a time to get header
- *   - If DATA frame: read 2 more bytes for length, then read payload
- *   - If CMD/STATUS/ACK: 1 byte is the complete frame
- *
- * Uses bspUartReceiveSync in a loop (non-blocking with short timeout).
- * ========================================================================= */
 typedef struct
 {
-    uint8_t buf[UART_APP_RX_BUF_LEN];
-    uint16_t pos;    /**< Write position in buf          */
-    uint8_t haveHdr; /**< 1 = header byte collected      */
-    uint8_t haveLen; /**< 1 = length bytes collected     */
-    uint16_t needed; /**< remaining bytes to complete    */
-    rc_type_t frameType;
+    uint16_t pos;
+    uint16_t expectedLength;
 } rx_accum_t;
 
-
-/* Static RX callback message buffer to avoid large stack usage in callback */
-static uart_rx_msg_t g_rxCbMsg;
-
-/* Reset accumulator for next frame */
-static void accum_reset(rx_accum_t* a)
-{
-    uint16_t i;
-    for(i = 0U; i < (uint16_t)sizeof(a->buf); i++)
-    {
-        a->buf[i] = 0U;
-    }
-    a->pos       = 0U;
-    a->haveHdr   = 0U;
-    a->haveLen   = 0U;
-    a->needed    = 0U;
-    a->frameType = eRcTypeCmd;
-}
-
 /* =========================================================================
- * Dispatch decoded frame to registered interface callback
- * ========================================================================= */
-static void dispatch(uart_app_t* app, const rc_frame_t* frame)
-{
-    if((app == NULL) || (frame == NULL))
-    {
-        ALOGE("uart_app_dispatch: Invalid parameter");
-        return;
-    }
-
-    ALOGD("uart_app_dispatch: Dispatching frame, intf=%d, type=%d, subcode=%u, "
-          "payloadLen=%d",
-          (int)frame->intf, (int)frame->type, (uint8_t)frame->subcode,
-          (uint16_t)frame->payloadLen);
-
-    switch(frame->intf)
-    {
-        case eRcIntfWifi:
-            if(app->cfg.onWifiFrame != NULL)
-            {
-                app->cfg.onWifiFrame(frame, app->cfg.wifiUser);
-            }
-            break;
-
-        case eRcIntfBle:
-            if(app->cfg.onBleFrame != NULL)
-            {
-                app->cfg.onBleFrame(frame, app->cfg.bleUser);
-            }
-            break;
-
-        case eRcIntfBtClassic:
-            if(app->cfg.onBtFrame != NULL)
-            {
-                app->cfg.onBtFrame(frame, app->cfg.btUser);
-            }
-            break;
-
-        default:
-            /* Reserved interface - ignore */
-            break;
-    }
-}
-
-static void uart_note_rx_success(void)
-{
-    s_uartRxErrorCount = 0U;
-}
-
-static void uart_note_parse_success(void)
-{
-    s_uartParseErrorCount = 0U;
-}
-
-static void uart_enter_fail_stop(uart_app_t* app, const char* reason)
-{
-    if((app == NULL) || (s_uartFailStopped != 0U))
-    {
-        return;
-    }
-
-    s_uartFailStopped = 1U;
-    app->running      = 0U;
-
-    ALOGE("uart_app: FAIL-STOP entered: %s", reason);
-
-    /* Stop new callbacks first */
-    (void)bspUartSetCallback(&app->cfg.uartHandle, NULL, NULL);
-
-    /* Cancel any active RX */
-    (void)bspUartIoctl(&app->cfg.uartHandle, eBspUartCancelRx, NULL);
-}
-
-static void uart_note_rx_error(uart_app_t* app, const char* reason)
-{
-    if((app == NULL) || (s_uartFailStopped != 0U))
-    {
-        return;
-    }
-
-    if(s_uartRxErrorCount < 255U)
-    {
-        s_uartRxErrorCount++;
-    }
-
-    ALOGE("uart_app: RX error count=%u", (unsigned int)s_uartRxErrorCount);
-
-    if(s_uartRxErrorCount >= UART_APP_RX_ERROR_LIMIT)
-    {
-        uart_enter_fail_stop(app, reason);
-    }
-}
-
-static void uart_note_parse_error(uart_app_t* app, const char* reason)
-{
-    if((app == NULL) || (s_uartFailStopped != 0U))
-    {
-        return;
-    }
-
-    if(s_uartParseErrorCount < 255U)
-    {
-        s_uartParseErrorCount++;
-    }
-
-    ALOGE("uart_app: Parse error count=%u", (unsigned int)s_uartParseErrorCount);
-
-    if(s_uartParseErrorCount >= UART_APP_PARSE_ERROR_LIMIT)
-    {
-        uart_enter_fail_stop(app, reason);
-    }
-}
-
-/* =========================================================================
- * RX callback - called from BSP UART event thread on data received
- *
- * This replaces the polling loop.
- * BSP calls this whenever bytes arrive -> we post raw bytes to RX queue
- * -> RX task accumulates and decodes frames.
- * uart_rx_cb(status, data, data_len, userContext)
- *   │
- *   ├── check status OK
- *   ├── copy raw bytes into msg
- *   ├── post msg to RX queue
- *   │
- *   └── re-arm async RX
- *         └─ bspUartReadAsync again
- *            (auto re-arm for next chunk)
+ * STATIC FUNCTION FORWARD DECLARATIONS
  * ========================================================================= */
 
-static void uart_rx_cb(ret_err_sts_t status, uint8_t* data, uint16_t data_len, void* userContext)
-{
-    uart_app_t* app = (uart_app_t*)userContext;
-    bool rxBusy     = false;
+static bool uart_workers_ready(void);
+static void uart_accum_reset(rx_accum_t* acc);
+static void uart_dispatch(uart_app_t* app, const rc_frame_t* frame);
+// static void uart_note_rx_success(void);
+// static void uart_note_parse_success(void);
+// static void uart_enter_fail_stop(uart_app_t* app, const char* reason);
+// static void uart_note_rx_error(uart_app_t* app, const char* reason);
+// static void uart_note_parse_error(uart_app_t* app, const char* reason);
+static void uart_rx_cb(ret_err_sts_t status, uint8_t* data, size_t data_len, void* userContext);
+static ret_err_sts_t uart_send_heartbeat(void);
 
-    if((app == NULL) || (app->running == 0U) || (app->rxQ == NULL) ||
-       (s_uartFailStopped != 0U))
-    {
-        ALOGW(
-        "uart_rx_cb: App not running or fail-stopped, ignoring RX callback");
-        return; // defensive: should not happen since we disarm callback on fail-stop, but check just in case
-    }
-
-    if((status == RET_ERR_STS_OK) && (data != NULL) && (data_len > 0U) &&
-       (data_len <= (uint16_t)sizeof(g_rxCbMsg.buf)))
-    {
-        (void)memcpy(g_rxCbMsg.buf, data, (size_t)data_len);
-        g_rxCbMsg.len = data_len;
-
-        if(osMessageQueuePut(app->rxQ, &g_rxCbMsg, 0U, 0U) != osOK)
-        {
-            ALOGE("uart_app_rx_cb: RX queue post failed, len=%u", (unsigned int)data_len);
-            uart_note_rx_error(app, "RX queue post failure");
-        }
-        else
-        {
-            uart_note_rx_success(); /* reset consecutive RX error counter */
-        }
-    }
-    else if(status != RET_ERR_STS_OK)
-    {
-        ALOGE("uart_app_rx_cb: RX callback error, status=%d", (int)status);
-        uart_note_rx_error(app, "BSP RX callback failure");
-    }
-
-    if((app->running != 0U) && (app->rxQ != NULL))
-    {
-        if((bspUartIoctl(&app->cfg.uartHandle, eBspUartIsRxBusy, &rxBusy) == RET_ERR_STS_OK) &&
-           (rxBusy == false))
-        {
-            if(bspUartReadAsync(&app->cfg.uartHandle, gRxAsyncBuf,
-                                sizeof(gRxAsyncBuf)) != RET_ERR_STS_OK)
-            {
-                ALOGE("uart_app_rx_cb: Re-arm async RX failed");
-                uart_note_rx_error(app, "Async RX re-arm failure");
-            }
-        }
-    }
-}
 /* =========================================================================
- * RX Task
- *
- * Loop:
- *   - Decode complete frame
- *   - Dispatch to interface callback
- *   - Check heartbeat timer - send if 10s elapsed
+ * TASK ENTRY FUNCTIONS
  * ========================================================================= */
-static void uart_rx_task(void* arg)
+void vAppUartRxTask(void* arg)
 {
-    uart_app_t* app = (uart_app_t*)arg;
-    rx_accum_t acc;
+    ret_err_sts_t status;
+    rx_accum_t accumulator;
     rc_frame_t frame;
-    uart_rx_msg_t msg;
-    osStatus_t qSts;
+    uart_app_msg_t msg;
+    osStatus_t queueStatus;
+
+    uint16_t index;
+    uint16_t payloadLength;
+
     uint32_t now;
-    uint16_t payLen;
-    uint16_t i;
+    uint32_t heartbeatTicks;
 
-    accum_reset(&acc);
-    ALOGD("uart_app_rx_task: RX task started");
+    (void)arg;
 
-    while(app->running != 0U)
+
+    /*
+     * Wait until both UART RX and TX worker descriptors
+     * have completed their initialization.
+     */
+    while((gUartApp.running != 0U) && !uart_workers_ready())
     {
-        /* ------------------------------------------------------------------
-         * Block on RX queue with heartbeat timeout
-         * If no data for UART_APP_HEARTBEAT_MS -> send heartbeat then loop
-         * ------------------------------------------------------------------ */
-        qSts = osMessageQueueGet(app->rxQ, &msg, NULL, UART_APP_HEARTBEAT_MS);
+        osDelay(1U);
+    }
 
-        /* ------------------------------------------------------------------
-         * HEARTBEAT check (runs on timeout OR after every received chunk)
-         * ------------------------------------------------------------------ */
-        now = osKernelGetTickCount();
+    uart_accum_reset(&accumulator);
 
-        if((now - app->lastHeartbeatTick) >= UART_APP_HEARTBEAT_MS)
-        {
-            ALOGD("uart_app_rx_task: Heartbeat - sending STATUS READY to Host");
-            app->lastHeartbeatTick = now;
-            (void)uart_app_send_status(app, eRcIntfWifi, eRcStsSubReady);
-        }
+    heartbeatTicks =
+    (uint32_t)(((uint64_t)UAPP_HEARTBEAT_MS * osKernelGetTickFreq() + 999ULL) / 1000ULL);
 
-        /* Queue timeout - no data, loop back to wait */
-        if(qSts != osOK)
-        
+    if(heartbeatTicks == 0U)
+    {
+        heartbeatTicks = 1U;
+    }
+
+    ALOGI("UART RX task started");
+
+    /* */
+    while(gUartApp.running)
+    {
+        /*
+         * The application RX thread processes the BSP events.
+         *
+         * The BSP invokes uart_rx_cb() whenever available bytes
+         * are received.
+         *
+         * No bspUartReadAsync() re-arming is required.
+         */
+        status = bspUartProcessRx(&gUartApp.cfg.uartHandle, UAPP_RX_POLL_MS);
+
+        if(status != RET_ERR_STS_OK)
         {
             continue;
         }
 
-        /* ------------------------------------------------------------------
-         * Feed received bytes into accumulator one by one
-         * ------------------------------------------------------------------ */
-        for(i = 0U; i < msg.len; i++)
+        /*
+         * RX callbacks enqueue byte chunks into rxQ.
+         *
+         * Do not block here, because this same thread must
+         * continue processing BSP UART events.
+         */
+        queueStatus = osMessageQueueGet(gUartApp.rxQ, &msg, NULL, 0U);
+
+        now = osKernelGetTickCount();
+
+        /*
+         * Periodically report application heartbeat.
+         */
+        if((uint32_t)(now - gUartApp.lastHeartbeatTick) >= heartbeatTicks)
         {
-            uint8_t byte = msg.buf[i];
+            gUartApp.lastHeartbeatTick = now;
 
-            /* STEP 1: collect header */
-            if(acc.haveHdr == 0U)
+            if(uart_send_heartbeat() != RET_ERR_STS_OK)
             {
-                acc.buf[0U] = byte;
-                acc.pos     = 1U;
-                acc.haveHdr = 1U;
-                acc.frameType = (rc_type_t)((byte & RC_HDR_TYPE_MASK) >> RC_HDR_TYPE_SHIFT);
+                ALOGW("UART heartbeat enqueue failed");
+            }
+        }
 
-                /* All frame types (CMD, STATUS, DATA, ACK) need length field */
-                acc.haveLen = 0U;
-                acc.needed  = 2U; /* next: 2 length bytes */
+        if(queueStatus != osOK)
+        {
+            continue;
+        }
+
+        /*
+         * Process all bytes in the current RX chunk.
+         *
+         * A chunk can contain a partial frame, exactly one
+         * frame, or multiple consecutive frames.
+         */
+        for(index = 0U; index < msg.len; index++)
+        {
+            uint8_t byte = msg.buf[index];
+
+            /*
+             * Prevent accumulation-buffer overflow.
+             */
+            if(accumulator.pos >= sizeof(gUartApp.rxBuf))
+            {
+                // uart_note_parse_error(&gUartApp, "RX frame overflow");
+
+                uart_accum_reset(&accumulator);
                 continue;
             }
 
-            /* STEP 2: collect length bytes (ALL frame types) */
-            if(acc.haveLen == 0U)
+            gUartApp.rxBuf[accumulator.pos] = byte;
+            accumulator.pos++;
+
+            /*
+             * The protocol payload length occupies
+             * header bytes 5 and 6.
+             */
+            if(accumulator.pos == 7U)
             {
-                acc.buf[acc.pos] = byte;
-                acc.pos++;
-                acc.needed--;
+                payloadLength = (uint16_t)(((uint16_t)gUartApp.rxBuf[5U] << 8U) |
+                                           (uint16_t)gUartApp.rxBuf[6U]);
 
-                if(acc.needed == 0U)
+                if((payloadLength > RC_MAX_PAYLOAD_LEN) ||
+                   ((uint32_t)payloadLength + RC_FRAME_MIN_LEN > sizeof(gUartApp.rxBuf)))
                 {
-                    /* Both length bytes collected */
-                    payLen =
-                    (uint16_t)(((uint16_t)acc.buf[1U] << 8U) | (uint16_t)acc.buf[2U]);
+                    ALOGE("Invalid UART payload length=%u", (unsigned int)payloadLength);
 
-                    if(payLen == 0U)
-                    {
-                        /* No payload - frame complete (STATUS, ACK, etc) */
-                        acc.haveLen = 1U;
-                        acc.needed  = 0U;
-                    }
-                    else if(payLen > RC_MAX_PAYLOAD_LEN)
-                    {
-                        ALOGE("Invalid payload length=%u, discarding frame",
-                              (unsigned int)payLen);
-                        uart_note_parse_error(app, "Invalid payload length");
-                        accum_reset(&acc);
-                    }
-                    else
-                    {
-                        /* Payload exists - wait for it */
-                        acc.haveLen = 1U;
-                        acc.needed  = payLen;
-                    }
+                    // uart_note_parse_error(&gUartApp, "Invalid frame length");
+
+                    uart_accum_reset(&accumulator);
+                    continue;
                 }
-                continue;
+
+                accumulator.expectedLength = (uint16_t)(RC_FRAME_MIN_LEN + payloadLength);
             }
 
-            /* STEP 3: collect payload bytes (if needed) */
-            if(acc.needed > 0U)
+            /*
+             * Decode when the accumulated frame is complete.
+             */
+            if((accumulator.expectedLength != 0U) &&
+               (accumulator.pos == accumulator.expectedLength))
             {
-                acc.buf[acc.pos] = byte;
-                acc.pos++;
-                acc.needed--;
-            }
+                status = rc_frame_decode(gUartApp.rxBuf, accumulator.pos, &frame);
 
-            /* STEP 4: frame complete? */
-            if((acc.haveHdr == 1U) && (acc.haveLen == 1U) && (acc.needed == 0U))
-            {
-                if(rc_frame_decode(acc.buf, acc.pos, &frame))
+                if(status == RET_ERR_STS_OK)
                 {
-                    uart_note_parse_success(); /* reset consecutive parse error counter */
-                    dispatch(app, &frame);
+                    // uart_note_parse_success();
+
+                    uart_dispatch(&gUartApp, &frame);
                 }
                 else
                 {
-                    ALOGE("Frame decode failed, len=%u", (unsigned int)acc.pos);
-                    uart_note_parse_error(app, "Frame decode failure");
+                    ALOGE("UART frame decode failed, len=%u",
+                          (unsigned int)accumulator.pos);
+
+                    // uart_note_parse_error(&gUartApp, "Frame validation failed");
                 }
 
-                accum_reset(&acc);
+                uart_accum_reset(&accumulator);
             }
         }
     }
-    ALOGW("uart_app_rx_task: RX task stopped");
-    osDelay(100U); /* Let log flush */
-    osThreadExit();
+
+    ALOGW("UART RX task stopped");
+    APP_THREAD_HANDLE_CLEAR(APP_THREAD_OWNER_UART_APP_RX);
+    osThreadTerminate(gUartApp.rxTaskId);
 }
 
-/* =========================================================================
- * TX Task
- *
- * Blocks on TX queue.
- * When a message arrives, sends it over UART synchronously.
- * All sends from any task go through this single task -> no UART contention.
- * ========================================================================= */
-static void uart_tx_task(void* arg)
+void vAppUartTxTask(void* arg)
 {
-    uart_app_t* app = (uart_app_t*)arg;
-    uart_app_tx_msg_t msg;
-    osStatus_t qSts;
-    ALOGD("uart_app_tx_task: TX task started");
-    while(app->running != 0U)
-    {
-        qSts = osMessageQueueGet(app->txQ, &msg, NULL, 1000U); /* was osWaitForever */
+    uart_app_msg_t msg;
 
-        if(qSts != osOK)
+    gUartApp.txTaskId = osThreadGetId();
+
+    /* Both worker wrappers must complete initialization first. */
+    while((gUartApp.running != 0U) && !uart_workers_ready())
+    {
+        osDelay(1000U);
+    }
+
+    ALOGI("UART TX task started");
+
+    while(gUartApp.running)
+    {
+        /*  */
+        if(osMessageQueueGet(gUartApp.txQ, &msg, NULL, osKernelGetTickFreq()) != osOK)
         {
             continue;
         }
 
-        if(msg.len > 0U)
+        if((msg.len == 0U) || (msg.len > sizeof(msg.buf)))
         {
-            if(bspUartSendSync(&app->cfg.uartHandle, msg.buf, (size_t)msg.len, 500U) != RET_ERR_STS_OK)
-            {
-                ALOGE("UART TX send failed, len=%u", (unsigned int)msg.len);
-            }
+            ALOGW("Invalid UART TX message length");
+            continue;
+        }
+
+        if(bspUartSendSync(&gUartApp.cfg.uartHandle, msg.buf, msg.len,
+                           UAPP_TX_TIMEOUT_MS) != RET_ERR_STS_OK)
+        {
+            ALOGE("UART TX failed, len=%u", (unsigned int)msg.len);
         }
     }
 
-    ALOGW("uart_app_tx_task: TX task stopped");
-    osDelay(100U); /* Let log flush */
-    osThreadExit();
+    ALOGW("UART TX task stopped");
+
+    /* Return so the generic OS wrapper runs uart_app_deinit(). */
+    APP_THREAD_HANDLE_CLEAR(APP_THREAD_OWNER_UART_APP_TX);
+    osThreadTerminate(gUartApp.txTaskId);
 }
 
 /* =========================================================================
- * PUBLIC API
+ * INITIALIZATION
  * ========================================================================= */
-ret_err_sts_t uart_app_send(uart_app_t* app, const uint8_t* frame, uint16_t len)
-{
-    uart_app_tx_msg_t msg;
 
-    if((app == NULL) || (frame == NULL) || (len == 0U) ||
-       (len > (uint16_t)sizeof(msg.buf)))
+/**
+ * @brief Initialize shared UART service once for the RX and TX wrappers.
+ *
+ * @details
+ * Both wrappers call this no-argument function. The centrally created
+ * UART TX mutex serializes concurrent calls, so BSP UART configuration,
+ * callback registration and receive arming happen exactly once.
+ *
+ * Initialization does NOT create threads or start wireless services.
+ */
+ret_err_sts_t uart_app_init(void)
+{
+    ret_err_sts_t status;
+
+    gUartApp.mutex = APP_MUTEX_HANDLE(APP_MUTEX_OWNER_UART_APP);
+
+    if(gUartApp.mutex == NULL)
     {
-        ALOGE("uart_app_send: Invalid param");
-        return RET_ERR_STS_INVALID_PARAM;
+        ALOGI("UART mutex unavailable");
+        return RET_ERR_STS_NOT_INITIALIZED;
     }
 
-    if((app->running == 0U) || (s_uartFailStopped != 0U) || (app->txQ == NULL))
+    if(osMutexAcquire(gUartApp.mutex, osWaitForever) != osOK)
     {
-        ALOGE("uart_app_send: UART app not running");
+        ALOGE("UART cleanup mutex acquisition failed");
         return RET_ERR_STS_FAIL;
     }
 
-    /* Build TX message */
-    (void)memset(&msg, 0, sizeof(msg));
+    /*
+     * Preserve frame handlers registered by Wi-Fi/BLE/BT modules.
+     * Do not memset the whole gUartApp context here.
+     */
+    gUartApp.running  = 0U;
+    gUartApp.rxTaskId = APP_THREAD_HANDLE(APP_THREAD_OWNER_UART_APP_RX);
+    gUartApp.txTaskId = APP_THREAD_HANDLE(APP_THREAD_OWNER_UART_APP_TX);
+    (void)memset(gUartApp.rxBuf, 0, sizeof(gUartApp.rxBuf));
 
-    /* Copy frame into TX message */
-    (void)memcpy(msg.buf, frame, (size_t)len);
+    /* Preserve the existing by-value BSP UART handle convention. */
+    (void)memcpy(&gUartApp.cfg.uartHandle, &g_appUartHandleCfg[APP_UART_OWNER_HOST_COMM],
+                 sizeof(bspUartHandle_t));
+
+    gUartApp.rxQ = APP_QUEUE_HANDLE(APP_Q_OWNER_RC_UART_RX);
+    gUartApp.txQ = APP_QUEUE_HANDLE(APP_Q_OWNER_RC_UART_TX);
+
+    if((gUartApp.rxQ == NULL) || (gUartApp.txQ == NULL))
+    {
+        ALOGE("UART queues unavailable");
+        status = RET_ERR_STS_NOT_INITIALIZED;
+        goto init_failed;
+    }
+
+    if((osMessageQueueReset(gUartApp.rxQ) != osOK) ||
+       (osMessageQueueReset(gUartApp.txQ) != osOK))
+    {
+        ALOGE("UART queue reset failed");
+        status = RET_ERR_STS_FAIL;
+        goto init_failed;
+    }
+
+    s_uartRxErrorCount    = 0U;
+    s_uartParseErrorCount = 0U;
+    s_uartFailStopped     = 0U;
+
+    status = bspUartInit(&gUartApp.cfg.uartHandle);
+
+    if(status != RET_ERR_STS_OK)
+    {
+        ALOGE("BSP UART initialization failed");
+        goto init_failed;
+    }
+
+    /* RX callback must see a fully initialized application context. */
+    gUartApp.running           = 1U;
+    gUartApp.lastHeartbeatTick = osKernelGetTickCount();
+
+    status = bspUartSetRxCallback(&gUartApp.cfg.uartHandle, uart_rx_cb, &gUartApp);
+
+    if(status != RET_ERR_STS_OK)
+    {
+        ALOGE("UART callback registration failed");
+        goto bsp_cleanup;
+    }
+
+    ALOGI("UART initialized; RX/TX workers use shared context");
+    return RET_ERR_STS_OK;
+
+bsp_cleanup:
+    gUartApp.running = 0U;
+
+    (void)bspUartSetRxCallback(&gUartApp.cfg.uartHandle, NULL, NULL);
+    (void)bspUartDeInit(&gUartApp.cfg.uartHandle);
+
+init_failed:
+    gUartApp.running = 0U;
+    (void)osMutexRelease(gUartApp.mutex);
+    return status;
+}
+
+/* =========================================================================
+ * DEINITIALIZATION
+ * ========================================================================= */
+
+/**
+ * @brief Release UART service after both worker functions return.
+ *
+ * @details
+ * Both wrappers call this no-argument function. The first returning
+ * worker requests shutdown of the other; the last returning worker
+ * releases the UART hardware. RTOS queues and mutex are NOT deleted.
+ *
+ * @note Only the central OS wrapper owns thread handles and termination.
+ */
+/**
+ * @brief Deinitialize UART after both workers have returned.
+ *
+ * @details
+ * The first worker returning requests shutdown.
+ * The second worker returning releases the BSP UART.
+ *
+ * The central OS wrapper remains responsible for
+ * thread creation and thread lifecycle.
+ */
+ret_err_sts_t uart_app_deinit(void)
+{
+    if(gUartApp.mutex == NULL)
+    {
+        return RET_ERR_STS_NOT_INITIALIZED;
+    }
+
+    if(osMutexAcquire(gUartApp.mutex, osWaitForever) != osOK)
+    {
+        ALOGE("UART cleanup mutex acquisition failed");
+        return RET_ERR_STS_FAIL;
+    }
+
+    /*
+     * Both workers have now returned.
+     *
+     * The RX thread is no longer calling bspUartProcessRx(),
+     * so it is safe to release the BSP event queue.
+     */
+    (void)bspUartSetRxCallback(&gUartApp.cfg.uartHandle, NULL, NULL);
+
+    if(bspUartDeInit(&gUartApp.cfg.uartHandle) != RET_ERR_STS_OK)
+    {
+        ALOGE("BSP UART deinitialization failed");
+    }
+
+    /*
+     * Queues are owned by the central OS configuration.
+     * Reset them but do not delete them.
+     */
+    if(gUartApp.rxQ != NULL)
+    {
+        (void)osMessageQueueReset(gUartApp.rxQ);
+    }
+
+    if(gUartApp.txQ != NULL)
+    {
+        (void)osMessageQueueReset(gUartApp.txQ);
+    }
+
+    gUartApp.rxQ      = NULL;
+    gUartApp.txQ      = NULL;
+    gUartApp.mutex    = NULL;
+    gUartApp.rxTaskId = NULL;
+    gUartApp.txTaskId = NULL;
+
+    s_uartRxErrorCount    = 0U;
+    s_uartParseErrorCount = 0U;
+    s_uartFailStopped     = 0U;
+
+    (void)osMutexRelease(gUartApp.mutex);
+
+    ALOGI("UART application deinitialized");
+    return RET_ERR_STS_OK;
+}
+/* =========================================================================
+ * OTHER PUBLIC APIS
+ * ========================================================================= */
+
+/**
+ * @brief Queue a complete encoded RideCast frame for UART transmission.
+ *
+ * @details
+ * Uses the module-owned gUartApp; other modules do not need the UART
+ * context or a generic ridecast_main.c forwarding function.
+ */
+ret_err_sts_t uart_app_send(const uint8_t* frame, uint16_t len)
+{
+    uart_app_msg_t msg;
+
+    if((frame == NULL) || (len < RC_FRAME_MIN_LEN) || (len > sizeof(msg.buf)))
+    {
+        return RET_ERR_STS_INVALID_PARAM;
+    }
+
+    if((gUartApp.txQ == NULL))
+    {
+        return RET_ERR_STS_NOT_INITIALIZED;
+    }
+
+    (void)memcpy(msg.buf, frame, len);
     msg.len = len;
 
-    if(osMessageQueuePut(app->txQ, &msg, 0U, 0U) != osOK)
+    if(osMessageQueuePut(gUartApp.txQ, &msg, 0U, 0U) != osOK)
     {
-        ALOGE("uart_app_send: TX queue post failed, len=%u", (uint16_t)len);
+        ALOGE("UART TX queue full");
         return RET_ERR_STS_FAIL;
     }
 
-    ALOGD("uart_app_send: Posted frame to TX queue, len=%u frame%.*s",
-          (uint16_t)len, (uint16_t)len, (const char*)msg.buf);
-
+    ALOGD("Queued UART frame, len=%u", (unsigned int)len);
     return RET_ERR_STS_OK;
 }
-/* ------------------------------------------------------------------ */
-ret_err_sts_t uart_app_send_status(uart_app_t* app, rc_intf_t intf, rc_sts_sub_t sub)
-{
-    uint8_t buf[1U];
-    uint8_t len;
 
-    len = rc_encode_simple(buf, intf, eRcTypeStatus, (uint8_t)sub);
-    if(len == 0U)
-    {
-        ALOGE("uart_app_send_status: Status frame encode failed");
-        return RET_ERR_STS_FAIL;
-    }
-    return uart_app_send(app, buf, (uint16_t)len);
-}
-/* ------------------------------------------------------------------ */
+/**
+ * @brief Register a transport-specific protocol frame handler.
+ *
+ * @details
+ * Wi-Fi, BLE and BT Classic modules can register their handlers from
+ * their own init callbacks. The centrally owned mutex serializes handler
+ * updates with UART RX dispatch and UART hardware initialization.
+ *
+ * @note Pass NULL to unregister an interface during coordinated shutdown.
+ */
 ret_err_sts_t
-uart_app_send_data(uart_app_t* app, rc_intf_t intf, uint8_t dataSub, const uint8_t* payload, uint16_t payloadLen)
+uart_app_register_handler(uint8_t transport, uart_app_intf_cb_t callback, void* user)
 {
-    uint16_t frameLen;
-
-    /* Lock scratch buffer - multiple tasks may call this concurrently */
-    if(osMutexAcquire(app->txMutex, 100U) != osOK)
+    if((gUartApp.mutex == NULL) || osMutexAcquire(gUartApp.mutex, osWaitForever) != osOK)
     {
-        ALOGE("uart_app_send_data: TX mutex acquire timeout");
-        return RET_ERR_STS_TIMEOUT;
-    }
-
-    frameLen = rc_encode_data(gTxEncodeBuf, intf, dataSub, payload, payloadLen);
-
-    (void)osMutexRelease(app->txMutex);
-
-    if(frameLen == 0U)
-    {
-        ALOGE("uart_app_send_data: Data frame encode failed");
+        ALOGE("UART cleanup mutex acquisition failed");
         return RET_ERR_STS_FAIL;
     }
 
-    return uart_app_send(app, gTxEncodeBuf, frameLen);
-}
-/* ------------------------------------------------------------------ */
-ret_err_sts_t uart_app_deinit(uart_app_t* app)
-{
-    if(app == NULL)
+    switch(transport)
     {
-        ALOGE("uart_app_deinit: app is NULL");
-        return RET_ERR_STS_INVALID_PARAM;
+        case eRcTransportWifi:
+        {
+            gUartApp.cfg.onWifiFrame = callback;
+            gUartApp.cfg.wifiUser    = user;
+            break;
+        }
+
+        case eRcTransportBle:
+        {
+            gUartApp.cfg.onBleFrame = callback;
+            gUartApp.cfg.bleUser    = user;
+            break;
+        }
+
+        case eRcTransportBtClassic:
+        {
+            gUartApp.cfg.onBtFrame = callback;
+            gUartApp.cfg.btUser    = user;
+            break;
+        }
+
+        default:
+        {
+            (void)osMutexRelease(gUartApp.mutex);
+            return RET_ERR_STS_INVALID_PARAM;
+        }
     }
 
-    app->running = 0U;
-
-    /* Stop incoming RX first */
-    (void)bspUartIoctl(&app->cfg.uartHandle, eBspUartCancelRx, NULL);
-    osDelay(20U);
-
-    /* Ensure worker tasks are gone before deleting queues/mutex */
-    if(app->rxTaskId != NULL)
-    {
-        (void)osThreadTerminate(app->rxTaskId);
-        app->rxTaskId = NULL;
-    }
-
-    if(app->txTaskId != NULL)
-    {
-        (void)osThreadTerminate(app->txTaskId);
-        app->txTaskId = NULL;
-    }
-
-    if(app->txMutex != NULL)
-    {
-        osMutexId_t m = app->txMutex;
-        app->txMutex  = NULL;
-        (void)osMutexDelete(m);
-    }
-
-    if(app->txQ != NULL)
-    {
-        osMessageQueueId_t q = app->txQ;
-        app->txQ             = NULL;
-        (void)osMessageQueueDelete(q);
-    }
-
-    if(app->rxQ != NULL)
-    {
-        osMessageQueueId_t q = app->rxQ;
-        app->rxQ             = NULL;
-        (void)osMessageQueueDelete(q);
-    }
-
-    (void)bspUartDeInit(&app->cfg.uartHandle);
-
-    s_uartRxErrorCount    = 0U;
-    s_uartParseErrorCount = 0U;
-    s_uartFailStopped     = 0U;
-
+    (void)osMutexRelease(gUartApp.mutex);
     return RET_ERR_STS_OK;
 }
 
-/* ------------------------------------------------------------------ */
-/*
-uart_app_init(app, cfg)
-    │
-    ├── init UART hardware (bspUartInit)
-    │
-    ├── create RX queue  (hold raw byte chunks)
-    ├── create TX queue  (hold complete frames)
-    ├── create TX mutex  (protect shared TX buffer)
-    │
-    ├── set RX callback  (bspUartSetCallback)
-    │     └─ register uart_rx_cb
-    │
-    ├── arm first async RX  (bspUartReadAsync)
-    │     └─ tell BSP to start listening
-    │
-    ├── spawn RX task
-    │     └─ loop: decode frames, dispatch
-    │
-    └── spawn TX task
-          └─ loop: send from queue via UART
-*/
-ret_err_sts_t uart_app_init(uart_app_t* app, const uart_app_cfg_t* cfg)
+
+/* =========================================================================
+ * STATIC HELPER IMPLEMENTATIONS
+ * ========================================================================= */
+
+/**
+ * @brief Confirm that BOTH UART worker wrappers completed initialization.
+ */
+static bool uart_workers_ready(void)
 {
-    if((app == NULL) || (cfg == NULL))
+    bool ready = false;
+    if((gUartApp.mutex != NULL) && (osMutexAcquire(gUartApp.mutex, osWaitForever) == osOK))
     {
-        ALOGE("uart_app_init: Invalid param");
-        return RET_ERR_STS_INVALID_PARAM;
+        /* If both task created meaans worker are ready */
+        if(gUartApp.rxTaskId && gUartApp.txTaskId)
+        {
+            ready = true;
+        }
+        (void)osMutexRelease(gUartApp.mutex);
     }
 
-    s_uartRxErrorCount    = 0U;
-    s_uartParseErrorCount = 0U;
-    s_uartFailStopped     = 0U;
-
-    /* Zero-fill context */
-    (void)memset(app, 0, sizeof(uart_app_t));
-
-    /* Copy config */
-    (void)memcpy(&app->cfg, cfg, sizeof(uart_app_cfg_t));
-
-    /* Init UART hardware via BSP */
-    if(bspUartInit(&app->cfg.uartHandle) != RET_ERR_STS_OK)
-    {
-        ALOGE("uart_app_init: bspUartInit failed");
-        return RET_ERR_STS_FAIL;
-    }
-
-    /* Get RX queue */
-    app->rxQ = g_appQueueCfg[APP_Q_OWNER_UART_APP_RX].handle;
-    if(app->rxQ == NULL)
-    {
-        ALOGE("uart_app_init: RX queue config not initialized");
-        return RET_ERR_STS_FAIL;
-    }
-    /* Get TX queue */
-    app->txQ = g_appQueueCfg[APP_Q_OWNER_UART_APP_TX].handle;
-    if(app->txQ == NULL)
-    {
-        ALOGE("uart_app_init: TX queue config not initialized");
-        return RET_ERR_STS_FAIL;
-    }
-
-    /* Get TX mutex */
-    app->txMutex = g_appMutexCfg[APP_MUTEX_OWNER_UART_APP_TX].handle;
-    if(app->txMutex == NULL)
-    {
-        return RET_ERR_STS_FAIL;
-    }
-
-    app->running           = 1U;
-    app->lastHeartbeatTick = osKernelGetTickCount();
-
-    /* Register async RX callback */
-    if(bspUartSetCallback(&app->cfg.uartHandle, uart_rx_cb, app) != RET_ERR_STS_OK)
-    {
-        (void)osMutexDelete(app->txMutex);
-        (void)osMessageQueueDelete(app->txQ);
-        (void)osMessageQueueDelete(app->rxQ);
-        (void)bspUartDeInit(&app->cfg.uartHandle);
-        ALOGE("uart_app_init: UART RX callback registration failed");
-        return RET_ERR_STS_FAIL;
-    }
-
-    /* Arm first async RX - will auto re-arm in callback */
-    if(bspUartReadAsync(&app->cfg.uartHandle, gRxAsyncBuf, sizeof(gRxAsyncBuf)) != RET_ERR_STS_OK)
-    {
-        (void)osMutexDelete(app->txMutex);
-        (void)osMessageQueueDelete(app->txQ);
-        (void)osMessageQueueDelete(app->rxQ);
-        (void)bspUartDeInit(&app->cfg.uartHandle);
-        ALOGE("uart_app_init: UART async RX arm failed");
-        return RET_ERR_STS_FAIL;
-    }
-
-    /* Get RX task */
-    app->rxTaskId = g_appThreadCfg[APP_THREAD_OWNER_UART_APP_RX].handle;
-    if(app->rxTaskId == NULL)
-    {
-        (void)osMutexDelete(app->txMutex);
-        (void)osMessageQueueDelete(app->txQ);
-        (void)osMessageQueueDelete(app->rxQ);
-        (void)bspUartDeInit(&app->cfg.uartHandle);
-        ALOGE("uart_app_init: RX task initialization failed");
-        return RET_ERR_STS_NOT_INITIALIZED;
-    }
-
-    /* Get TX task */
-    app->txTaskId = g_appThreadCfg[APP_THREAD_OWNER_UART_APP_TX].handle;
-    if(app->txTaskId == NULL)
-    {
-        app->running = 0U;
-        osDelay(100U);
-        (void)osMutexDelete(app->txMutex);
-        (void)osMessageQueueDelete(app->txQ);
-        (void)osMessageQueueDelete(app->rxQ);
-        (void)bspUartDeInit(&app->cfg.uartHandle);
-        ALOGE("uart_app_init: TX task initialization failed");
-        return RET_ERR_STS_NOT_INITIALIZED;
-    }
-
-    return RET_ERR_STS_OK;
+    return ready;
 }
+
+static void uart_accum_reset(rx_accum_t* acc)
+{
+    if(acc == NULL)
+    {
+        return;
+    }
+
+    acc->pos            = 0U;
+    acc->expectedLength = 0U;
+}
+
+static void uart_dispatch(uart_app_t* app, const rc_frame_t* frame)
+{
+    uart_app_intf_cb_t callback = NULL;
+    void* user                  = NULL;
+
+    if((app == NULL) || (frame == NULL) || (app->mutex == NULL))
+    {
+        ALOGE("UART dispatch: invalid parameters");
+        return;
+    }
+
+    ALOGD("UART frame: transport=%u type=%u msg=%u len=%u",
+          (unsigned int)frame->transport, (unsigned int)frame->type,
+          (unsigned int)frame->messageId, (unsigned int)frame->payloadLen);
+
+    /* Copy the handler under the shared UART configuration lock. */
+    if(osMutexAcquire(app->mutex, osWaitForever) != osOK)
+    {
+        ALOGE("UART dispatch mutex unavailable");
+        return;
+    }
+
+    switch(frame->transport)
+    {
+        case eRcTransportWifi:
+        {
+            callback = app->cfg.onWifiFrame;
+            user     = app->cfg.wifiUser;
+            break;
+        }
+
+        case eRcTransportBle:
+        {
+            callback = app->cfg.onBleFrame;
+            user     = app->cfg.bleUser;
+            break;
+        }
+
+        case eRcTransportBtClassic:
+        {
+            callback = app->cfg.onBtFrame;
+            user     = app->cfg.btUser;
+            break;
+        }
+
+        default:
+        {
+            /* Transport NONE needs the planned global-command handler. */
+            break;
+        }
+    }
+
+    (void)osMutexRelease(app->mutex);
+
+    /* Never call application callbacks while holding the UART mutex. */
+    if(callback != NULL)
+    {
+        callback(frame, user);
+    }
+    else
+    {
+        ALOGW("Unsupported/unregistered UART transport: %u", (unsigned int)frame->transport);
+    }
+}
+
+/**
+ * @brief Receive available bytes from the BSP UART driver.
+ *
+ * @details
+ * Called synchronously by bspUartProcessRx() in the
+ * application RX thread.
+ *
+ * Copies received bytes into the application RX queue.
+ * Does not re-arm asynchronous reception.
+ */
+static void uart_rx_cb(ret_err_sts_t status, uint8_t* data, size_t data_len, void* userContext)
+{
+    uart_app_t* app = (uart_app_t*)userContext;
+
+    if((app == NULL) || (app->rxQ == NULL))
+    {
+        return;
+    }
+
+    if(status != RET_ERR_STS_OK)
+    {
+        return;
+    }
+
+    if((data == NULL) || (data_len == 0U) ||
+       (data_len > sizeof(g_rxCbMsg.buf)) || (data_len > UINT16_MAX))
+    {
+        return;
+    }
+
+    /*
+     * The BSP owns the temporary RX chunk.
+     * Copy it before the callback returns.
+     */
+    (void)memcpy(g_rxCbMsg.buf, data, data_len);
+
+    g_rxCbMsg.len = (uint16_t)data_len;
+
+    if(osMessageQueuePut(app->rxQ, &g_rxCbMsg, 0U, 0U) != osOK)
+    {
+        return;
+    }
+}
+
+static ret_err_sts_t uart_send_heartbeat(void)
+{
+    uint8_t frame[RC_FRAME_MIN_LEN];
+    uint16_t length;
+
+    length = rc_encode_simple(frame, (uint16_t)sizeof(frame), (uint8_t)eRcTypeStatus,
+                              RC_FLAG_NONE, (uint8_t)eRcMsgGetStatus,
+                              (uint8_t)eRcTransportNone, 0U);
+
+    if(length == 0U)
+    {
+        return RET_ERR_STS_FAIL;
+    }
+
+    return uart_app_send(frame, length);
+}
+
+/* =========================================================================
+ * FILE END
+ * ========================================================================= */

@@ -84,7 +84,7 @@ bsp/
 │   ├── bsp_uart.h
 │   ├── bsp_wifi.h
 │   └── core/
-│       ├── bsp_core.h            Init/deinit, version, common types
+│       ├── bsp_defs.h            Init/deinit, version, common types
 │       ├── ret_err_sts.h         ret_err_sts_t error/status codes
 │       ├── bsp_log.h             Logging macros
 │       ├── bsp_osal.h            OS abstraction (task, mutex, queue, delay...)

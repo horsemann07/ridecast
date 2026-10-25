@@ -1,4 +1,32 @@
 {
     "window.title": "${dirty}${activeEditorShort}${separator}${rootName}${separator}${profileName}${separator}${appName}${separator}[Branch: feature/wifi-init]",
-    "C_Cpp.default.compileCommands": "${workspaceFolder}/build/compile_commands.json"
+    "C_Cpp.default.compileCommands": "${config:idf.buildPath}/compile_commands.json",
+    "C_Cpp.intelliSenseEngine": "default",
+    "C_Cpp.autocomplete": "default",
+    "C_Cpp.errorSquiggles": "enabled",
+    "C_Cpp.workspaceParsingPriority": "high",
+    "C_Cpp.default.compilerPath": "c:\\Espressif\\tools\\riscv32-esp-elf\\esp-14.2.0_20241119\\riscv32-esp-elf\\bin\\riscv32-esp-elf-gcc.exe"
+}
+{
+    "C_Cpp.intelliSenseEngine": "default",
+    "C_Cpp.enhancedColorization": "enabled",
+    "C_Cpp.autocomplete": "default",
+    "C_Cpp.errorSquiggles": "enabled",
+    "C_Cpp.default.compileCommands": "${config:idf.buildPath}/compile_commands.json",
+    "editor.semanticHighlighting.enabled": true,
+    // "editor.semanticTokenColorCustomizations": {
+    //     "enabled": true,
+    //     "rules": {
+    //         "variable": "#9CDCFE",
+    //         "parameter": "#DCDCAA",
+    //         "function": "#DCDCAA",
+    //         "method": "#DCDCAA",
+    //         "property": "#9CDCFE",
+    //         "macro": "#C586C0",
+    //         "type": "#4EC9B0",
+    //         "struct": "#4EC9B0",
+    //         "enum": "#4EC9B0",
+    //         "enumMember": "#B5CEA8"
+    //     }
+    // }
 }

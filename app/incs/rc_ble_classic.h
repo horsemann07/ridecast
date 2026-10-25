@@ -6,7 +6,7 @@
 
 #include "bsp_err_sts.h"
 #include "rc_protocol.h"
-#include "rc_connection.h"
+#include "conn_manager.h"
 
 #ifdef __cplusplus
 extern "C"

@@ -145,9 +145,6 @@ extern "C"
 
     } log_isr_value_type_t;
 
-    /* -------------------------------------------------------------------------- */
-    /* ISR Logging Value Container */
-    /* -------------------------------------------------------------------------- */
 
     /**
      * @brief Container for typed ISR logging values.
@@ -176,6 +173,44 @@ extern "C"
         char character; /*!< Character value. */
 
     } log_isr_value_t;
+
+    /* -------------------------------------------------------------------------- */
+    /* Task Logging Record */
+    /* -------------------------------------------------------------------------- */
+    typedef struct
+    {
+        log_level_t level;
+        const char* file;
+        uint32_t line;
+        const char* function;
+        uint16_t length;
+        char message[configLOG_TASK_MESSAGE_MAX];
+    } log_text_record_t;
+
+
+    /* -------------------------------------------------------------------------- */
+    /* ISR Logging Value Container */
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @brief Internal ISR log queue record.
+     *
+     * @note
+     * This structure is shared between the logger implementation
+     * and the BSP queue configuration.
+     */
+    typedef struct
+    {
+        log_level_t level;
+        const char* file;
+        uint32_t line;
+        const char* function;
+        log_isr_value_type_t type;
+        log_isr_value_t value;
+        char message[configLOG_ISR_MESSAGE_MAX];
+
+    } log_isr_record_t;
+
 
     /* -------------------------------------------------------------------------- */
     /* Logger Transport Callback */
@@ -316,7 +351,7 @@ extern "C"
         /**
          * @brief Enable ANSI terminal color output.
          *
-         * Requires bspCONFIG_LOG_COLOR_SUPPORT == 1U.
+         * Requires configLOG_COLOR_SUPPORT == 1U.
          * Ignored when compile-time support is unavailable.
          */
         bool color_enabled;

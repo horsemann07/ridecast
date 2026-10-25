@@ -38,216 +38,740 @@ extern "C"
 {
 #endif
 
-/* Baud rate conveniences; arbitrary nonzero baud rates are also allowed. */
-#define BSP_UART_BAUD_1200     (1200UL)
-#define BSP_UART_BAUD_9600     (9600UL)
-#define BSP_UART_BAUD_19200    (19200UL)
-#define BSP_UART_BAUD_38400    (38400UL)
-#define BSP_UART_BAUD_57600    (57600UL)
-#define BSP_UART_BAUD_115200   (115200UL)
-#define BSP_UART_BAUD_230400   (230400UL)
-#define BSP_UART_BAUD_460800   (460800UL)
-#define BSP_UART_BAUD_921600   (921600UL)
 
-/** Platform-neutral sentinel meaning 'retain the existing pin mapping'.
- *  Board setup must configure valid TX/RX pins before the first use. */
+/* -------------------------------------------------------------------------- */
+/* UART Configuration Macros                                                  */
+/* -------------------------------------------------------------------------- */
+
+/** Configure the maximum number of bytes processed in one UART RX operation. */
+#ifndef configUART_RX_CHUNK_BYTES
+    #define configUART_RX_CHUNK_BYTES (256U)
+#endif
+
+/** Configure the UART RX timeout in symbol periods. */
+#ifndef configUART_RX_TIMEOUT_SYMBOLS
+    #define configUART_RX_TIMEOUT_SYMBOLS (3U)
+#endif
+
+/* -------------------------------------------------------------------------- */
+/* UART Pin Configuration Constants                                           */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * @brief Sentinel value used to preserve an existing UART pin mapping.
+ *
+ * @note Board initialization must configure valid TX and RX pins before
+ * the UART peripheral is used.
+ */
 #define BSP_UART_PIN_NO_CHANGE UINT32_MAX
 
-/* Compatibility aliases for pre-existing generic BSP config symbols. */
-#ifndef bspCONFIG_UART_RXTX_BUFFER_SIZE
-    #define bspCONFIG_UART_RXTX_BUFFER_SIZE (1024U)
-#endif
-#ifndef bspCONFIG_UART_ENABLE_ASYNC
-    #define bspCONFIG_UART_ENABLE_ASYNC (1U)
-#endif
-#define BSP_UART_RXTX_BUFFER_SIZE (bspCONFIG_UART_RXTX_BUFFER_SIZE)
-#define BSP_UART_ENABLE_ASYNC     (bspCONFIG_UART_ENABLE_ASYNC)
+/* -------------------------------------------------------------------------- */
+/* UART Compatibility Configuration Macros                                    */
+/* -------------------------------------------------------------------------- */
 
-    /** Port values are logical identifiers. The selected target port validates
-     *  the actual hardware UART count at runtime. */
+/** Configure the native UART TX and RX buffer size in bytes. */
+#ifndef configUART_RXTX_BUFFER_SIZE
+    #define configUART_RXTX_BUFFER_SIZE (1024U)
+#endif
+
+/** Enable or disable asynchronous UART operations. */
+#ifndef configUART_ENABLE_ASYNC
+    #define configUART_ENABLE_ASYNC (1U)
+#endif
+
+/** Compatibility alias for the native UART TX and RX buffer size. */
+#define BSP_UART_RXTX_BUFFER_SIZE (configUART_RXTX_BUFFER_SIZE)
+
+/** Compatibility alias for asynchronous UART enablement. */
+#define BSP_UART_ENABLE_ASYNC     (configUART_ENABLE_ASYNC)
+
+/* -------------------------------------------------------------------------- */
+/* UART Baud Rate Constants                                                   */
+/* -------------------------------------------------------------------------- */
+#define BSP_UART_BAUD_1200        (1200UL)
+#define BSP_UART_BAUD_9600        (9600UL)
+#define BSP_UART_BAUD_19200       (19200UL)
+#define BSP_UART_BAUD_38400       (38400UL)
+#define BSP_UART_BAUD_57600       (57600UL)
+#define BSP_UART_BAUD_115200      (115200UL)
+#define BSP_UART_BAUD_230400      (230400UL)
+#define BSP_UART_BAUD_460800      (460800UL)
+#define BSP_UART_BAUD_921600      (921600UL)
+
+    /* -------------------------------------------------------------------------- */
+    /* UART Public Enumeration Types */
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @brief Logical identifiers for hardware UART ports.
+     *
+     * @note The target-specific UART implementation validates the supported
+     * hardware port count at runtime.
+     */
     typedef enum
     {
-        eBspUartPort0 = 0U,
-        eBspUartPort1,
-        eBspUartPort2,
-        eBspUartPort3,
-        eBspUartPort4,
-        eBspUartPort5,
-        eBspUartPort6,
-        eBspUartPort7
+        eBspUartPort0 = 0U, /**< Logical UART port 0. */
+        eBspUartPort1,      /**< Logical UART port 1. */
+        eBspUartPort2,      /**< Logical UART port 2. */
+        eBspUartPort3,      /**< Logical UART port 3. */
+        eBspUartPort4,      /**< Logical UART port 4. */
+        eBspUartPort5,      /**< Logical UART port 5. */
+        eBspUartPort6,      /**< Logical UART port 6. */
+        eBspUartPort7       /**< Logical UART port 7. */
     } bspUartPort_t;
 
+    /* -------------------------------------------------------------------------- */
+    /* UART Public Scalar Types */
+    /* -------------------------------------------------------------------------- */
+
+    /** Application-defined identifier used to track ownership of a UART port. */
     typedef uint8_t bspUartOwner_t;
+
+    /** UART communication speed expressed in bits per second. */
     typedef uint32_t bspUartBaudrate_t;
-    /** Target-specific pin identifier: native GPIO number on ESP32, board pin
-     *  mapping identifier on STM32H7. This type never exposes a HAL pointer. */
+
+    /**
+     * @brief Target-specific UART pin identifier.
+     *
+     * @note Represents a native GPIO number on ESP32 or a board pin mapping
+     * identifier on STM32H7.
+     *
+     * @note This type does not expose a target-specific HAL pointer.
+     */
     typedef uint32_t bspUartPin_t;
 
+    /* -------------------------------------------------------------------------- */
+    /* UART Communication Configuration Types */
+    /* -------------------------------------------------------------------------- */
+
+    /** UART parity configuration options. */
     typedef enum
     {
-        eBspUartParityNone = 0U,
-        eBspUartParityOdd,
-        eBspUartParityEven
+        eBspUartParityNone = 0U, /**< Disable parity checking. */
+        eBspUartParityOdd,       /**< Enable odd parity. */
+        eBspUartParityEven       /**< Enable even parity. */
     } bspUartParity_t;
 
+    /** UART stop-bit configuration options. */
     typedef enum
     {
-        eBspUartStopBitsOne = 0U,
-        eBspUartStopBitsTwo
+        eBspUartStopBitsOne = 0U, /**< Configure one stop bit. */
+        eBspUartStopBitsTwo       /**< Configure two stop bits. */
     } bspUartStopBits_t;
 
+    /** UART transmit and receive operating modes. */
     typedef enum
     {
-        eBspUartModeTx = 0U,
-        eBspUartModeRx,
-        eBspUartModeTxRx
+        eBspUartModeTx = 0U, /**< Enable transmit operation only. */
+        eBspUartModeRx,      /**< Enable receive operation only. */
+        eBspUartModeTxRx     /**< Enable transmit and receive operations. */
     } bspUartMode_t;
 
+    /** UART data word length configuration options. */
     typedef enum
     {
-        eBspUartWordLength5 = 5U,
-        eBspUartWordLength6,
-        eBspUartWordLength7,
-        eBspUartWordLength8
+        eBspUartWordLength5 = 5U, /**< Configure 5-bit data words. */
+        eBspUartWordLength6,      /**< Configure 6-bit data words. */
+        eBspUartWordLength7,      /**< Configure 7-bit data words. */
+        eBspUartWordLength8       /**< Configure 8-bit data words. */
     } bspUartWordLength_t;
 
+    /** UART DMA transfer configuration options. */
     typedef enum
     {
-        eBspUartDmaDisabled = 0U,
-        eBspUartDmaTx,
-        eBspUartDmaRx,
-        eBspUartDmaTxRx
+        eBspUartDmaDisabled = 0U, /**< Disable DMA transfers. */
+        eBspUartDmaTx,            /**< Enable transmit DMA. */
+        eBspUartDmaRx,            /**< Enable receive DMA. */
+        eBspUartDmaTxRx           /**< Enable transmit and receive DMA. */
     } bspUartDmaMode_t;
 
+    /** UART hardware flow-control configuration options. */
     typedef enum
     {
-        eBspUartFlowControlNone = 0U,
-        eBspUartFlowControlRtsCts
+        eBspUartFlowControlNone = 0U, /**< Disable hardware flow control. */
+        eBspUartFlowControlRtsCts     /**< Enable RTS/CTS flow control. */
     } bspUartFlowControl_t;
 
-    /** Reserved for future optional operations. Prefer dedicated BSP APIs. */
+    /* -------------------------------------------------------------------------- */
+    /* UART IOCTL Request Types */
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @brief Reserved UART IOCTL request identifiers.
+     *
+     * @note Reserved for future optional operations. Dedicated BSP APIs
+     * should be preferred for supported UART operations.
+     */
     typedef enum
     {
-        eBspUartIoctlReserved = 0U
+        eBspUartIoctlReserved = 0U /**< Reserved request identifier. */
     } bspUartIoctlRequest_t;
 
-    /** UART configuration. Pins use BSP_UART_PIN_NO_CHANGE to retain mapping.
-     *  fifoSize and oversampling are optional board-dependent tuning fields;
-     *  unsupported nonzero values return RET_ERR_STS_NOT_SUPPORTED.
-     *  dmaMode is optional and may be unsupported on some targets.
-     *  rxThreshold == 0 selects the target's driver default.
+    /* -------------------------------------------------------------------------- */
+    /* UART Configuration Structure */
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @brief Configuration parameters for a BSP UART instance.
+     *
+     * @details Contains the logical UART port, owner identifier, communication
+     * settings, pin mappings, and optional hardware-specific parameters.
+     *
+     * @note BSP_UART_PIN_NO_CHANGE preserves the existing pin mapping.
+     *
+     * @note fifoSize and oversampling are optional target-dependent parameters.
+     * Unsupported nonzero values return RET_ERR_STS_NOT_SUPPORTED.
+     *
+     * @note DMA support is target-dependent and may be unavailable.
+     *
+     * @note A zero rxThreshold selects the target driver default.
      */
     typedef struct
     {
-        bspUartPort_t port;
-        bspUartOwner_t owner;
-        bspUartBaudrate_t baudrate;
-        bspUartWordLength_t wordLength;
-        bspUartParity_t parity;
-        bspUartStopBits_t stopBits;
-        bspUartMode_t mode;
-        bspUartPin_t uartRxPin;
-        bspUartPin_t uartTxPin;
-        bspUartPin_t uartRtsPin;
-        bspUartPin_t uartCtsPin;
-        uint16_t fifoSize;
-        uint16_t rxThreshold;
-        bspUartFlowControl_t flowControl;
-        bspUartDmaMode_t dmaMode;
-        uint8_t oversampling;
-        bool invertTx;
-        bool invertRx;
+        bspUartPort_t port;         /**< Logical hardware UART port. */
+        bspUartOwner_t owner;       /**< Application-defined UART owner. */
+        bspUartBaudrate_t baudrate; /**< UART baud rate in bits per second. */
+        bspUartWordLength_t wordLength; /**< UART data word length. */
+        bspUartParity_t parity;         /**< UART parity configuration. */
+        bspUartStopBits_t stopBits;     /**< UART stop-bit configuration. */
+        bspUartMode_t mode;             /**< UART transmit and receive mode. */
+        bspUartPin_t uartRxPin;         /**< UART receive pin identifier. */
+        bspUartPin_t uartTxPin;         /**< UART transmit pin identifier. */
+        bspUartPin_t uartRtsPin;        /**< UART request-to-send pin. */
+        bspUartPin_t uartCtsPin;        /**< UART clear-to-send pin. */
+        uint16_t fifoSize;              /**< Optional hardware FIFO size. */
+        uint16_t rxThreshold; /**< RX threshold; zero selects default. */
+        bspUartFlowControl_t flowControl; /**< UART hardware flow-control mode. */
+        bspUartDmaMode_t dmaMode; /**< UART DMA transfer configuration. */
+        uint8_t oversampling; /**< Optional target-dependent oversampling. */
+        bool invertTx;        /**< Enable transmit signal inversion. */
+        bool invertRx;        /**< Enable receive signal inversion. */
     } bspUartConfig_t;
 
-    /** Counters report accepted TX bytes and received RX bytes, not guaranteed
-     *  physical wire completion. Busy flags describe current driver activity. */
+    /* -------------------------------------------------------------------------- */
+    /* UART Runtime Status Structure */
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @brief Runtime status and transfer statistics for a UART instance.
+     *
+     * @details Reports UART initialization state, current transfer activity,
+     * accepted transmit bytes, received bytes, and transfer error counts.
+     *
+     * @note txCount represents bytes accepted for transmission and does not
+     * guarantee physical transmission completion.
+     *
+     * @note rxCount represents bytes received by the UART driver.
+     */
     typedef struct
     {
-        bool initialized;
-        bool rxBusy;
-        bool txBusy;
-        size_t rxCount;
-        size_t txCount;
-        uint32_t rxErrorCount;
-        uint32_t txErrorCount;
+        bool initialized;      /**< UART initialization status. */
+        bool rxBusy;           /**< Receive operation activity flag. */
+        bool txBusy;           /**< Transmit operation activity flag. */
+        size_t rxCount;        /**< Total received bytes. */
+        size_t txCount;        /**< Total accepted transmit bytes. */
+        uint32_t rxErrorCount; /**< Number of receive errors. */
+        uint32_t txErrorCount; /**< Number of transmit errors. */
     } bspUartStatus_t;
 
-    /** RX completion callback runs in UART worker TASK context (not an ISR).
-     *  Cancellation may invoke it synchronously in the cancelling caller's
-     *  task context. Never rely on a particular task identity.
-     *  Callback is invoked with the UART state mutex unlocked.
-     *  data is the caller-provided buffer and remains owned by the caller.
-     *  data_len is the number received, including partial data on cancellation.
+    /* -------------------------------------------------------------------------- */
+    /* UART Callback Function Types */
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @brief Callback invoked when an asynchronous UART receive operation ends.
+     *
+     * @param[in] status Receive completion or cancellation status.
+     * @param[in,out] data Pointer to the caller-owned receive buffer.
+     * @param[in] data_len Number of bytes received, including partial data.
+     * @param[in] userContext Application-defined callback context.
+     *
+     * @return None.
+     *
+     * @note Normal completion executes in UART worker task context, not ISR
+     * context.
+     *
+     * @note Cancellation may invoke the callback synchronously in the
+     * cancelling caller's task context.
+     *
+     * @note The UART state mutex is unlocked before callback invocation.
+     *
+     * @warning The caller retains ownership of the receive buffer and must
+     * keep it valid until the receive operation completes or is cancelled.
      */
     typedef void (*bspUartRxCallback_t)(ret_err_sts_t status,
                                         uint8_t* data,
                                         size_t data_len,
                                         void* userContext);
 
-    /** Reserved completion callback API. The ESP-IDF port currently returns
-     *  RET_ERR_STS_NOT_SUPPORTED when registering a TX callback, because
-     * copying data into the driver ring is not physical TX completion. */
+    /**
+     * @brief Reserved callback for asynchronous UART transmit completion.
+     *
+     * @param[in] status Transmit operation status.
+     * @param[in] data_len Number of bytes associated with the transmit operation.
+     * @param[in] userContext Application-defined callback context.
+     *
+     * @return None.
+     *
+     * @note The ESP-IDF implementation currently returns
+     * RET_ERR_STS_NOT_SUPPORTED when registering this callback.
+     *
+     * @note Copying bytes into the UART driver buffer does not guarantee
+     * physical transmission completion.
+     */
     typedef void (*bspUartTxCallback_t)(ret_err_sts_t status, size_t data_len, void* userContext);
 
-    /** Application-owned handle. Initialize it to zero, then fill config.
-     *  Keep the handle at a stable address until bspUartDeInit() succeeds.
-     *  Do not modify config between init and deinit except through BSP APIs.
-     *  Only one handle may own any hardware port at a time. */
+    /* -------------------------------------------------------------------------- */
+    /* UART Handle Structure */
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @brief Application-owned handle for a BSP UART instance.
+     *
+     * @details Stores the configuration associated with a UART instance.
+     *
+     * @pre Zero-initialize the handle and populate its configuration before
+     * calling the UART initialization API.
+     *
+     * @note The handle must remain at a stable memory address until
+     * bspUartDeInit() completes successfully.
+     *
+     * @note Configuration must not be modified between initialization and
+     * deinitialization except through supported BSP APIs.
+     *
+     * @warning Only one UART handle may own a hardware UART port at a time.
+     */
     typedef struct
     {
-        bspUartConfig_t config;
+        bspUartConfig_t config; /**< UART instance configuration. */
     } bspUartHandle_t;
 
-    /** All APIs are task-context only. Init/deinit must not race with other calls.
-     *  DeInit aborts a pending RX with RET_ERR_STS_CANCELLED; the callback may
-     *  run in the deinitializing task and must not recursively call DeInit. */
+    /* -------------------------------------------------------------------------- */
+
+
+    /* -------------------------------------------------------------------------- */
+    /* UART Initialization and Deinitialization APIs */
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @brief Initialize a UART instance using the supplied configuration.
+     *
+     * @param[in,out] handle Pointer to the UART handle containing the configuration.
+     *
+     * @return BSP status indicating initialization success or failure.
+     *
+     * @pre The handle must be valid and its configuration initialized.
+     *
+     * @note Only one handle may own a hardware UART port at a time.
+     * @note Initialization must be performed from task context.
+     *
+     * @warning Do not access the same handle concurrently during initialization.
+     */
     ret_err_sts_t bspUartInit(bspUartHandle_t* handle);
+
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @brief Deinitialize a previously initialized UART instance.
+     *
+     * @param[in,out] handle Pointer to the initialized UART handle.
+     *
+     * @return BSP status indicating deinitialization success or failure.
+     *
+     * @pre Any task executing bspUartProcessRx() for this handle must have exited.
+     *
+     * @note Deinitialization releases resources associated with the UART instance.
+     * @note Deinitialization must be performed from task context.
+     *
+     * @warning Do not invoke other UART operations concurrently with deinitialization.
+     */
     ret_err_sts_t bspUartDeInit(bspUartHandle_t* handle);
 
-    /** SendSync enqueues data, then waits for hardware TX completion. The
-     *  underlying ESP-IDF enqueue call can itself block, independent of timeout. */
+    /* -------------------------------------------------------------------------- */
+    /* UART Synchronous Communication APIs */
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @brief Transmit data synchronously through an initialized UART.
+     *
+     * @param[in] handle Pointer to an initialized UART handle with TX enabled.
+     * @param[in] data Pointer to the data buffer to transmit.
+     * @param[in] length Number of bytes to transmit; must be nonzero.
+     * @param[in] timeout_ms Maximum wait for transmission completion, in milliseconds.
+     *
+     * @return BSP status indicating transmission success, timeout, or failure.
+     *
+     * @pre The data buffer must remain valid for the duration of the operation.
+     *
+     * @note The implementation may block while accepting transmit data.
+     * @note Transmission completion is subject to the specified timeout and
+     * the guarantees provided by the target UART driver.
+     */
     ret_err_sts_t
     bspUartSendSync(bspUartHandle_t* handle, const uint8_t* data, size_t length, uint32_t timeout_ms);
-    /** Receive up to buffer_len bytes; timeout with no data returns OK,
-     * rx_len=0. Do not mix synchronous and asynchronous RX on the same UART. */
+
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @brief Receive UART data synchronously into a caller-provided buffer.
+     *
+     * @param[in] handle Pointer to an initialized UART handle with RX enabled.
+     * @param[out] buffer Pointer to the receive buffer.
+     * @param[in] buffer_len Capacity of the receive buffer in bytes; must be nonzero.
+     * @param[out] rx_len Pointer to the actual number of bytes received.
+     * @param[in] timeout_ms Maximum receive wait in milliseconds.
+     *
+     * @return BSP status indicating receive success or failure.
+     *
+     * @note Partial reception is permitted.
+     * @note A timeout without received data returns RET_ERR_STS_OK with
+     * rx_len set to zero.
+     *
+     * @warning Do not use synchronous and asynchronous receive processing
+     * concurrently on the same UART instance.
+     */
     ret_err_sts_t bspUartReceiveSync(bspUartHandle_t* handle,
                                      uint8_t* buffer,
                                      size_t buffer_len,
                                      size_t* rx_len,
                                      uint32_t timeout_ms);
 
-    /** Arm exactly one asynchronous RX operation. The ESP-IDF port completes
-     *  upon collecting length bytes; callback executes in a worker task.
-     *  Call bspUartCancelRx() if the requested length will not arrive.
-     *  The caller must keep buffer valid until completion/cancellation.
+    /* -------------------------------------------------------------------------- */
+    /* UART Asynchronous Communication APIs */
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @brief Request asynchronous reception into a caller-provided buffer.
+     *
+     * @param[in,out] handle Pointer to an initialized UART handle with RX enabled.
+     * @param[out] buffer Pointer to the caller-owned receive buffer.
+     * @param[in] length Requested receive length in bytes; must be nonzero.
+     *
+     * @return BSP status indicating request acceptance or failure.
+     *
+     * @note Availability of this operation depends on the target implementation.
+     * @note Unsupported implementations return RET_ERR_STS_NOT_SUPPORTED.
+     *
+     * @warning The caller must preserve the buffer lifetime while an
+     * asynchronous reception is pending.
      */
     ret_err_sts_t bspUartReadAsync(bspUartHandle_t* handle, uint8_t* buffer, size_t length);
-    /** Queue TX data into the driver's ring. May block if the ring is full.
-     *  Does not invoke a physical TX-completion callback. */
+
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @brief Submit data for asynchronous UART transmission.
+     *
+     * @param[in] handle Pointer to an initialized UART handle with TX enabled.
+     * @param[in] buffer Pointer to the data buffer to transmit.
+     * @param[in] length Number of bytes to transmit; must be nonzero.
+     *
+     * @return BSP status indicating whether the transmit request was accepted.
+     *
+     * @note The operation may block while transmit buffering is unavailable.
+     * @note Successful submission does not guarantee that all bytes have
+     * completed physical transmission.
+     */
     ret_err_sts_t bspUartSendAsync(bspUartHandle_t* handle, const uint8_t* buffer, size_t length);
+
+    /* -------------------------------------------------------------------------- */
+    /* UART Callback Registration APIs */
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @brief Register or unregister the UART receive callback.
+     *
+     * @param[in,out] handle Pointer to an initialized UART handle.
+     * @param[in] callback Receive callback function, or NULL to unregister.
+     * @param[in] userContext Application-defined context passed to the callback.
+     *
+     * @return BSP status indicating registration success or failure.
+     *
+     * @note Callback execution context is defined by the BSP UART callback
+     * contract and must not be assumed to be interrupt context.
+     *
+     * @note The callback is invoked without the UART state mutex held.
+     */
     ret_err_sts_t bspUartSetRxCallback(bspUartHandle_t* handle,
                                        bspUartRxCallback_t callback,
                                        void* userContext);
+
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @brief Register or unregister the UART transmit completion callback.
+     *
+     * @param[in,out] handle Pointer to an initialized UART handle.
+     * @param[in] callback Transmit callback function, or NULL to unregister.
+     * @param[in] userContext Application-defined context passed to the callback.
+     *
+     * @return BSP status indicating registration success or failure.
+     *
+     * @note Callback registration is optional and may not be implemented
+     * by all supported UART targets.
+     *
+     * @note Unsupported implementations return RET_ERR_STS_NOT_SUPPORTED.
+     *
+     * @note Successful data buffering must not be interpreted as physical
+     * transmission completion.
+     */
     ret_err_sts_t bspUartSetTxCallback(bspUartHandle_t* handle,
                                        bspUartTxCallback_t callback,
                                        void* userContext);
+
+    /* -------------------------------------------------------------------------- */
+    /* UART Receive Processing and Cancellation APIs */
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @brief Process pending UART receive events and deliver available data.
+     *
+     * @param[in,out] handle Pointer to an initialized UART handle with RX enabled.
+     * @param[in] timeout_ms Maximum wait for receive activity in milliseconds.
+     *
+     * @return BSP status indicating processing success or failure.
+     *
+     * @note Received data is delivered through the registered RX callback.
+     * @note A timeout without available data is not treated as a failure.
+     * @note Application logic is responsible for protocol framing and
+     * assembling complete messages from received data.
+     *
+     * @pre Only one task may process RX events for a UART instance at a time.
+     *
+     * @warning Stop receive processing before deinitializing the UART.
+     */
+    ret_err_sts_t bspUartProcessRx(bspUartHandle_t* handle, uint32_t timeout_ms);
+
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @brief Cancel an outstanding asynchronous UART receive operation.
+     *
+     * @param[in,out] handle Pointer to an initialized UART handle.
+     *
+     * @return BSP status indicating cancellation success or failure.
+     *
+     * @note Cancellation behavior depends on the active receive mechanism.
+     * @note Implementations without a pending asynchronous receive may
+     * complete this operation without modifying UART state.
+     *
+     * @note Receive callbacks may be invoked during cancellation according
+     * to the BSP callback contract.
+     */
     ret_err_sts_t bspUartCancelRx(bspUartHandle_t* handle);
+
+    /* -------------------------------------------------------------------------- */
+    /* UART Transmission Completion API */
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @brief Wait for pending UART transmission to complete.
+     *
+     * @param[in] handle Pointer to an initialized UART handle with TX enabled.
+     * @param[in] timeout_ms Maximum wait for transmission completion in milliseconds.
+     *
+     * @return BSP status indicating success, timeout, or another failure.
+     *
+     * @note The timeout applies to waiting for pending transmission activity.
+     */
     ret_err_sts_t bspUartWaitTxDone(bspUartHandle_t* handle, uint32_t timeout_ms);
+
+    /* -------------------------------------------------------------------------- */
+    /* UART Buffer Management APIs */
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @brief Discard buffered UART receive data.
+     *
+     * @param[in,out] handle Pointer to an initialized UART handle.
+     *
+     * @return BSP status indicating flush success or failure.
+     *
+     * @note The operation returns RET_ERR_STS_BUSY when an asynchronous
+     * receive operation prevents safe buffer flushing.
+     */
     ret_err_sts_t bspUartFlushRx(bspUartHandle_t* handle);
-    /** On ESP-IDF, hardware TX flushing is not provided by uart_flush();
-     *  returns RET_ERR_STS_NOT_SUPPORTED. */
+
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @brief Discard pending UART transmit data when supported.
+     *
+     * @param[in,out] handle Pointer to an initialized UART handle.
+     *
+     * @return BSP status indicating flush success or failure.
+     *
+     * @note Transmission buffer flushing is target-dependent.
+     * @note Unsupported implementations return RET_ERR_STS_NOT_SUPPORTED.
+     *
+     * @warning Pending transmit data may be discarded without being
+     * physically transmitted.
+     */
     ret_err_sts_t bspUartFlushTx(bspUartHandle_t* handle);
+
+    /* -------------------------------------------------------------------------- */
+    /* UART Runtime Status APIs */
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @brief Retrieve the current UART runtime status.
+     *
+     * @param[in] handle Pointer to an initialized UART handle.
+     * @param[out] status Pointer to the structure receiving the UART status.
+     *
+     * @return BSP status indicating query success or failure.
+     *
+     * @note The returned structure represents a snapshot of UART state,
+     * transfer counters, and error counters.
+     */
     ret_err_sts_t bspUartGetStatus(bspUartHandle_t* handle, bspUartStatus_t* status);
+
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @brief Query whether UART reception is currently active.
+     *
+     * @param[in] handle Pointer to an initialized UART handle.
+     * @param[out] busy Pointer to the variable receiving the RX busy state.
+     *
+     * @return BSP status indicating query success or failure.
+     *
+     * @note A true busy state indicates that receive processing is active.
+     */
     ret_err_sts_t bspUartIsRxBusy(bspUartHandle_t* handle, bool* busy);
+
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @brief Query whether UART transmission is currently active.
+     *
+     * @param[in] handle Pointer to an initialized UART handle.
+     * @param[out] busy Pointer to the variable receiving the TX busy state.
+     *
+     * @return BSP status indicating query success or failure.
+     *
+     * @note The returned value represents the transmit activity state
+     * at the time of the query.
+     */
     ret_err_sts_t bspUartIsTxBusy(bspUartHandle_t* handle, bool* busy);
+
+    /* -------------------------------------------------------------------------- */
+    /* UART Transfer Counter APIs */
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @brief Retrieve the UART receive byte count.
+     *
+     * @param[in] handle Pointer to an initialized UART handle.
+     * @param[out] rx_count Pointer to the variable receiving the RX byte count.
+     *
+     * @return BSP status indicating query success or failure.
+     *
+     * @note The count represents bytes recorded by the UART implementation.
+     */
     ret_err_sts_t bspUartGetRxCount(bspUartHandle_t* handle, size_t* rx_count);
+
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @brief Retrieve the UART transmit byte count.
+     *
+     * @param[in] handle Pointer to an initialized UART handle.
+     * @param[out] tx_count Pointer to the variable receiving the TX byte count.
+     *
+     * @return BSP status indicating query success or failure.
+     *
+     * @note The count represents bytes accepted for transmission.
+     * @note Accepted bytes are not necessarily fully transmitted on the wire.
+     */
     ret_err_sts_t bspUartGetTxCount(bspUartHandle_t* handle, size_t* tx_count);
+
+    /* -------------------------------------------------------------------------- */
+    /* UART Configuration Management APIs */
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @brief Apply a new configuration to an initialized UART instance.
+     *
+     * @param[in,out] handle Pointer to an initialized UART handle.
+     * @param[in] config Pointer to the UART configuration to apply.
+     *
+     * @return BSP status indicating configuration success or failure.
+     *
+     * @pre The port and owner in the supplied configuration must match
+     * the existing UART handle.
+     *
+     * @note Reconfiguration may be rejected while RX or TX is active.
+     */
     ret_err_sts_t bspUartSetConfig(bspUartHandle_t* handle, const bspUartConfig_t* config);
+
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @brief Retrieve the active configuration of a UART instance.
+     *
+     * @param[in] handle Pointer to an initialized UART handle.
+     * @param[out] config Pointer to the structure receiving the configuration.
+     *
+     * @return BSP status indicating query success or failure.
+     *
+     * @note The returned configuration is a copy of the active UART settings.
+     */
     ret_err_sts_t bspUartGetConfig(bspUartHandle_t* handle, bspUartConfig_t* config);
+
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @brief Update the UART communication baud rate.
+     *
+     * @param[in,out] handle Pointer to an initialized UART handle.
+     * @param[in] baudrate Requested baud rate in bits per second; must be nonzero.
+     *
+     * @return BSP status indicating update success or failure.
+     *
+     * @note Baud rate changes may be rejected while RX or TX is active.
+     * @note Other UART configuration parameters remain unchanged.
+     */
     ret_err_sts_t bspUartSetBaudrate(bspUartHandle_t* handle, bspUartBaudrate_t baudrate);
+
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @brief Retrieve the configured UART communication baud rate.
+     *
+     * @param[in] handle Pointer to an initialized UART handle.
+     * @param[out] baudrate Pointer to the variable receiving the baud rate.
+     *
+     * @return BSP status indicating query success or failure.
+     *
+     * @note The returned baud rate is expressed in bits per second.
+     */
     ret_err_sts_t bspUartGetBaudrate(bspUartHandle_t* handle, bspUartBaudrate_t* baudrate);
+
+    /* -------------------------------------------------------------------------- */
+    /* UART Extended Control API */
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @brief Execute an optional UART control request.
+     *
+     * @param[in,out] handle Pointer to an initialized UART handle.
+     * @param[in] req UART control request identifier.
+     * @param[in,out] arg Pointer to request-specific arguments, if required.
+     *
+     * @return BSP status indicating request success or failure.
+     *
+     * @note Available control requests depend on the UART BSP implementation.
+     * @note Unsupported requests return RET_ERR_STS_NOT_SUPPORTED.
+     *
+     * @warning The caller must ensure that the argument pointer and data
+     * layout are valid for the specified control request.
+     */
     ret_err_sts_t
     bspUartIoctl(bspUartHandle_t* handle, bspUartIoctlRequest_t req, void* arg);
+
+    /* -------------------------------------------------------------------------- */
+
 
 #ifdef __cplusplus
 }

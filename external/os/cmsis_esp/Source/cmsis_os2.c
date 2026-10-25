@@ -226,10 +226,11 @@ static inline uint32_t IRQ_Context(void)
  *
  * Format: major.minor.revision (mmnnnrrrr decimal encoding).
  */
-#define KERNEL_VERSION                                          \
-    (((uint32_t)tskKERNEL_VERSION_MAJOR * UINT32_C(10000000)) + \
-     ((uint32_t)tskKERNEL_VERSION_MINOR * UINT32_C(10000)) +    \
-     ((uint32_t)tskKERNEL_VERSION_BUILD * UINT32_C(1)))
+#define KERNEL_VERSION                                         \
+    (                                                          \
+    ((uint32_t)tskKERNEL_VERSION_MAJOR * UINT32_C(10000000)) + \
+    ((uint32_t)tskKERNEL_VERSION_MINOR * UINT32_C(10000)) +    \
+    ((uint32_t)tskKERNEL_VERSION_BUILD * UINT32_C(1)))
 
 /* -------------------------------------------------------------------------- */
 /* Kernel Identification                                                      */
@@ -3576,6 +3577,84 @@ uint32_t osMessageQueueGetSpace(osMessageQueueId_t mq_id)
     }
 
     return available;
+}
+
+
+/* -------------------------------------------------------------------------- */
+/* Message Queue Reset                                                        */
+/* -------------------------------------------------------------------------- */
+
+osStatus_t osMessageQueueReset(osMessageQueueId_t mq_id)
+{
+    MessageQueueMeta_t* mq = (MessageQueueMeta_t*)mq_id;
+
+    /* Queue reset is not permitted from interrupt context. */
+    if(IRQ_Context() != 0U)
+    {
+        return osErrorISR;
+    }
+
+    /* Validate the queue metadata and native queue handle. */
+    if((mq == NULL) || (mq->handle == NULL))
+    {
+        return osErrorParameter;
+    }
+
+    /* Discard all pending messages from the queue. */
+    if(xQueueReset(mq->handle) != pdPASS)
+    {
+        return osErrorResource;
+    }
+
+    return osOK;
+}
+
+
+/* -------------------------------------------------------------------------- */
+/* Message Queue Deletion                                                     */
+/* -------------------------------------------------------------------------- */
+
+osStatus_t osMessageQueueDelete(osMessageQueueId_t mq_id)
+{
+    MessageQueueMeta_t* mq = (MessageQueueMeta_t*)mq_id;
+
+    /* Queue deletion is not permitted from interrupt context. */
+    if(IRQ_Context() != 0U)
+    {
+        return osErrorISR;
+    }
+
+    /* Validate the queue metadata and native queue handle. */
+    if((mq == NULL) || (mq->handle == NULL))
+    {
+        return osErrorParameter;
+    }
+
+    /*
+     * The caller must ensure that no task is accessing
+     * the queue or waiting for a queue operation.
+     */
+
+#if (configQUEUE_REGISTRY_SIZE > 0)
+
+    /* Remove the queue from the FreeRTOS queue registry. */
+    vQueueUnregisterQueue(mq->handle);
+
+#endif
+
+    /* Delete the native FreeRTOS queue. */
+    vQueueDelete(mq->handle);
+
+    /* Invalidate the stored native queue handle. */
+    mq->handle = NULL;
+
+    /* Release dynamically allocated queue metadata. */
+    if(mq->meta_dynamic != 0U)
+    {
+        vPortFree(mq);
+    }
+
+    return osOK;
 }
 
 /* -------------------------------------------------------------------------- */

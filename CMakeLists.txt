@@ -224,11 +224,6 @@ option(BSP_BUILD_TESTS
     OFF
 )
 
-option(RIDECAST_BSP_SDK_ONLY
-    "Build the ESP-IDF SDK and BSP with a minimal application entry point"
-    OFF
-)
-
 
 # ============================================================================
 # 8. BSP CONFIGURATION VALIDATION
@@ -256,14 +251,14 @@ endif()
 # This ensures that configuration logs contain useful project information
 # even when a toolchain or SDK cannot be loaded.
 # ============================================================================
-# message(STATUS "[RideCast] ========================================")
-# message(STATUS "[RideCast] Project   : ${RC_PROJECT_NAME}")
-# message(STATUS "[RideCast] Description: ${RC_PROJECT_DESCRIPTION}")
-# message(STATUS "[RideCast] Version   : ${APP_VERSION_STRING}")
-# message(STATUS "[RideCast] Commit    : ${APP_SHORT_COMMIT_STRING}")
-# message(STATUS "[RideCast] Date      : ${APP_RELEASE_DATE}")
-# message(STATUS "[RideCast] Platform  : ${RC_PLATFORM_LABEL}")
-# message(STATUS "[RideCast] ========================================")
+message(STATUS "[RideCast] ========================================")
+message(STATUS "[RideCast] Project   : ${RC_PROJECT_NAME}")
+message(STATUS "[RideCast] Description: ${RC_PROJECT_DESCRIPTION}")
+message(STATUS "[RideCast] Version   : ${APP_VERSION_STRING}")
+message(STATUS "[RideCast] Commit    : ${APP_SHORT_COMMIT_STRING}")
+message(STATUS "[RideCast] Date      : ${APP_RELEASE_DATE}")
+message(STATUS "[RideCast] Platform  : ${RC_PLATFORM_LABEL}")
+message(STATUS "[RideCast] ========================================")
 
 
 # ============================================================================
@@ -473,6 +468,13 @@ else()
 
 endif()
 
+if(ESPx_PLATFORM)
+    idf_build_set_property(
+        COMPILE_DEFINITIONS
+        CMAKE_ESPx_PLATFORM=1
+        APPEND
+    )
+endif()
 
 # ============================================================================
 # 13. BUILD OUTPUT DIRECTORY CONFIGURATION
@@ -670,7 +672,6 @@ message(STATUS "[RideCast]   CLI        : ${BSP_BUILD_CLI}")
 message(STATUS "[RideCast]   Logger     : ${BSP_BUILD_LOGGER}")
 message(STATUS "[RideCast]   Port       : ${BSP_BUILD_PORT}")
 message(STATUS "[RideCast]   Tests      : ${BSP_BUILD_TESTS}")
-message(STATUS "[RideCast]   BSP/SDK only: ${RIDECAST_BSP_SDK_ONLY}")
 
 # Toolchain information.
 message(STATUS "[RideCast] Build Environment")
