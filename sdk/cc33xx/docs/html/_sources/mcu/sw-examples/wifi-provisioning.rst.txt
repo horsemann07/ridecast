@@ -1,0 +1,62 @@
+.. _`SimpleLink Connect App`:  https://www.ti.com/tool/SIMPLELINK-CONNECT-SW-MOBILE-APP
+
+Wi-Fi Provisioning over BLE
+***************************
+
+**Overview**
+
+
+TI developed a demo to demonstrate how the BLE functionality of the CC33xx can be used to provision it to a Wi-Fi AP of
+the user's choice. This works by passing the Wi-Fi AP credentials to the CC33xx via BLE using a phone or a similar device.
+
+The provisioning sequence is shown below where a user scans for BLE devices, connects to the CC33xx BLE peripheral and
+passes the Wi-Fi credentials.
+
+.. figure:: resources/11_provisioning_sequence.png
+   :align: center
+   :scale: 60
+
+   Provisioning Sequence.
+
+**How to run Wi-Fi Provisioning Demo**
+
+
+#. Flash the Ble Wifi Provisioning example as explained in the platforms getting started guide
+
+#. Install a BLE app on your phone or device (`SimpleLink Connect App`_)
+
+#. Launch the example and open up a terminal. The following should appear on the terminal. 
+
+.. figure:: resources/ExampleScreen.png
+	:align: center
+	:scale: 60
+
+Provisioning Sequence.
+
+
+#. Connect to the CC33xx BLE device. It is advertised as *cc33xxble*
+
+.. figure:: resources/PhoneScan.png
+	:align: center
+	:scale: 100
+
+
+#. Once connected you will see a list of available services. Open the *Wifi Provisioning over BLE* service
+
+.. figure:: resources/Characteristics.png
+	:align: center
+	:scale: 100
+
+
+#. Next enter the SSID and Password (if one is needed) into the phone app
+
+.. figure:: resources/SSIDandPass.png
+   :align: center
+   :scale: 100
+
+   
+#. If there was successful WIFI connection the status will change to connected.
+
+.. figure:: resources/connected.png
+   :align: center
+   :scale: 100

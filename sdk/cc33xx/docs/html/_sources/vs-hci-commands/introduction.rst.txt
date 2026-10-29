@@ -1,0 +1,61 @@
+Introduction
+************
+
+The purpose of this document is to describe the Texas Instruments Inc. (TI)
+vendor specific Host Controller Interface (HCI) for Bluetooth® low energy (BLE).
+
+Functional Overview
+===================
+
+In BLE, there is a logical distinction between the Host software (often referred
+to as the higher layer stack) and the Controller software as shown below.
+
+.. _stack-layers:
+.. figure:: resources/stack-layers.png
+    :align: center
+
+    BLE Protocol Stack Layers
+
+These components can either exist on the same device (single-device
+configuration), or be placed on separate devices (dual-device configuration)
+utilizing a Host Controller Interface (HCI) for communication. In the single-device configuration, 
+there is obviously only one device, and the application software would execute on top of the BLE profiles
+and stack.
+
+.. _single-device:
+.. figure:: resources/single-device.png
+    :align: center
+
+    Single Device Configuration
+
+In the dual-device configuration, the application software would also execute
+on top of the BLE profiles and stack, and only the controller would be located
+on a separate device.
+
+.. _dual-device:
+.. figure:: resources/dual-device.png
+    :align: center
+
+    Dual Device Configuration
+
+Numerical Notation Conventions
+==============================
+
+Multiple-octets may be specified in hexadecimal notation in one of two ways:
+
+Standard Hexadecimal Notation
+-----------------------------
+
+In this notation, a single hexadecimal radix indicator “0x” precedes the entire
+value. The octet order as read from left to right is from most significant octet
+to least significant octet. For example, for the value 0x123456ABCDEF, ’12’ is
+the most significant octet and ‘EF’ is the least significant octet.
+
+Colon Separated Hexadecimal Notation
+------------------------------------
+
+In this notation, the hexadecimal radix indicator “0x” is not used and octets
+are colon separated. The octet order as read from left to right is from least
+significant octet to most significant octet. For example, for the value
+12:34:56:AB:CD:EF, ’12’ is the least significant octet and ‘EF’ is the most
+significant octet.

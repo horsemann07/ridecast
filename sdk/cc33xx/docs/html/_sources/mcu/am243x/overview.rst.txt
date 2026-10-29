@@ -1,0 +1,40 @@
+.. _`CC33XX Host-Driver Porting Guide`: ../porting-guide.html
+.. _`CC33XX Getting Started Guide`: getting-started.html
+
+
+Software Overview
+*****************
+The software development kit directory structure is broken down into a few major directories at the root to allow 
+easy differentiation between documentation, examples, and other source code. From the root directory, 
+the sub-directories are:
+
+* ``docs/``: All documentation for the SDK
+* ``examples/``: Source code and project definitions for example projects in the SDK
+* ``source/drivers/net/wifi``: Source code for the cc33xx Wi-Fi driver (and pre-built libraries)
+* ``source/net/wifi_interface``: Wi-Fi stack API (see wlan_commands.h)
+* ``source/third_party``: 3rd party software
+* ``tools/``: CC33xx firmware and programming scripts 
+
+
+System Architecture
+===================
+
+This figure shows a block diagram of the CC33xx + Sitara MCU solution at a high level.
+For **MCU hosts**, this CC33XX package introduces the **Thick-MAC** concept where the WPA Supplicant and the connection management are implemented within the CC33XX device. 
+This configuration reduces the footprint of the host application and simplifies the Wi-Fi control.
+Note that having the Supplicant inside the device is different from the **Linux Transceiver** partitioning used by the **MPU** based hosts.   
+
+.. figure:: resources/BD-CC33XX-ThickMAC.png
+    :name: fig-cc33xx-thick-mac-block-diagram
+    :align: center
+
+    Thick MAC block Diagram
+
+In this solution, there is an external serial flash that stores the Sitara AM243x application image. 
+Upon boot, the application image will be copied to the host's internal RAM and run from it.
+The CC33XX firmware and bootloader code are also stored on the flash. The CC33xx host driver will install the firmware on the CC33XX device whenever the application turns on Wi-Fi. 
+Check `CC33XX Getting Started Guide`_ for more details on running an application.
+The AM243x communicates with the CC33xx over SPI. For more details on the host interface, see the `CC33XX Host-Driver Porting Guide`_.
+
+
+

@@ -1,0 +1,16 @@
+##########################
+HCI Vendor Specific Guide
+##########################
+
+.. rubric:: Table of contents
+
+.. toctree::
+   :maxdepth: 3
+
+   introduction.rst
+   hci_interface.rst
+   hci_ext_api.rst
+
+Indexes and tables
+##################
+* :ref:`genindex`

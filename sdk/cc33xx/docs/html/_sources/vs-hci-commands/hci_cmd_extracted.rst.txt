@@ -1,0 +1,526 @@
+HCI_EXT_SetTxPowerCmd
+---------------------
+:Opcode: 0xFC01
+:Command Description: This command is used to set the RF transmitter output power.
+
+**Command Parameters**
+
+:TX Power: Tx power to use.
+
+ :Size: 1 byte(s)
+ :Default: 2
+ :Range:
+         ===================== ========================================================
+         Value                 Description
+         ===================== ========================================================
+         0                     : 0 dBm 
+         1                     : 5 dBm 
+         2                     : 10 dBm 
+         3                     : 20 dBm 
+         ===================== ========================================================
+
+**Events Generated**
+
+When this command has completed, an HCI_EXT_SetTxPowerDone event shall be generated.
+
+HCI_EXT_OnePktPerEvtCmd
+-----------------------
+:Opcode: 0xFC02
+:Command Description: This command is used to configure the Link Layer to only allow one packet per connection event. This command can be used to trade-off throughput and power consumption during a connection. When enabled, power can be conserved during a connection by limiting the number of packets per connection event to one, at the expense of more limited throughput. When disabled, the number of packets transferred during a connection event is not limited, at the expense of higher power consumption. Note that when set, all connections will be restricted to one packet per event.
+
+**Command Parameters**
+
+:Control: Enable or disable allowing only one packet per event.
+
+ :Size: 1 byte(s)
+ :Default: 0
+ :Range:
+         ===================== ========================================================
+         Value                 Description
+         ===================== ========================================================
+         0                     Disable
+         1                     Enable
+         ===================== ========================================================
+
+**Events Generated**
+
+When this command has completed, an HCI_EXT_OnePacketPerEventDone event shall be generated only if the state has changed.
+
+HCI_EXT_DecryptCmd
+------------------
+:Opcode: 0xFC05
+:Command Description: This command is used to decrypt encrypted text using AES128.
+
+**Command Parameters**
+
+:Key: 128 bit key for the decryption of the data given in the command. The most significant octet of the data corresponds to key[0] using the notation specified in FIPS 197.
+
+ :Size: 16 byte(s)
+ :Default: "BF:01:FB:9D:4E:F3:BC:36:D8:74:F5:39:41:38:68:4C"
+ :Range: Any 16 byte value
+
+:Data: 128 bit encrypted data to be decrypted. The most significant octet of the key corresponds to key[0] using the notation specified in FIPS 197.
+
+ :Size: 16 byte(s)
+ :Default: "66:C6:C2:27:8E:3B:8E:05:3E:7E:A3:26:52:1B:AD:99"
+ :Range: Any 16 byte value
+
+**Events Generated**
+
+When this command has completed, an HCI_EXT_DecryptCommandDone event shall be generated.
+
+HCI_EXT_SetLocalSupportedFeaturesCmd
+------------------------------------
+:Opcode: 0xFC06
+:Command Description: This command is used to set the Controllers Local Supported Features. For a complete list of supported LE features, please see [1], Part B, Section 4.6. Note: This command can be issued either before or after one or more connections are formed. However, the local features set in this manner are only effective if performed before a Feature Exchange Procedure has been initiated by the Master. Once this control procedure has been completed for a particular connection, only the exchanged feature set for that connection will be used. Since the Link Layer may initiate the feature exchange procedure autonomously, it is best to use this command before the connection is formed.
+
+**Command Parameters**
+
+:FeatureSet: Write LL local supported features.
+
+ :Size: 8 byte(s)
+ :Default: 0x0000000000000001
+ :Range:
+         ===================== ========================================================
+         Value                 Description
+         ===================== ========================================================
+         0x0000000000000000    No Events Specified
+         0x0000000000000001    Encryption
+         0x0000000000000002    Connection Parameters Request
+         0x0000000000000004    Reject Extended Indication
+         0x0000000000000008    Slave Features Exchange
+         0x0000000000000010    Ping
+         0x0000000000000020    Data Packet Length Extension
+         0x0000000000000040    Privacy
+         0x0000000000000080    Extended Scanner Filter Policies
+         0x0000000000000100    2M PHY
+         0x0000000000000200    Stable Modulation Index Tx
+         0x0000000000000400    Stable Modulation Index Rx
+         0x0000000000000800    Coded PHY
+         0x0000000000001000    Extended Advertising
+         0x0000000000002000    Periodic Advertising
+         0x0000000000004000    Channel Selection Algorithm #2
+         0x0000000000008000    LE Power Class 1
+         0x0000000000010000    Minimum Number of Used Channels
+         ===================== ========================================================
+
+**Events Generated**
+
+When this command has completed, an HCI_EXT_WriteLocalFeatureSupportDone event shall be generated.
+
+HCI_EXT_SetFastTxRespTime
+-------------------------
+:Opcode: 0xFC07
+:Command Description: This command is used to set whether transmit data is sent as soon as possible even when peripheral latency is used.
+
+**Command Parameters**
+
+:Control: Enable or disable allowing only one packet per event.
+
+ :Size: 1 byte(s)
+ :Default: 0
+ :Range:
+         ===================== ========================================================
+         Value                 Description
+         ===================== ========================================================
+         0                     Disable
+         1                     Enable
+         ===================== ========================================================
+
+**Events Generated**
+
+When this command has completed, an HCI_EXT_SetFastTxRespTimeDone event shall be generated.
+
+HCI_EXT_SetBDADDRCmd
+--------------------
+:Opcode: 0xFC0C
+:Command Description: This command is used to set this devices BLE address (BDADDR). This address will override the devices address determined when the device is reset (i.e. a hardware reset, not an HCI Controller Reset). To restore the devices initialized address, issue this command with an invalid address. Note: This command is only allowed when the Controller is in the Standby state. Note: This command is intended to only be used during initialization. Changing the devices BDADDR after various BLE operations have already taken place may cause unexpected problems.
+
+**Command Parameters**
+
+:BDADDR: BLE Public Address (MSB..LSB). Use "FF:FF:FF:FF:FF:FF" to restore the device address to that which was determined at initialization.
+
+ :Size: 6 byte(s)
+ :Default: "00:00:00:00:00:00"
+ :Range: Any 6 byte value
+
+**Events Generated**
+
+When this command has completed, an HCI_EXT_SetBDADDRDone event shall be generated.
+
+HCI_EXT_SetSCACmd
+-----------------
+:Opcode: 0xFC0D
+:Command Description: This command is used to set this devices Sleep Clock Accuracy (SCA) value, in parts per million (PPM), from 0 to 500. For a Master device, the value is converted to one of eight ordinal values representing a SCA range (per [1], Volume 6, Part B, Section 2.3.3.1, Table 2.2), which will be used when a connection is created. For a Slave device, the value is directly used. The system default value for a Master and Slave device is 50ppm and 40ppm, respectively. Note: This command is only allowed when the device is not in a connection. Note: The devices SCA value remains unaffected by an HCI Reset.
+
+**Command Parameters**
+
+:SCA: BLE Device Sleep Clock Accuracy (PPM).
+
+ :Size: 2 byte(s)
+ :Default: "40"
+ :Range: (0..500)
+
+**Events Generated**
+
+When this command has completed, an HCI_EXT_SetSCADone event shall be generated.
+
+.. HCI_EXT_EnablePTMCmd
+.. --------------------
+.. :Opcode: 0xFC0E
+.. :Command Description: This command is used to enable Production Test Mode (PTM). This mode is used by the customer during assembly of their product to allow limited access to the BLE Controller for testing and configuration. This command is only available when the BLE Controller is built without external access to the Controller (i.e. when no transport interface such as RS232 is permitted). This mode will remain enabled until the device is reset. Please see the related application note for additional details. Note: This command is only allowed as a direct function call, and is only intended to be used by an embedded application. No vendor specific Command Complete event will be generated.
+
+.. **Events Generated**
+
+.. When this command has completed, will simply return. No vendor specific Command Complete event will be generated.
+
+HCI_EXT_SetMaxDtmTxPowerCmd
+---------------------------
+:Opcode: 0xFC11
+:Command Description: This command is used to set the RF transmitter output power when doing RF testing in PLT mode.
+
+**Command Parameters**
+
+:TX Power: Tx power to use.
+
+ :Size: 1 byte(s)
+ :Default: 2
+ :Range:
+         ===================== ========================================================
+         Value                 Description
+         ===================== ========================================================
+         0                     : 0 dBm 
+         1                     : 5 dBm 
+         2                     : 10 dBm 
+         3                     : 20 dBm 
+         ===================== ========================================================
+
+**Events Generated**
+
+When this command has completed, an HCI_EXT_SetTxPowerDone event shall be generated.
+
+HCI_EXT_DisconnectImmedCmd
+--------------------------
+:Opcode: 0xFC13
+:Command Description: This command is used to disconnect a connection immediately. This command can be useful for when a connection needs to be ended without the latency associated with the normal BLE Controller Terminate control procedure. Note that the Host issuing the command will still receive the HCI Disconnection Complete event with a Reason status of 0x16 (i.e. Connection Terminated by Local Host), followed by an HCI Vendor Specific Event.
+
+**Command Parameters**
+
+:Connection Handle: Handle used to identify a connection
+
+ :Size: 2 byte(s)
+ :Default: 0x0000
+ :Range: 0x0000 to 0x0EFF
+
+**Events Generated**
+
+When this command has completed, an HCI_EXT_DisconnectImmedDone event shall be generated.
+
+HCI_EXT_PacketErrorRateCmd
+--------------------------
+:Opcode: 0xFC14
+:Command Description: This command is used to Reset or Read the Packet Error Rate counters for a connection. When Reset, the counters are cleared; when Read, the total number of packets received, the number of packets received with a CRC error, the number of events, and the number of missed events are returned. The system default value upon hardware reset is Reset. Note: The counters are only 16 bits. At the shortest connection interval, this provides a little over 8 minutes of data. Note: This command is only valid for a valid connection handle (i.e. for an active connection). It is therefore not possible to read the packet error rate data once the connection has ended.
+
+**Command Parameters**
+
+:Connection Handle: Handle used to identify a connection
+
+ :Size: 2 byte(s)
+ :Default: 0x0000
+ :Range: 0x0000 to 0x0EFF
+
+:PER Test Command: Reset or Read the PER counters.
+
+ :Size: 1 byte(s)
+ :Default: 0
+ :Range:
+         ===================== ========================================================
+         Value                 Description
+         ===================== ========================================================
+         0                     Reset PER Counters
+         1                     Read PER Counters
+         ===================== ========================================================
+
+**Events Generated**
+
+When this command has completed, an HCI_EXT_PER event shall be generated.
+
+HCI_EXT_ResetSystemCmd
+----------------------
+:Opcode: 0xFC1D
+:Command Description: This command is used to issue a hard or soft system reset. A hard reset is caused by setting the SYSRESET bit in the System Controller Reset Control register. The soft reset is currently not supported on the CC264x.
+
+**Command Parameters**
+
+:Type: Reset Type
+
+ :Size: 1 byte(s)
+ :Default: 0
+ :Range:
+         ===================== ========================================================
+         Value                 Description
+         ===================== ========================================================
+         0x00                  Chip Reset  
+         0x01                  Soft Reset  
+         ===================== ========================================================
+
+**Events Generated**
+
+When this command has completed, an HCI_EXT_ResetSystemDone event shall be generated.
+
+HCI_EXT_NumComplPktsLimitCmd
+----------------------------
+:Opcode: 0xFC1F
+:Command Description: This command is used to set the limit on the minimum number of complete packets before a Number of Completed Packets event is returned by the Controller. If the limit is not reached by the end of a connection event, then the Number of Completed Packets event will be returned (if non-zero) based on the flushOnEvt flag. The limit can be set from one to the maximum number of HCI buffers (please see the LE Read Buffer Size command in the Bluetooth Core specification). The default limit is one; the default flushOnEvt flag is FALSE.
+
+**Command Parameters**
+
+:Limit: Set Number of Completed Packets Limit.
+
+ :Size: 1 byte(s)
+ :Default: 1
+ :Range: 0x01 to the value returned from HCI_LE_ReadBufSizeCmd
+
+:flushOnEvt: Enable or disable flush of Number of Completed Packets at end of Event.
+
+ :Size: 1 byte(s)
+ :Default: 0
+ :Range:
+         ===================== ========================================================
+         Value                 Description
+         ===================== ========================================================
+         0                     Disable
+         1                     Enable
+         ===================== ========================================================
+
+**Events Generated**
+
+When this command has completed, an HCI_EXT_NumComplPktsLimitDone event shall be generated.
+
+HCI_EXT_GetConnInfoCmd
+----------------------
+:Opcode: 0xFC20
+:Command Description: This command (which replaces Get Number Connections) is used to get the number of allocated connections, the number of active connections, and for each active connection, the connection handle, the connection role, the peer device address and peer device address type. The number of allocated connections is based on a default build value that can be changed in the project using MAX_NUM_BLE_CONNS (please see the software users guide for additional details). The number of active connections refers to active BLE connections. The information per connection is based on the structure hciConnInfo_t provided in hci.h. If all parameters are NULL, then the call to this command is considered a network processor call via a transport layer, and the results will be provided via a vendor specific command complete event.If any parameter is not NULL, then the call to this command is considered a direct function call and the valid pointers will be used to store the result. In this case, it is the users responsibility to ensure there is sufficient memory allocated! Note that partial results can be obtained by selective use of the pointers. For example, if only the number of active connections is desired, this can be obtained as follows:
+
+**Events Generated**
+
+When this command has completed, an HCI_EXT_GetConnInfoDone event shall be generated.
+
+HCI_EXT_SetMaxDataLenCmd
+------------------------
+:Opcode: 0xFC21
+:Command Description: This command is used to set the Data Length Extension internal variables supportedMaxTxOctets, supportedMaxTxTime, supportedMaxRxOctets and supportedMaxRxTime that are normally set exclusively by the Controller to the maximum data length and duration allowed by this device (default Tx and Rx Octets is 251; default Tx and Rx Time is 2120 us [but note that any future change to support PHYs could alter the default values of Time]). 
+
+**Command Parameters**
+
+:Tx Octets: Maximum number of payload octets that the local Controller supports for transmission of a single Link Layer Data Channel PDU.
+
+ :Size: 2 byte(s)
+ :Default: 0
+ :Range: 0x001B to 0x00FB
+
+:Tx Time: Maximum time, in microseconds, that the local Controller supports for transmission of a single Link Layer Data Channel PDU.
+
+ :Size: 2 byte(s)
+ :Default: 0
+ :Range: 0x0148 to 0x0848
+
+:Rx Octets: Maximum number of payload octets that the local Controller supports for reception of a single Link Layer Data Channel PDU.
+
+ :Size: 2 byte(s)
+ :Default: 0
+ :Range: 0x001B to 0x00FB
+
+:Rx Time: Maximum time, in microseconds, that the local Controller supports for reception of a single Link Layer Data Channel PDU.
+
+ :Size: 2 byte(s)
+ :Default: 0
+ :Range: 0x0148 to 0x0848
+
+**Events Generated**
+
+When this command has completed, an HCI_EXT_SetMaxDataLengthDone event shall be generated.
+
+HCI_EXT_ReadRandomAddressCmd
+----------------------------
+:Opcode: 0xFC25
+:Command Description: This command is used to Read the controller's own random device address
+
+**Command Parameters**
+
+None
+
+**Events Generated**
+
+When this command has completed, an HCI_EXT_ReadRandomAddressDone event shall be generated.
+
+HCI_EXT_GetActiveConnectionInfoCmd
+----------------------------------
+:Opcode: 0xFC2C
+:Command Description: This command is used to get connection information needed to track an active BLE connection.
+
+**Command Parameters**
+
+:connID: Connection ID
+
+ :Size: 1 byte(s)
+ :Default: 0
+ :Range: 0x0000 to 0x0EFF
+
+**Events Generated**
+
+When this command has completed, an HCI_EXT_GetActiveConnInfoDone shall be generated.
+
+HCI_EXT_GetRxStatisticsCmd
+--------------------------
+:Opcode: 0xFC31
+:Command Description: This command is used to get RX statistics.
+
+**Command Parameters**
+
+:Connection Handle: Handle used to identify a connection
+
+ :Size: 2 byte(s)
+ :Default: 0x0000
+ :Range: 0x0000 to 0x0EFF
+
+:Command: Resets or Reads Statistic Counters
+
+ :Size: 1 byte(s)
+ :Default: 0
+ :Range:
+         ===================== ========================================================
+         Value                 Description
+         ===================== ========================================================
+         0                     Reset (Clears all Statistic Counters)
+         1                     Read (Reads Statistic Counters)
+         ===================== ========================================================
+
+**Events Generated**
+
+When this command has completed, an HCI_EXT_GetRxStatsDone event shall be generated.
+
+HCI_EXT_GetTxStatisticsCmd
+--------------------------
+:Opcode: 0xFC32
+:Command Description: This command is used to get TX statistics.
+
+**Command Parameters**
+
+:Connection Handle: Handle used to identify a connection
+
+ :Size: 2 byte(s)
+ :Default: 0x0000
+ :Range: 0x0000 to 0x0EFF
+
+:Command: Resets or Reads Statistc Counters
+
+ :Size: 1 byte(s)
+ :Default: 0
+ :Range:
+         ===================== ========================================================
+         Value                 Description
+         ===================== ========================================================
+         0                     Reset (Clears all Statistic Counters)
+         1                     Read (Reads Statisc Counters)
+         ===================== ========================================================
+
+**Events Generated**
+
+When this command has completed, an HCI_EXT_GetTxStatsDone event shall be generated.
+
+HCI_EXT_GetCoexStatisticsCmd
+----------------------------
+:Opcode: 0xFC33
+:Command Description: This command is used to get Coexistence statistics.
+
+**Command Parameters**
+
+:Command: Resets or Reads Statistic Counters
+
+ :Size: 1 byte(s)
+ :Default: 0
+ :Range:
+         ===================== ========================================================
+         Value                 Description
+         ===================== ========================================================
+         0                     Reset (Clears all Statistic Counters)
+         1                     Read (Reads Statistic Counters)
+         ===================== ========================================================
+
+**Events Generated**
+
+When this command has completed, an HCI_EXT_GetCoexStatsDone event shall be generated.
+
+
+HCI_EXT_LESetExtendedAdvertisingDataCmd
+---------------------------------------
+:Opcode: 0xFC71
+:Command Description: This command is used to set extended ADV data.
+
+**Command Parameters**
+
+:Connection Handle: Handle used to identify a connection
+
+ :Size: 1 byte(s)
+ :Default: 0x00
+ :Range: 0x00 to 0xEF
+
+:Fragment: Allows the fragmentation of data
+
+ :Size: 1 byte(s)
+ :Default: 0
+ :Range:
+         ===================== ========================================================
+         Value                 Description
+         ===================== ========================================================
+         0                     The Controller may fragment all data
+         1                     The Controller should not fragment data
+         ===================== ========================================================
+
+:Data Length: The number of bytes in the Advertising Data parameter
+ :Size: 1 byte(s)
+ :Range: 0 to 251
+
+:Advertsing Data: Data that will be set while Advertising
+ :Size: N/A
+
+**Events Generated**
+
+When this command has completed, an HCI_EXT_LESetExtendedAdvertisingDataDone event shall be generated.
+
+HCI_EXT_LESetExtendedScanResponseDataCmd
+----------------------------------------
+:Opcode: 0xFC72
+:Command Description: This command is used to set extended Scan Response.
+
+**Command Parameters**
+
+:Connection Handle: Handle used to identify a connection
+
+ :Size: 1 byte(s)
+ :Default: 0x00
+ :Range: 0x00 to 0xEF
+
+:Fragment: Allows the fragmentation of data
+
+ :Size: 1 byte(s)
+ :Default: 0
+ :Range:
+         ===================== ========================================================
+         Value                 Description
+         ===================== ========================================================
+         0                     The Controller may fragment all data
+         1                     The Controller should not fragment data
+         ===================== ========================================================
+
+:Data Length: The number of bytes in the Advertising Data parameter
+ :Size: 1 byte(s)
+ :Range: 0 to 251
+
+:Advertising Data: Data that will be set while Advertising
+ :Size: N/A
+
+**Events Generated**
+
+When this command has completed, an HCI_EXT_LESetExtendedScanResponseDataDone event shall be generated.

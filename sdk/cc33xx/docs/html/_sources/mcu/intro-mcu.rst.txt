@@ -1,0 +1,42 @@
+.. _`Getting Started Guide`: ./getting-started.html
+
+Overview and Features
+*********************
+
+This SDK delivers components that enable engineers to develop applications on
+the Texas Instruments CC33XX family of wireless transceivers and Sitara family 
+of microcontrollers (MCU). 
+
+This software toolkit provides the drivers for CC33xx devices to be used with a Real-Time Operating
+System (RTOS) on a microcontroller. 
+ 
+For more information on the TI Wi-Fi solutions, visit
+`www.ti.com/wifi <http://www.ti.com/wifi>`_.
+
+Features
+========
+
+**Wi-Fi**
+
+* IEEE 802.11 b/g/n/ax
+* 2.4GHz(CC330X) and 5GHz(CC335X)
+* Station role (STA) - WPA2 personal, WPA3 personal, Open
+* Access Point role (AP) - WPA2 personal, Open
+* Multirole - STA role and AP role running in parallel
+* Channel Switch Announcement support in Station role
+* Wi-Fi/BLE coex
+* Throughput > 5Mbps
+* Supported Host Interface: SPI
+* Power Management: 802.11 Power-Save modes + LSI (Long Sleep Interval) support
+
+**BLE**
+
+* BLE 5.4 Qualified
+* Supported BLE roles:  Broadcaster, Peripheral, Observer, Central, Multirole
+* Legacy & Extended Advertisement
+* Legacy & Extended Scan
+* Multiple BLE Connections
+* Supported PHYs: 1M, 2M, Coded
+* Software stack support: NimBle
+* Supported Host Interface: UART
+

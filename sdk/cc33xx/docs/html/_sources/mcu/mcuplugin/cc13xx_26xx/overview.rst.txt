@@ -1,0 +1,32 @@
+.. _`CC33XX Host-Driver Porting Guide`: ../../porting-guide.html
+.. _`CC33XX Getting Started Guide`: ./getting-started.html
+
+Overview
+********
+
+CC13x4_26x4 + CC33xx Architecture
+=================================
+
+This figure shows a block diagram of the CC33xx + CC13xx/CC26xx MCU solution at a high level.
+For **MCU hosts**, this CC33XX package introduces the **Thick-MAC** concept where the WPA Supplicant and the connection management are implemented within the CC33XX device. 
+This configuration reduces the footprint of the host application and simplifies the Wi-Fi control.
+Note that having the Supplicant inside the device is different from the **Linux Transceiver** partitioning used by the **MPU** based hosts.   
+
+.. figure:: resources/BD-CC33XX-ThickMAC.png
+    :name: fig-cc13xx_26xx-cc33xx-thick-mac-block-diagram
+    :align: center
+
+    Thick MAC block Diagram
+
+The CC13xx/CC26xx host uses an XIP flash to run the application image. The XIP must be larger than 512KB for the basic wi-fi example to work. The current release supports the CC13x4/CC26x4 devices which contains 1MB of XIP flash. 
+Currently the package supports Wi-Fi only example (which includes a TCPIP stack). A typical application will also require a TLS stack and networking protocol stacks (e.g. HTTP or MQTT).
+If other CC13xx/CC26xx RF interfaces or software components Will be needed, the memory requirements should be updated accordingly.  
+For CC33xx firmware binaries (which is around 400KB) the use of an external serial flash is recommended. The currently supported **LP_EM_CC1354P10_6** board contains 
+a 2MB flash which is access through the TI NVS driver over SPI. The provided **FirmwareProgrammer** application can be used to programs the external flash. It should be used before any other CC33xx application can run on the platform. 
+Upon boot, the operation aplication image will be runs from the XIP flash. When the Wi-Fi is turned on, the application code (through provided Wi-Fi Host Driver) will read the firmware (and bootloader) code  from the extarnal flash and inject it to the CC33xx RAM. 
+Check `CC33XX Getting Started Guide`_ for more details on running an application.
+The CC13xx/CC26xx communicates with the CC33xx over SPI. For more details on the host interface, see the `CC33XX Host-Driver Porting Guide`_.
+
+
+
+

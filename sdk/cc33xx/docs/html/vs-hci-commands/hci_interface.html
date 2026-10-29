@@ -1,0 +1,1004 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>HCI Interface &mdash; Mcu CC33XX User&#39;s Guide R8 documentation</title>
+  
+
+  
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../_static/jquery.js"></script>
+        <script type="text/javascript" src="../_static/underscore.js"></script>
+        <script type="text/javascript" src="../_static/doctools.js"></script>
+        <script type="text/javascript" src="../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/theme_overrides.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <script language="JavaScript">
+        var tiPageName;
+        tiPageName = "sug vs-hci-commands hci_interface";
+
+        if (location.protocol == "file:"){
+            var ci_analytics_poc_load = true;
+        }
+    </script>
+
+    <script src="http://www.ti.com/assets/js/headerfooter/analytics.js" type="text/javascript" charset="utf-8"></script>
+
+
+</head>
+
+<body class="wy-body-for-nav">
+   <!---- extra body elements for TI beyond RTD Sphinx Theme --->
+<div class="DocSite-globalNav tiNav">
+    <ul>
+    </ul>
+</div>
+
+<a class="DocSite-nav" href="https://www.ti.com" style="padding-bottom: 85px;">
+  <img class="DocSiteNav-logo"
+    src="../_static/img/ti_logo.png"
+    alt="TI Logo">
+  <div class="DocSiteNav-title"></div>
+</a> 
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../mcu/cc33xx-index.html" class="icon icon-home" alt="Documentation Home"> Mcu CC33XX User's Guide
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                R8
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../mcu/intro-mcu.html">Overview and Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mcu/am243x/index.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mcu/mcuplugin/index-mcuplugin.html">CC33XX MCU Plugin</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../wifi/cc35xx-basic-operations.html">Basic Operations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../wifi/cc35xx-basic-operations.html#get-and-set">GET and SET</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../wifi/cc35xx-network-addresses.html">Network Address - Addressing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../wifi/cc35xx-sockets.html">Sockets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mcu/sw-examples/index.html">Software Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mcu/porting-guide.html">Driver Porting Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mcu/nimble/nimble.html">NimBLE Bluetooth Stack</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mcu/calibrator/index-calibrator.html">Calibrator Tool</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cc33xx/BP-CC33X1_HW_UserGuide.html">CC33X1 BoosterPack Hardware User’s Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mcu/api-reference.html">API References</a></li>
+</ul>
+
+            
+          
+          <!-- extra nav elements for TI beyond RTD Sphinx Theme --->
+<div id="sideBanner">
+    <br/>
+    <br/><br/><br/>
+</div>
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../mcu/cc33xx-index.html">Mcu CC33XX User's Guide</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../mcu/cc33xx-index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>HCI Interface</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="hci-interface">
+<h1>HCI Interface<a class="headerlink" href="#hci-interface" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="hci-overview">
+<h2>HCI Overview<a class="headerlink" href="#hci-overview" title="Permalink to this headline">¶</a></h2>
+<p>The HCI is a standardized Bluetooth interface for sending commands, receiving
+events, and for sending and receiving data. It is typically realized as a serial
+interface, using either RS232 or USB communication devices. As the name implies,
+the HCI is used to bridge the Host and Controller devices. Commands and Events
+can either be specified, or can be vendor specific for extensibility. The
+following sections summarize the HCI protocol, the specification defined
+commands and events used by BLE, and a detailed description of the vendor
+specific commands and events defined by Texas Instruments Inc. For complete
+details on the HCI as specified by the Special Interest Group (SIG), please
+see the Core specification [1].</p>
+</div>
+<div class="section" id="specification-interface">
+<h2>Specification Interface<a class="headerlink" href="#specification-interface" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="hci-interface-protocol">
+<h3>HCI Interface Protocol<a class="headerlink" href="#hci-interface-protocol" title="Permalink to this headline">¶</a></h3>
+<p>The HCI supports four types of packets: Command Packet, Asynchronous Data
+Packet, Synchronous Data Packet, and Event Packet. The packet type is a one byte
+value that precedes the HCI packet. The packet type has the following values:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="65%" />
+<col width="35%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Packet</th>
+<th class="head">Packet Type</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>Command</td>
+<td>0x01</td>
+</tr>
+<tr class="row-odd"><td>Asynchronous Data</td>
+<td>0x02</td>
+</tr>
+<tr class="row-even"><td>Synchronous Data</td>
+<td>0x03</td>
+</tr>
+<tr class="row-odd"><td>Event</td>
+<td>0x04</td>
+</tr>
+<tr class="row-even"><td>Extended Command</td>
+<td>0x09</td>
+</tr>
+</tbody>
+</table>
+<p>The contents of each packet are shown as follows (please see section 5.4 of
+[1], Vol. 2, Part E for additional details).</p>
+<div class="section" id="command-packet">
+<h4>Command Packet<a class="headerlink" href="#command-packet" title="Permalink to this headline">¶</a></h4>
+<p>The command packet is comprised of the opcode, the number of parameters, and
+parameters themselves.</p>
+<div class="figure align-center" id="figure-1">
+<span id="command-packet-1"></span><img alt="../_images/command-packet.png" src="../_images/command-packet.png" />
+<p class="caption"><span class="caption-text">Command Packet</span></p>
+</div>
+</div>
+<div class="section" id="asynchronous-data-packet">
+<h4>Asynchronous Data Packet<a class="headerlink" href="#asynchronous-data-packet" title="Permalink to this headline">¶</a></h4>
+<p>The asynchronous data packet is comprised of the connection handle, fragmentation
+bits, the number of data bytes, and the data bytes themselves.</p>
+<div class="figure align-center" id="figure-2">
+<span id="async-data-packet"></span><img alt="../_images/async-data-packet.png" src="../_images/async-data-packet.png" />
+<p class="caption"><span class="caption-text">Asynchronous Data Packet</span></p>
+</div>
+</div>
+<div class="section" id="synchronous-data-packet">
+<h4>Synchronous Data Packet<a class="headerlink" href="#synchronous-data-packet" title="Permalink to this headline">¶</a></h4>
+<p>This synchronous data packet is not used in BLE.</p>
+</div>
+<div class="section" id="event-packet">
+<h4>Event Packet<a class="headerlink" href="#event-packet" title="Permalink to this headline">¶</a></h4>
+<p>The event packet is comprised of the event code, the number of event parameters,
+and the event parameters themselves.</p>
+<div class="figure align-center" id="figure-3">
+<span id="event-packet-1"></span><img alt="../_images/event-packet.png" src="../_images/event-packet.png" />
+<p class="caption"><span class="caption-text">Event Packet</span></p>
+</div>
+</div>
+<div class="section" id="extended-command">
+<h4>Extended Command<a class="headerlink" href="#extended-command" title="Permalink to this headline">¶</a></h4>
+<p>This packet is used to allow more than the HCI limit of 256 bytes. It includes a
+two-byte length field which states the payload length:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="42%" />
+<col width="58%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Offset</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>0</td>
+<td>packet type (0x09)</td>
+</tr>
+<tr class="row-odd"><td>1</td>
+<td>LSB opcode</td>
+</tr>
+<tr class="row-even"><td>2</td>
+<td>MSB opcode</td>
+</tr>
+<tr class="row-odd"><td>3</td>
+<td>LSB payload length</td>
+</tr>
+<tr class="row-even"><td>4</td>
+<td>MSB payload length</td>
+</tr>
+<tr class="row-odd"><td>5..(length-3)</td>
+<td>Payload</td>
+</tr>
+</tbody>
+</table>
+<p>See each individual command for payload formatting.</p>
+</div>
+</div>
+<div class="section" id="hci-commands">
+<h3>HCI Commands<a class="headerlink" href="#hci-commands" title="Permalink to this headline">¶</a></h3>
+<p>HCI commands use a 16-bit opcode for identification. The opcode is subdivided
+into two parts: a 10-bit Opcode Command Field (OCF) and a 6-bit Opcode Group
+Field (OGF).</p>
+<div class="figure align-center" id="figure-4">
+<span id="hci-command-opcode"></span><img alt="../_images/hci-command-opcode.png" src="../_images/hci-command-opcode.png" />
+<p class="caption"><span class="caption-text">HCI Command Opcode</span></p>
+</div>
+<p>The OGF values are defined by the Bluetooth (BT) Core specification. The LE
+specification has its own OGF value. Also, there is an escape OGF value so that vendor specific OCF codes can be used. The following OGF values are valid for BLE:
+# Link Control Commands: 1
+# Link Policy Commands: 2
+# Controller and Baseband Commands: 3
+# Informational Parameters: 4
+# Status Parameters: 5
+# Testing Commands: 6
+# LE Only Commands: 8
+# Vendor Specific Commands: 63</p>
+<p>The following table, Table 2, lists all specification LE HCI commands and their opcodes. Note that while all commands can be sent by the application processor to the Network Processor using HCI, not all events will be returned as they will be trapped and possibly discarded by the Host layer of the BLE Stack. Therefore, it is not possible to support an external BLE Host in the Network Processor configuration. Network Processor based designs should use the respective Vendor Extension commands detailed in the following sections to implement an off-chip application.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="83%" />
+<col width="4%" />
+<col width="4%" />
+<col width="9%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">LE Commands</th>
+<th class="head">OGF</th>
+<th class="head">OCF</th>
+<th class="head">Opcdoe</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>LE Set Event Mask</td>
+<td>8</td>
+<td>1</td>
+<td>0x2001</td>
+</tr>
+<tr class="row-odd"><td>LE Read Buffer Size</td>
+<td>8</td>
+<td>2</td>
+<td>0x2002</td>
+</tr>
+<tr class="row-even"><td>LE Read Local Supported Features</td>
+<td>8</td>
+<td>3</td>
+<td>0x2003</td>
+</tr>
+<tr class="row-odd"><td>LE Set Random Address</td>
+<td>8</td>
+<td>5</td>
+<td>0x2005</td>
+</tr>
+<tr class="row-even"><td>LE Set Advertising Parameters</td>
+<td>8</td>
+<td>6</td>
+<td>0x2006</td>
+</tr>
+<tr class="row-odd"><td>LE Read Advertising Channel TX Power</td>
+<td>8</td>
+<td>7</td>
+<td>0x2007</td>
+</tr>
+<tr class="row-even"><td>LE Set Advertising Data</td>
+<td>8</td>
+<td>8</td>
+<td>0x2008</td>
+</tr>
+<tr class="row-odd"><td>LE Set Scan Response Data</td>
+<td>8</td>
+<td>9</td>
+<td>0x2009</td>
+</tr>
+<tr class="row-even"><td>LE Set Advertise Enable</td>
+<td>8</td>
+<td>10</td>
+<td>0x200A</td>
+</tr>
+<tr class="row-odd"><td>LE Set Scan Parameters</td>
+<td>8</td>
+<td>11</td>
+<td>0x200B</td>
+</tr>
+<tr class="row-even"><td>LE Set Scan Enable</td>
+<td>8</td>
+<td>12</td>
+<td>0x200C</td>
+</tr>
+<tr class="row-odd"><td>LE Create Connection</td>
+<td>8</td>
+<td>13</td>
+<td>0x200D</td>
+</tr>
+<tr class="row-even"><td>LE Create Connection Cancel</td>
+<td>8</td>
+<td>14</td>
+<td>0x200E</td>
+</tr>
+<tr class="row-odd"><td>LE Read White List Size</td>
+<td>8</td>
+<td>15</td>
+<td>0x200F</td>
+</tr>
+<tr class="row-even"><td>LE Clear White Lis</td>
+<td>8</td>
+<td>16</td>
+<td>0x2010</td>
+</tr>
+<tr class="row-odd"><td>LE Add Device To White List</td>
+<td>8</td>
+<td>17</td>
+<td>0x2011</td>
+</tr>
+<tr class="row-even"><td>LE Remove Device From White List</td>
+<td>8</td>
+<td>18</td>
+<td>0x2012</td>
+</tr>
+<tr class="row-odd"><td>LE Connection Update</td>
+<td>8</td>
+<td>19</td>
+<td>0x2013</td>
+</tr>
+<tr class="row-even"><td>LE Set Host Channel Classification</td>
+<td>8</td>
+<td>20</td>
+<td>0x2014</td>
+</tr>
+<tr class="row-odd"><td>LE Read Channel Map</td>
+<td>8</td>
+<td>21</td>
+<td>0x2015</td>
+</tr>
+<tr class="row-even"><td>LE Read Remote Used Features</td>
+<td>8</td>
+<td>22</td>
+<td>0x2016</td>
+</tr>
+<tr class="row-odd"><td>LE Encrypt</td>
+<td>8</td>
+<td>23</td>
+<td>0x2017</td>
+</tr>
+<tr class="row-even"><td>LE Rand</td>
+<td>8</td>
+<td>24</td>
+<td>0x2018</td>
+</tr>
+<tr class="row-odd"><td>LE Start Encryption</td>
+<td>8</td>
+<td>25</td>
+<td>0x2019</td>
+</tr>
+<tr class="row-even"><td>LE Long Term Key Requested Reply</td>
+<td>8</td>
+<td>26</td>
+<td>0x201A</td>
+</tr>
+<tr class="row-odd"><td>LE Long Term Key Requested Negative Reply</td>
+<td>8</td>
+<td>27</td>
+<td>0x201B</td>
+</tr>
+<tr class="row-even"><td>LE Read Supported States</td>
+<td>8</td>
+<td>28</td>
+<td>0x201C</td>
+</tr>
+<tr class="row-odd"><td>LE Receiver Test</td>
+<td>8</td>
+<td>29</td>
+<td>0x201D</td>
+</tr>
+<tr class="row-even"><td>LE Transmitter Test</td>
+<td>8</td>
+<td>30</td>
+<td>0x201E</td>
+</tr>
+<tr class="row-odd"><td>LE Test End Command</td>
+<td>8</td>
+<td>31</td>
+<td>0x201F</td>
+</tr>
+<tr class="row-even"><td>LE Remote Connection Parameter Request Reply</td>
+<td>8</td>
+<td>32</td>
+<td>0x2020</td>
+</tr>
+<tr class="row-odd"><td>LE Remote Connection Parameter Request Negative Reply</td>
+<td>8</td>
+<td>33</td>
+<td>0x2021</td>
+</tr>
+<tr class="row-even"><td>LE Set Data Length</td>
+<td>8</td>
+<td>34</td>
+<td>0x2022</td>
+</tr>
+<tr class="row-odd"><td>LE Read Suggested Default Data Length</td>
+<td>8</td>
+<td>35</td>
+<td>0x2023</td>
+</tr>
+<tr class="row-even"><td>LE Write Suggested Default Data Length</td>
+<td>8</td>
+<td>36</td>
+<td>0x2024</td>
+</tr>
+<tr class="row-odd"><td>LE Read Local P256 Public Key 37 0x2025 LE Generate DHKey</td>
+<td>8</td>
+<td>38</td>
+<td>0x2026</td>
+</tr>
+<tr class="row-even"><td>LE Add Device to Resolving List</td>
+<td>8</td>
+<td>39</td>
+<td>0x2027</td>
+</tr>
+<tr class="row-odd"><td>LE Remove Device from Resolving List</td>
+<td>8</td>
+<td>40</td>
+<td>0x2028</td>
+</tr>
+<tr class="row-even"><td>LE Clear Resolving List</td>
+<td>8</td>
+<td>41</td>
+<td>0x2029</td>
+</tr>
+<tr class="row-odd"><td>LE Read Resolving List Size</td>
+<td>8</td>
+<td>42</td>
+<td>0x202A</td>
+</tr>
+<tr class="row-even"><td>LE Read Peer Resolvable Address</td>
+<td>8</td>
+<td>43</td>
+<td>0x202B</td>
+</tr>
+<tr class="row-odd"><td>LE Read Local Resolvable Address</td>
+<td>8</td>
+<td>44</td>
+<td>0x202C</td>
+</tr>
+<tr class="row-even"><td>LE Set Address Resolution Enable</td>
+<td>8</td>
+<td>45</td>
+<td>0x202D</td>
+</tr>
+<tr class="row-odd"><td>LE Set Resolvable Private Address Timeout</td>
+<td>8</td>
+<td>46</td>
+<td>0x202E</td>
+</tr>
+<tr class="row-even"><td>LE Read Maximum Data Length</td>
+<td>8</td>
+<td>47</td>
+<td>0x202F</td>
+</tr>
+</tbody>
+</table>
+<table border="1" class="docutils">
+<colgroup>
+<col width="79%" />
+<col width="5%" />
+<col width="5%" />
+<col width="10%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">BT Commands for LE</th>
+<th class="head">OGF</th>
+<th class="head">OCF</th>
+<th class="head">Opcode</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>Disconnect</td>
+<td>1</td>
+<td>6</td>
+<td>0x0406</td>
+</tr>
+<tr class="row-odd"><td>Read Remote Version Information</td>
+<td>1</td>
+<td>29</td>
+<td>0x041D</td>
+</tr>
+<tr class="row-even"><td>Set Event Mask</td>
+<td>3</td>
+<td>1</td>
+<td>0x0C01</td>
+</tr>
+<tr class="row-odd"><td>Reset</td>
+<td>3</td>
+<td>3</td>
+<td>0x0C03</td>
+</tr>
+<tr class="row-even"><td>Read Transmit Power Level</td>
+<td>3</td>
+<td>45</td>
+<td>0x0C2D</td>
+</tr>
+<tr class="row-odd"><td>Set Controller To Host Flow Control (optional)</td>
+<td>3</td>
+<td>49</td>
+<td>0x0C31</td>
+</tr>
+<tr class="row-even"><td>Host Buffer Size (optional)</td>
+<td>3</td>
+<td>51</td>
+<td>0x0C33</td>
+</tr>
+<tr class="row-odd"><td>Host Number Of Completed Packets (optional)</td>
+<td>3</td>
+<td>53</td>
+<td>0x0C35</td>
+</tr>
+<tr class="row-even"><td>Set Event Mask Page</td>
+<td>3</td>
+<td>63</td>
+<td>0x0C63</td>
+</tr>
+<tr class="row-odd"><td>Read Authenticated Payload Timeout</td>
+<td>4</td>
+<td>123</td>
+<td>0x0C7B</td>
+</tr>
+<tr class="row-even"><td>Write Authenticated Payload Timeout</td>
+<td>4</td>
+<td>124</td>
+<td>0x0C7C</td>
+</tr>
+<tr class="row-odd"><td>Read Local Version Information</td>
+<td>4</td>
+<td>1</td>
+<td>0x1001</td>
+</tr>
+<tr class="row-even"><td>Read Local Supported Commands (optional)</td>
+<td>4</td>
+<td>2</td>
+<td>0x1002</td>
+</tr>
+<tr class="row-odd"><td>Read Local Supported Features</td>
+<td>4</td>
+<td>3</td>
+<td>0x1003</td>
+</tr>
+<tr class="row-even"><td>Read BD_ADDR</td>
+<td>4</td>
+<td>9</td>
+<td>0x1009</td>
+</tr>
+<tr class="row-odd"><td>Read RSSI</td>
+<td>5</td>
+<td>5</td>
+<td>0x1405</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="hci-events">
+<h3>HCI Events<a class="headerlink" href="#hci-events" title="Permalink to this headline">¶</a></h3>
+<p>HCI events use an 8-bit event code. All event codes are unique for BT and BLE.
+Only event code 255 is reserved for vendor specific events. There is only one
+event code for all LE events. The first event parameter is used as the subevent
+code to distinguish the LE event types.</p>
+<p>The following table lists all the BLE events and their event codes, and subevent
+codes when applicable:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="62%" />
+<col width="16%" />
+<col width="21%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">LE Events</th>
+<th class="head">Event Code</th>
+<th class="head">Subevent Code</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>LE Connection Complete</td>
+<td>0x3E</td>
+<td>0x01</td>
+</tr>
+<tr class="row-odd"><td>LE Advertising Report</td>
+<td>0x3E</td>
+<td>0x02</td>
+</tr>
+<tr class="row-even"><td>LE Connection Update Complete</td>
+<td>0x3E</td>
+<td>0x03</td>
+</tr>
+<tr class="row-odd"><td>LE Read Remote Used Features Complete</td>
+<td>0x3E</td>
+<td>0x04</td>
+</tr>
+<tr class="row-even"><td>LE Long Term Key Requested</td>
+<td>0x3E</td>
+<td>0x05</td>
+</tr>
+<tr class="row-odd"><td>LE Remote Connection Parameter Request</td>
+<td>0x3E</td>
+<td>0x06</td>
+</tr>
+<tr class="row-even"><td>LE Data Length Change</td>
+<td>0x3E</td>
+<td>0x07</td>
+</tr>
+<tr class="row-odd"><td>LE Read Local P256 Public Key Complete</td>
+<td>0x3E</td>
+<td>0x08</td>
+</tr>
+<tr class="row-even"><td>LE Generate DHKey Complete</td>
+<td>0x3E</td>
+<td>0x09</td>
+</tr>
+<tr class="row-odd"><td>LE Enhanced Connection Complete</td>
+<td>0x3E</td>
+<td>0x0A</td>
+</tr>
+<tr class="row-even"><td>LE Direct Advertising Report</td>
+<td>0x3E</td>
+<td>0x0B</td>
+</tr>
+</tbody>
+</table>
+<table border="1" class="docutils">
+<colgroup>
+<col width="80%" />
+<col width="20%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">BT Events</th>
+<th class="head">Event Code</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>Disconnection Complete</td>
+<td>0x05</td>
+</tr>
+<tr class="row-odd"><td>Encryption Change</td>
+<td>0x08</td>
+</tr>
+<tr class="row-even"><td>Read Remote Version Information Complete</td>
+<td>0x0C</td>
+</tr>
+<tr class="row-odd"><td>Command Complete</td>
+<td>0x0E</td>
+</tr>
+<tr class="row-even"><td>Command Status</td>
+<td>0x0F</td>
+</tr>
+<tr class="row-odd"><td>Hardware Error (optional)</td>
+<td>0x10</td>
+</tr>
+<tr class="row-even"><td>Number Of Completed Packets</td>
+<td>0x13</td>
+</tr>
+<tr class="row-odd"><td>Data Buffer Overflow</td>
+<td>0x1A</td>
+</tr>
+<tr class="row-even"><td>Encryption Key Refresh Complete</td>
+<td>0x30</td>
+</tr>
+<tr class="row-odd"><td>Authenticated Payload Timeout Expired</td>
+<td>0x57</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="section" id="vendor-specific-interface">
+<h2>Vendor Specific Interface<a class="headerlink" href="#vendor-specific-interface" title="Permalink to this headline">¶</a></h2>
+<p>As mentioned, vendors can specify their own HCI commands and events by using the
+predefined vendor specific opcode and vendor specific event code.</p>
+<div class="section" id="vendor-specific-commands">
+<h3>Vendor Specific Commands<a class="headerlink" href="#vendor-specific-commands" title="Permalink to this headline">¶</a></h3>
+<p>A vendor specific opcode is indicated by an OGF value of 63. The vendor can use
+the remaining 10 bits (i.e. the OCF) as they like. TI defines its vendor
+specific OCF values by subdividing the 10 bits into a 3 MSB Command Subgroup
+(CSG) and a 7 LSB Command (CMD). The CSG is used by the HCI to route the
+commands to a designated subsystem within the BLE stack. In this way, vendor
+specific commands can be specified for any BLE stack layer.</p>
+<div class="figure align-center" id="figure-5">
+<span id="vendor-specific-opcode-0-6"></span><img alt="../_images/vendor-specific-opcode-0-6.png" src="../_images/vendor-specific-opcode-0-6.png" />
+<p class="caption"><span class="caption-text">HCI Vendor Specific Command Opcode, CSG=0..6</span></p>
+</div>
+<p>The Command Subgroups are defined as follows:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="20%" />
+<col width="80%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">CSG</th>
+<th class="head">Subgroup</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>0</td>
+<td>HCI</td>
+</tr>
+<tr class="row-odd"><td>1</td>
+<td>L2CAP</td>
+</tr>
+<tr class="row-even"><td>2</td>
+<td>ATT</td>
+</tr>
+<tr class="row-odd"><td>3</td>
+<td>GATT</td>
+</tr>
+<tr class="row-even"><td>4</td>
+<td>GAP</td>
+</tr>
+<tr class="row-odd"><td>5</td>
+<td>UTIL</td>
+</tr>
+<tr class="row-even"><td>6</td>
+<td>Reserved</td>
+</tr>
+<tr class="row-odd"><td>7</td>
+<td>User Profile</td>
+</tr>
+</tbody>
+</table>
+<p>For Command Subgroups 0 to 6, the remaining 7 bits of Command provide up to 128
+commands for each subgroup. For Subgroup 7, the remaining 7 bits specify one of
+128 profiles and indicates that the subsequent byte is to be used as the command
+for that particular profile (i.e. up to 256 commands per profile).</p>
+<div class="figure align-center" id="figure-6">
+<span id="vendor-specific-opcode-7"></span><img alt="../_images/vendor-specific-opcode-7.png" src="../_images/vendor-specific-opcode-7.png" />
+<p class="caption"><span class="caption-text">HCI Vendor Specific Command Opcode, CSG=7</span></p>
+</div>
+</div>
+<div class="section" id="vendor-specific-events">
+<h3>Vendor Specific Events<a class="headerlink" href="#vendor-specific-events" title="Permalink to this headline">¶</a></h3>
+<p>A vendor specific event code is indicated by a value of 255. The vendor must
+then use event parameters (following the length byte) to specify vendor specific
+events. TI defines the following two bytes as the Event Opcode.</p>
+<div class="figure align-center" id="vendor-specific-event-1">
+<img alt="../_images/vendor-specific-event-1.png" src="../_images/vendor-specific-event-1.png" />
+</div>
+<p>The Event Opcode was chosen to mirror the Command Opcode by dividing it into
+two parts: a 6 bit Event Opcode Group Field (EOGF), and a 10 bit Event Opcode
+Event Field (EOEF).</p>
+<div class="figure align-center" id="vendor-specific-event-2">
+<img alt="../_images/vendor-specific-event-2.png" src="../_images/vendor-specific-event-2.png" />
+</div>
+<p>The EOEF is again chosen to mirror the Command OCF by dividing it into two
+parts: the Event Subgroup (ESG) and the Event.</p>
+<div class="figure align-center" id="vendor-specific-event-3">
+<img alt="../_images/vendor-specific-event-3.png" src="../_images/vendor-specific-event-3.png" />
+</div>
+<p>The EOGF is defined as follows:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="20%" />
+<col width="80%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">EOGF</th>
+<th class="head">Group</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>0</td>
+<td>Embedded Opcode</td>
+</tr>
+<tr class="row-odd"><td>1</td>
+<td>Core Opcode</td>
+</tr>
+<tr class="row-even"><td>2</td>
+<td>Profile Request</td>
+</tr>
+<tr class="row-odd"><td>3</td>
+<td>Profile Response</td>
+</tr>
+<tr class="row-even"><td>4-63</td>
+<td>Reserved</td>
+</tr>
+</tbody>
+</table>
+<p>The ESG is defined as in Table 4. The Events are as defined in the following
+table. Please note that the value of the Events cannot be less than 0x400 as the
+first 1024 values are reserved. The reason for this has to do with
+Client/Server Request/Response Tunneling, which is described in the following
+section. Tunneling requires embedding Command Opcodes in HCI Events. When this
+is done, the EOGF is zero, and the remaining 10 bits is the Command Opcode. In
+order to prevent Command and Event Opcode overlap, the first 1024 values are
+reserved in the Event Opcode space. Also note that the Event Code (EC) is
+always 0xFF since normally only Controller events are returned via the HCI.</p>
+<p>You will note that there are two EOGF values for Profiles. At this time, no
+profiles are defined well enough to document here. These values are defined in
+anticipation of not only needing large numbers of profiles and their commands,
+but also of needing the direction the command is traveling when embedded in an
+HCI Command or Event. You can see that ATT does not have this issue as these
+commands are already defined using even values for commands and odd values for
+events, and thus, direction is distinguishable. For profiles, it is not yet
+known how the commands and events will be defined.</p>
+</div>
+<div class="section" id="request-and-response-tunneling">
+<h3>Request and Response Tunneling<a class="headerlink" href="#request-and-response-tunneling" title="Permalink to this headline">¶</a></h3>
+<p>In the Client/Server model defined and supported by the BLE stack, the Client
+sends Requests to the Server and the Server sends Responses back to the Client.
+The Requests sent by the Client may be handled by a Server on the same device,
+or they may travel OTA to the Server on another device. Similarly, the Response
+sent by the Server may be handled by a Client on the same device, or may be sent
+OTA to a Client on another device from which the request came. But in either
+case, as long as the Requests and Responses remain within the scope of the BLE
+stack software (i.e. the BLE Server database is on the device), the BLE stack
+remains unconcerned about whether the Requests and Responses are sent/received
+by the same device or are from another device.</p>
+<div class="figure align-center" id="figure-7">
+<span id="tunneling-1"></span><img alt="../_images/tunneling-1.png" src="../_images/tunneling-1.png" />
+<p class="caption"><span class="caption-text">Request/Response with Server Database in BLE Stack</span></p>
+</div>
+<p>However, when using the Network Processor Configuration with HCI such that the
+Server database is not located on the device, then Requests and Responses have to
+be mapped into HCI Commands and Events. The HCI is specified such that only
+Commands are sent from the Host to the Controller, and only Events are sent from
+the Controller to the Host. If the Server database is located on say a PC, then
+when an OTA Request is received by the Server device, it must be sent to the PC
+via the HCI. Even though the Request started out on one end as an HCI Command,
+it must be provided to the remote PC as an HCI event on the other. Similarly,
+when the PC sends the Response on one end, which will be an HCI Event to the
+remote PC on the other, it must be sent to the device as an HCI Command. Thus,
+the Request, which starts out as an HCI Command, must be embedded in an HCI
+Event when received by the remote PC, and the Response, which starts out as an
+HCI Command, must be embedded in an HCI Event when received by the remote PC.
+In this way, Requests and Responses are being tunneled in HCI Commands and
+Events.</p>
+<div class="figure align-center" id="figure-8">
+<span id="tunneling-2"></span><img alt="../_images/tunneling-2.png" src="../_images/tunneling-2.png" />
+<p class="caption"><span class="caption-text">Request/Response with Server Database not in BLE Stack</span></p>
+</div>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        <a href="https://www.ti.com/corp/docs/legal/copyright.shtml">2025, Texas Instruments</a>, Texas Instruments Incorporated. All rights reserved. <br>
+        <a href="https://www.ti.com/corp/docs/legal/trademark/trademrk.htm">Trademarks</a> | <a href="https://www.ti.com/corp/docs/legal/privacy.shtml">Privacy policy</a> | <a href="https://www.ti.com/corp/docs/legal/termsofuse.shtml">Terms of use</a> | <a href="https://www.ti.com/lsds/ti/legal/termsofsale.page">Terms of sale</a>
+
+    </p>
+  </div> 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+  
+ <script type="text/javascript">
+    $(document).ready(function() {
+        $(".toggle > *").hide();
+        $(".toggle .header").show();
+        $(".toggle .header").click(function() {
+            $(this).parent().children().not(".header").toggle(400);
+            $(this).parent().children(".header").toggleClass("open");
+        })
+    });
+</script>
+
+
+</body>
+</html>

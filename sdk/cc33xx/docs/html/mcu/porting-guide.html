@@ -1,0 +1,412 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Driver Porting Guide &mdash; Mcu CC33XX User&#39;s Guide R8 documentation</title>
+  
+
+  
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../_static/jquery.js"></script>
+        <script type="text/javascript" src="../_static/underscore.js"></script>
+        <script type="text/javascript" src="../_static/doctools.js"></script>
+        <script type="text/javascript" src="../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/theme_overrides.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="NimBLE Bluetooth Stack" href="nimble/nimble.html" />
+    <link rel="prev" title="Wi-Fi Provisioning over BLE" href="sw-examples/wifi-provisioning.html" />
+    <script language="JavaScript">
+        var tiPageName;
+        tiPageName = "sug mcu porting-guide";
+
+        if (location.protocol == "file:"){
+            var ci_analytics_poc_load = true;
+        }
+    </script>
+
+    <script src="http://www.ti.com/assets/js/headerfooter/analytics.js" type="text/javascript" charset="utf-8"></script>
+
+
+</head>
+
+<body class="wy-body-for-nav">
+   <!---- extra body elements for TI beyond RTD Sphinx Theme --->
+<div class="DocSite-globalNav tiNav">
+    <ul>
+    </ul>
+</div>
+
+<a class="DocSite-nav" href="https://www.ti.com" style="padding-bottom: 85px;">
+  <img class="DocSiteNav-logo"
+    src="../_static/img/ti_logo.png"
+    alt="TI Logo">
+  <div class="DocSiteNav-title"></div>
+</a> 
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="cc33xx-index.html" class="icon icon-home" alt="Documentation Home"> Mcu CC33XX User's Guide
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                R8
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="intro-mcu.html">Overview and Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="am243x/index.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mcuplugin/index-mcuplugin.html">CC33XX MCU Plugin</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../wifi/cc35xx-basic-operations.html">Basic Operations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../wifi/cc35xx-basic-operations.html#get-and-set">GET and SET</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../wifi/cc35xx-network-addresses.html">Network Address - Addressing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../wifi/cc35xx-sockets.html">Sockets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sw-examples/index.html">Software Examples</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Driver Porting Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#porting-layer-files">Porting Layer Files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#wlan-enable-disable">WLAN Enable/Disable</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#host-interface">Host Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#os-abstraction">OS Abstraction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#memory-management">Memory Management</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#timer-mechanism">Timer Mechanism</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#file-system">File System</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#asynchronous-event-handler">Asynchronous Event Handler</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="nimble/nimble.html">NimBLE Bluetooth Stack</a></li>
+<li class="toctree-l1"><a class="reference internal" href="calibrator/index-calibrator.html">Calibrator Tool</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cc33xx/BP-CC33X1_HW_UserGuide.html">CC33X1 BoosterPack Hardware User’s Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api-reference.html">API References</a></li>
+</ul>
+
+            
+          
+          <!-- extra nav elements for TI beyond RTD Sphinx Theme --->
+<div id="sideBanner">
+    <br/>
+    <br/><br/><br/>
+</div>
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="cc33xx-index.html">Mcu CC33XX User's Guide</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="cc33xx-index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>Driver Porting Guide</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="driver-porting-guide">
+<h1>Driver Porting Guide<a class="headerlink" href="#driver-porting-guide" title="Permalink to this headline">¶</a></h1>
+<div class="line-block">
+<div class="line">This guide is intended to help customers port the software components required to use the CC33xx MCU with a non-TI microcontroller.</div>
+<div class="line">This porting guide is focusing on the Wi-Fi host driver porting. Note that the example applications (e.g. Network Terminal) use TI Drivers, FreeRTOS operating system and LWIP network stack which will require their own ports and are out of the scope of this guide.</div>
+<div class="line">More details on the commands listed below can be found through the API reference.</div>
+</div>
+<div class="section" id="porting-layer-files">
+<h2>Porting Layer Files<a class="headerlink" href="#porting-layer-files" title="Permalink to this headline">¶</a></h2>
+<div class="line-block">
+<div class="line">The CC33XX MCU SW Package example contains a porting layer that acts as the adaptation layer for the host microcontroller.</div>
+<div class="line">When moving to another host platform or operating system these files must be ported.</div>
+<div class="line">The following sections will walk through this porting layer in detail. The adaptation layer implementation files can be found inside the <strong>WiFi_adaptation_layer/</strong> folder of the example project:</div>
+</div>
+<ul class="simple">
+<li><code class="docutils literal notranslate"><span class="pre">wlan_irq_adapt.c</span></code></li>
+<li><code class="docutils literal notranslate"><span class="pre">spi_adapt.c</span></code></li>
+<li><code class="docutils literal notranslate"><span class="pre">osi_filesystem.c</span></code></li>
+<li><code class="docutils literal notranslate"><span class="pre">osi_freertos.c</span></code></li>
+</ul>
+<div class="line-block">
+<div class="line">In this package, these files are available for the AM243x host.</div>
+<div class="line">Many of these files include header files specific to TI microcontrollers, such as <code class="docutils literal notranslate"><span class="pre">ti_drivers_config.h</span></code>.</div>
+<div class="line">These include paths can be removed or replaced for non-TI MCUs.</div>
+</div>
+</div>
+<div class="section" id="wlan-enable-disable">
+<h2>WLAN Enable/Disable<a class="headerlink" href="#wlan-enable-disable" title="Permalink to this headline">¶</a></h2>
+<p>The CC33XX device can be enabled and disabled by controlling the WLAN_EN signal via GPIO output.</p>
+<p><strong>`wlan_irq_adapt`_:</strong></p>
+<ul class="simple">
+<li><code class="docutils literal notranslate"><span class="pre">TurnOn_WL</span></code>: Toggles the WLAN_EN signal high, then delays 2 seconds.</li>
+<li><code class="docutils literal notranslate"><span class="pre">TurnOff_WL</span></code>: Toggles the WLAN_EN signal low.</li>
+<li><code class="docutils literal notranslate"><span class="pre">GetState_WL</span></code>: Checks the current state of the WLAN_EN signal.</li>
+</ul>
+</div>
+<div class="section" id="host-interface">
+<h2>Host Interface<a class="headerlink" href="#host-interface" title="Permalink to this headline">¶</a></h2>
+<p>The host communication interface is SPI. The porting layer requires functionality for SPI open, close, read, write, and registering an interrupt handler routine for the IRQ signal.</p>
+<p>The SPI interface on the host MCU has the following hardware requirements:</p>
+<ul class="simple">
+<li>Master mode</li>
+<li>4 pin mode</li>
+<li>Chip select active low</li>
+<li>Polarity 0 phase 0</li>
+<li>Max frequency: 32000000 Hz</li>
+<li>Data block: 32 bits</li>
+</ul>
+<p><strong>`spi_adapt`_:</strong></p>
+<ul class="simple">
+<li><code class="docutils literal notranslate"><span class="pre">spi_Init</span></code>: Initialize and open the host MCU SPI module</li>
+<li><code class="docutils literal notranslate"><span class="pre">spi_ReadSync</span></code>: Read from SPI (blocking)</li>
+<li><code class="docutils literal notranslate"><span class="pre">spi_WriteSync</span></code>: Write to SPI (blocking)</li>
+</ul>
+<p>The host interface also requires an IRQ signal with a registered interrupt and a GPIO to control the CC33xx Enable pin.</p>
+<p><strong>`wlan_irq_adapt`_:</strong></p>
+<ul class="simple">
+<li><code class="docutils literal notranslate"><span class="pre">wlan_IRQInit</span></code>: Initialize the GPIO input and register a pin interrupt</li>
+<li><code class="docutils literal notranslate"><span class="pre">wlan_IRQDeinit</span></code>: Destroy the GPIO interrupt</li>
+<li><code class="docutils literal notranslate"><span class="pre">wlan_IRQEableInt</span></code>: Enable GPIO interrupt. If working with edge-trigger, this is not required.</li>
+<li><code class="docutils literal notranslate"><span class="pre">wlan_IRQDisableInt</span></code>: Disable GPIO interrupt. If working with edge-trigger, this is not required.</li>
+<li><code class="docutils literal notranslate"><span class="pre">wlan_IRQClearInt</span></code>: Clear GPIO interrupt. If working with edge-trigger, this is not required.</li>
+<li><code class="docutils literal notranslate"><span class="pre">wlan_TurnOffWlan</span></code>: Set the CC33xx enable pin (GPIO) to off state.</li>
+<li><code class="docutils literal notranslate"><span class="pre">wlan_TurnOnWlan</span></code>: Set the CC33xx enable pin (GPIO) to on state.</li>
+<li><code class="docutils literal notranslate"><span class="pre">wlan_GetStateWlan</span></code>: Retrieve the CC33xx enable pin (GPIO) state.</li>
+</ul>
+</div>
+<div class="section" id="os-abstraction">
+<h2>OS Abstraction<a class="headerlink" href="#os-abstraction" title="Permalink to this headline">¶</a></h2>
+<p>This software package utilizes <a class="reference external" href="https://aws.amazon.com/freertos/https://aws.amazon.com/freertos/">Free-RTOS</a>, which is included with the <a class="reference external" href="http://tigt_qa.dal.englab.ti.com/qacm/test_area/MCU_PLUS_SDK/08.00.00/am243x/08_00_00_21/">MCU-PLUS-AM243X-SDK</a>. The porting layer defines generic “osi” APIs used by the firmware. This allows the firmware to adapt to another RTOS.</p>
+<p><strong>`osi_freertos`_:</strong></p>
+<ul class="simple">
+<li><code class="docutils literal notranslate"><span class="pre">osi_SyncObjCreate</span></code>: Create a sync object (e.g. a semaphore or a message queue) where a thread can block and wait for an external event</li>
+<li><code class="docutils literal notranslate"><span class="pre">osi_SyncObjDelete</span></code>: Delete sync object</li>
+<li><code class="docutils literal notranslate"><span class="pre">osi_SyncObjSignal</span></code>: Generate a sync signal, or give the sempahore</li>
+<li><code class="docutils literal notranslate"><span class="pre">osi_SyncObjSignalFromISR</span></code>: Generate a sync signal from the ISR context</li>
+<li><code class="docutils literal notranslate"><span class="pre">osi_SyncObjWait</span></code>: Wait for a sync signal, or take the semaphore</li>
+<li><code class="docutils literal notranslate"><span class="pre">osi_SyncObjClear</span></code>: Clear sync object</li>
+<li><code class="docutils literal notranslate"><span class="pre">osi_LockObjCreate</span></code>: Create a locking object</li>
+<li><code class="docutils literal notranslate"><span class="pre">osi_LockObjDelete</span></code>: Delete the locking object</li>
+<li><code class="docutils literal notranslate"><span class="pre">osi_LockObjLock</span></code>: Lock the locking object</li>
+<li><code class="docutils literal notranslate"><span class="pre">osi_LockObjUnlock</span></code>: Unlock the locking object</li>
+<li><code class="docutils literal notranslate"><span class="pre">osi_MsgQCreate</span></code>: Create a message queue</li>
+<li><code class="docutils literal notranslate"><span class="pre">osi_MsgQDelete</span></code>: Delete message queue</li>
+<li><code class="docutils literal notranslate"><span class="pre">osi_MsgQWrite</span></code>: Post message to queue</li>
+<li><code class="docutils literal notranslate"><span class="pre">osi_MsgQRead</span></code>: Read message from queue</li>
+<li><code class="docutils literal notranslate"><span class="pre">osi_MsgQCount</span></code>: Returns the number of messages in the message queue</li>
+<li><code class="docutils literal notranslate"><span class="pre">osi_MsgQIsEmpty</span></code>: Boolean returns whether the message count in the queue is zero</li>
+<li><code class="docutils literal notranslate"><span class="pre">osi_ThreadCreate</span></code>: Create a task. In the example, this API uses a legacy osi_TaskCreate.</li>
+<li><code class="docutils literal notranslate"><span class="pre">osi_ThreadDelete</span></code>: Delete the task. In the example, this API uses a legacy osi_TaskDelete.</li>
+<li><code class="docutils literal notranslate"><span class="pre">osi_EnterCritical</span></code>: Enter critical section (lock + context switch prevention)</li>
+<li><code class="docutils literal notranslate"><span class="pre">osi_ExitCritical</span></code>: Exit critical section</li>
+<li><code class="docutils literal notranslate"><span class="pre">assert</span></code>: Assert function</li>
+</ul>
+</div>
+<div class="section" id="memory-management">
+<h2>Memory Management<a class="headerlink" href="#memory-management" title="Permalink to this headline">¶</a></h2>
+<p>The control block for the host driver requires memory allocation.</p>
+<p><strong>`osi_freertos`_:</strong></p>
+<ul class="simple">
+<li><code class="docutils literal notranslate"><span class="pre">os_malloc</span></code>: Allocate dynamic memory</li>
+<li><code class="docutils literal notranslate"><span class="pre">os_realloc</span></code>: Reallocate dynamic memory</li>
+<li><code class="docutils literal notranslate"><span class="pre">os_realloc_array</span></code>: Reallocate and zero memory blocks</li>
+<li><code class="docutils literal notranslate"><span class="pre">os_calloc</span></code>: Allocate and zero memory blocks</li>
+<li><code class="docutils literal notranslate"><span class="pre">os_zalloc</span></code>: Allocate and zero memory</li>
+<li><code class="docutils literal notranslate"><span class="pre">os_free</span></code>: Free memory</li>
+</ul>
+</div>
+<div class="section" id="timer-mechanism">
+<h2>Timer Mechanism<a class="headerlink" href="#timer-mechanism" title="Permalink to this headline">¶</a></h2>
+<p>This timestamp mechanism is used to determine timeouts for the host driver.</p>
+<p><strong>`osi_freertos`_:</strong></p>
+<ul class="simple">
+<li><code class="docutils literal notranslate"><span class="pre">osi_Sleep</span></code>: Put the thread to sleep (seconds)</li>
+<li><code class="docutils literal notranslate"><span class="pre">osi_uSleep</span></code>: Put the thread to sleep (microseconds)</li>
+<li><code class="docutils literal notranslate"><span class="pre">osi_GetTimeMS</span></code>: Get the running tick count (milliseconds)</li>
+<li><code class="docutils literal notranslate"><span class="pre">osi_TimerCreate</span></code>: Create a timer</li>
+<li><code class="docutils literal notranslate"><span class="pre">osi_TimerDelete</span></code>: Delete timer</li>
+<li><code class="docutils literal notranslate"><span class="pre">osi_TimerStart</span></code>: Start timer</li>
+<li><code class="docutils literal notranslate"><span class="pre">osi_TimerStop</span></code>: Stop timer</li>
+<li><code class="docutils literal notranslate"><span class="pre">osi_TimerGetRemainingTime</span></code>: Get remaining time</li>
+</ul>
+<p>The system tick period for the target host MCU must be set in the define <code class="docutils literal notranslate"><span class="pre">TICK_PERIOD_US</span></code> at the top of <code class="docutils literal notranslate"><span class="pre">osi_freertos.c</span></code>.</p>
+</div>
+<div class="section" id="file-system">
+<h2>File System<a class="headerlink" href="#file-system" title="Permalink to this headline">¶</a></h2>
+<p>These functions are required for the file management of the host driver.
+For now the driver only uses the read function to retrieve the pre-installed firmware when downloading it as part of the cc33xx init.</p>
+<p><strong>`osi_filesystem`_:</strong></p>
+<ul class="simple">
+<li><code class="docutils literal notranslate"><span class="pre">osi_fopen</span></code>: File open</li>
+<li><code class="docutils literal notranslate"><span class="pre">osi_fclose</span></code>: File close</li>
+<li><code class="docutils literal notranslate"><span class="pre">osi_fread</span></code>: File read</li>
+<li><code class="docutils literal notranslate"><span class="pre">osi_write</span></code>: File write (not used currently)</li>
+<li><code class="docutils literal notranslate"><span class="pre">osi_filelength</span></code>: Get file size</li>
+</ul>
+</div>
+<div class="section" id="asynchronous-event-handler">
+<h2>Asynchronous Event Handler<a class="headerlink" href="#asynchronous-event-handler" title="Permalink to this headline">¶</a></h2>
+<div class="line-block">
+<div class="line">Asynchronous event handlers are used to process aynchronous events from the CC33XX to the host application.</div>
+<div class="line">This includes errors, notifications of WLAN connections and disconnections, scans, and more.</div>
+<div class="line">The async event handler is implemented by the developer in the application, and it is registered when the application calls <code class="docutils literal notranslate"><span class="pre">Wlan_Start</span></code>. The event handler should be customized for the application.</div>
+<div class="line">In the network_terminal example, the event handler is <code class="docutils literal notranslate"><span class="pre">WlanEventHandler()</span></code> defined in <code class="docutils literal notranslate"><span class="pre">network_terminal.c</span></code>.</div>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="nimble/nimble.html" class="btn btn-neutral float-right" title="NimBLE Bluetooth Stack" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="sw-examples/wifi-provisioning.html" class="btn btn-neutral float-left" title="Wi-Fi Provisioning over BLE" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        <a href="https://www.ti.com/corp/docs/legal/copyright.shtml">2025, Texas Instruments</a>, Texas Instruments Incorporated. All rights reserved. <br>
+        <a href="https://www.ti.com/corp/docs/legal/trademark/trademrk.htm">Trademarks</a> | <a href="https://www.ti.com/corp/docs/legal/privacy.shtml">Privacy policy</a> | <a href="https://www.ti.com/corp/docs/legal/termsofuse.shtml">Terms of use</a> | <a href="https://www.ti.com/lsds/ti/legal/termsofsale.page">Terms of sale</a>
+
+    </p>
+  </div> 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+  
+ <script type="text/javascript">
+    $(document).ready(function() {
+        $(".toggle > *").hide();
+        $(".toggle .header").show();
+        $(".toggle .header").click(function() {
+            $(this).parent().children().not(".header").toggle(400);
+            $(this).parent().children(".header").toggleClass("open");
+        })
+    });
+</script>
+
+
+</body>
+</html>

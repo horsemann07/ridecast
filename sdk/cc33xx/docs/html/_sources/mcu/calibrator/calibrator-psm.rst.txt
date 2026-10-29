@@ -1,0 +1,38 @@
+
+Power Save Mode in Calibrator
+=============================
+
+Based on IEEE802.11 standards a station (STA) can communicate two different power save modes to an AP that it is connected to:
+
+    * Active Mode - In this power mode the STA remains awake and the AP is able to send traffic to it at any time. 
+
+    * Power Save Mode - In this power mode the STA changes between going to sleep and being awake without notifying the AP. As such the AP cannot send traffic to the STA without utilizing a power save deliver protocol that use a variety of elements such as delivery traffic indication messages (DTIM) and Power Save Polling (PS-Poll) packets.
+
+When there is a heavy amount of traffic it is more efficient for the STA to remain active as power save mode can introduce latency in that case. However,
+during low traffic periods it is can be advantageous for the STA to be in power save mode to conserve as much power as possible by returning to sleep
+at the earliest opportunity.
+
+By default, the CC33xx switches between these modes dynamically based on the following parameters:
+
+    * RX TIMEOUT - Time since last rx packet
+    * TX TIMEOUT - Time since last tx packet 
+    * RX THRESHOLD - Number of rx packets
+    * TX THRESHOLD - Number of tx packets
+
+For example if the CC33xx is in active mode, then if the TX or RX TIMEOUT threshold is reached the device will transition to power save mode. Likewise, if 
+the CC33xx is in power save mode, then after sending a TX THRESHOLD number of packets or receiving an RX THRESHOLD number of packets it will transition to active mode.  
+
+Default Values
+==============
+
+If the device is in active mode then it will use the below RX and TX TIMEOUT by default as the threshold to decide when it will switch to power save mode.
+
+    * RX TIMEOUT - 40000 microseconds
+    * TX TIMEOUT - 5000 microseconds
+
+If the device is in power save mode then it will use the below RX and TX THRESHOLDS by default as the threshold to decide when enough packets have received or transmitted 
+that it is more efficient to be in active mode. 
+
+    * RX THRESHOLD - 4 packets
+    * TX THRESHOLD - 2 packets
+

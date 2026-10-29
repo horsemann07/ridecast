@@ -1,0 +1,394 @@
+HCI_EXT_SetRxGainDone
+---------------------
+:Opcode: 0x0400
+:Event Description: This event is sent to indicate the RF receiver gain has been set, or that there was an error.
+
+**Event Parameters**
+
+:Status: 
+
+ :Size: 1 byte(s)
+ :Range: See Status Table
+
+:Command Opcode: 
+
+ :Size: 2 byte(s)
+ :Range: See Command Table
+
+
+HCI_EXT_SetTxPowerDone
+----------------------
+:Opcode: 0x0401
+:Event Description: This event is sent to indicate the RF transmitter power has been set, or that there was an error.
+
+**Event Parameters**
+
+:Status: 
+
+ :Size: 1 byte(s)
+ :Range: See Status Table
+
+:Command Opcode: 
+
+ :Size: 2 byte(s)
+ :Range: See Command Table
+
+
+HCI_EXT_OnePacketPerEventDone
+-----------------------------
+:Opcode: 0x0402
+:Event Description: This event is sent to indicate the One Packet Per Event feature has been enabled or disabled, or that there was an error.
+
+**Event Parameters**
+
+:Status: 
+
+ :Size: 1 byte(s)
+ :Range: See Status Table
+
+:Command Opcode: 
+
+ :Size: 2 byte(s)
+ :Range: See Command Table
+
+
+HCI_EXT_DecryptCommandDone
+--------------------------
+:Opcode: 0x0405
+:Event Description: This event is sent to indicate Decryption has completed.
+
+**Event Parameters**
+
+:Status: 
+
+ :Size: 1 byte(s)
+ :Range: See Status Table
+
+:Command Opcode: 
+
+ :Size: 2 byte(s)
+ :Range: See Command Table
+
+:Decrypted Data: 128 bit decrypted data block. The most significant octet of plainTextData corresponds to plainTextData using the notation specified in FIPS 197.
+
+ :Size: 16 byte(s)
+ :Range: Any 16 byte value
+
+
+HCI_EXT_WriteLocalFeatureSupportDone
+------------------------------------
+:Opcode: 0x0406
+:Event Description: This event is sent to indicate the Set Local Supported Features command has completed.
+
+**Event Parameters**
+
+:Status: 
+
+ :Size: 1 byte(s)
+ :Range: See Status Table
+
+:Command Opcode: 
+
+ :Size: 2 byte(s)
+ :Range: See Command Table
+
+
+HCI_EXT_SetFastTxResponseTimeDone
+---------------------------------
+:Opcode: 0x0407
+:Event Description: This event is sent to indicate the Set Fast Transmit Response Time feature has been enabled or disabled, or that there was an error.
+
+**Event Parameters**
+
+:Status: 
+
+ :Size: 1 byte(s)
+ :Range: See Status Table
+
+:Command Opcode: 
+
+ :Size: 2 byte(s)
+ :Range: See Command Table
+
+
+HCI_EXT_SetBDADDRDone
+---------------------
+:Opcode: 0x040C
+:Event Description: This event is sent to indicate the devices BLE address has been set, or that there was an error.
+
+**Event Parameters**
+
+:Status: 
+
+ :Size: 1 byte(s)
+ :Range: See Status Table
+
+:Command Opcode: 
+
+ :Size: 2 byte(s)
+ :Range: See Command Table
+
+
+HCI_EXT_SetSCADone
+------------------
+:Opcode: 0x040D
+:Event Description: This event is sent to indicate the devices SCA has been set, or that there was an error.
+
+**Event Parameters**
+
+:Status: 
+
+ :Size: 1 byte(s)
+ :Range: See Status Table
+
+:Command Opcode: 
+
+ :Size: 2 byte(s)
+ :Range: See Command Table
+
+
+HCI_EXT_DisconnectImmedDone
+---------------------------
+:Opcode: 0x0413
+:Event Description: This event is sent to indicate the Disconnect Immediate command has completed, or that there was an error.
+
+**Event Parameters**
+
+:Status: 
+
+ :Size: 1 byte(s)
+ :Range: See Status Table
+
+:Command Opcode: 
+
+ :Size: 2 byte(s)
+ :Range: See Command Table
+
+
+HCI_EXT_PER
+-----------
+:Opcode: 0x0414
+:Event Description: This event is sent to indicate the Packet Error Rate Reset or Read command has completed, or that there was an error.
+
+**Event Parameters**
+
+:Status: 
+
+ :Size: 1 byte(s)
+ :Range: See Status Table
+
+:Command Opcode: 
+
+ :Size: 2 byte(s)
+ :Range: See Command Table
+
+:PER Command Type: Read or Reset
+
+ :Size: 1 byte(s)
+ :Range:
+         ===================== ========================================================
+         Value                 Description
+         ===================== ========================================================
+         0                     Reset PER Counters
+         1                     Read PER Counters
+         ===================== ========================================================
+
+:RX Pkts: Number of received packets.
+
+ :Condition: ( cmdVal!=0x00 && cmdStat==0x00)
+ :Size: 2 byte(s)
+ :Range: Any 2 byte value
+
+:RX CRC Fails: Number of received packets with CRC error.
+
+ :Condition: ( cmdVal!=0x00 && cmdStat==0x00)
+ :Size: 2 byte(s)
+ :Range: Any 2 byte value
+
+:Events: Number of connection events.
+
+ :Condition: ( cmdVal!=0x00 && cmdStat==0x00)
+ :Size: 2 byte(s)
+ :Range: Any 2 byte value
+
+:Missed Events: Number of missed connection events.
+
+ :Condition: ( cmdVal!=0x00 && cmdStat==0x00)
+ :Size: 2 byte(s)
+ :Range: Any 2 byte value
+
+
+
+HCI_EXT_ResetSystemDone
+-----------------------
+:Opcode: 0x041D
+:Event Description: This event is sent to indicate the Reset System command has completed, or that there was an error.
+
+**Event Parameters**
+
+:Status: 
+
+ :Size: 1 byte(s)
+ :Range: See Status Table
+
+:Command Opcode: 
+
+ :Size: 2 byte(s)
+ :Range: See Command Table
+
+
+HCI_EXT_NumComplPktsLimitDone
+-----------------------------
+:Opcode: 0x041F
+:Event Description: This event is sent to indicate the Number Completed Packets Limit command has completed, or that there was an error.
+
+**Event Parameters**
+
+:Status: 
+
+ :Size: 1 byte(s)
+ :Range: See Status Table
+
+:Command Opcode: 
+
+ :Size: 2 byte(s)
+ :Range: See Command Table
+
+
+HCI_EXT_GetConnInfoDone
+-----------------------
+:Opcode: 0x0420
+:Event Description: This event is sent to indicate the Get Connection Information command has completed.
+
+**Event Parameters**
+
+:Status: 
+
+ :Size: 1 byte(s)
+ :Range: See Status Table
+
+:Command Opcode: 
+
+ :Size: 2 byte(s)
+ :Range: See Command Table
+
+:Alloc Conns: Total number of allocated connections
+
+ :Size: 1 byte(s)
+ :Range: 
+
+:Active Conns: Number of currently active connections
+
+ :Size: 1 byte(s)
+ :Range: 
+
+
+An array of size "numConn" will be returned containing the parameters starting here:
+
+:Conn Handle: Connection Handle
+
+ :Size: 1 byte(s)
+ :Range: 
+
+:Conn Role: 
+
+ :Size: 1 byte(s)
+ :Range:
+         ===================== ========================================================
+         Value                 Description
+         ===================== ========================================================
+         0x22                  LMP/LL Response Timeout
+         0x23                  LMP Error Transaction Collision
+         0x24                  LMP PDU Not Allowed
+         0x25                  Encryption Mode Not Acceptable
+         0x26                  Link Key Can Not be Changed
+         0x27                  Requested QoS Not Supported
+         0x28                  Instant Passed
+         0x29                  Pairing With Unit Key Not Supported
+         0x2A                  Different Transaction Collision
+         0x2B                  Reserved
+         0x2C                  QoS Unacceptable Parameter
+         0x2D                  QoS Rejected
+         0x2E                  Channel Assessment Not Supported
+         0x2F                  Insufficient Security
+         0x30                  Parameter Out Of Mandatory Range
+         0x31                  Reserved
+         0x32                  Role Switch Pending
+         0x33                  Reserved
+         0x34                  Reserved Slot Violation
+         0x35                  Role Switch Failed
+         0x36                  Extended Inquiry Response Too Large
+         0x37                  Simple Pairing Not Supported By Host
+         0x38                  Host Busy - Pairing
+         0x39                  Connection Rejected Due To No Suitable Channel Found
+         0x3A                  Controller Busy
+         0x3B                  Unacceptable Connection Interval
+         0x3C                  Directed Advertising Timeout
+         0x3D                  Connection Terminated Due To MIC Failure
+         0x3E                  Connection Failed To Be Established
+         0x3F                  MAC Connection Failed
+         0x40                  Coarse Clock Adjust Rejected
+         0x41                  Type0 Submap Not Defined
+         0x42                  Unknown Advertising Identifier
+         0x43                  Limit Reached
+         0x44                  Operation Cancelled by Host
+         ===================== ========================================================
+
+:Peer Addr: 
+
+ :Size: 6 byte(s)
+ :Range: 
+
+:Peer Addr Type: 
+
+ :Size: 1 byte(s)
+ :Range:
+         ===================== ========================================================
+         Value                 Description
+         ===================== ========================================================
+         0x00                  Public
+         0x01                  Random
+         0x02                  Public Identity
+         0x03                  Random Identity
+         ===================== ========================================================
+
+
+The array of parameters ends here.
+
+HCI_EXT_SetMaxDataLengthDone
+----------------------------
+:Opcode: 0x0421
+:Event Description: This event is sent to indicate the Set Max Data Length command has completed.
+
+**Event Parameters**
+
+:Status: 
+
+ :Size: 1 byte(s)
+ :Range: See Status Table
+
+:Command Opcode: 
+
+ :Size: 2 byte(s)
+ :Range: See Command Table
+
+
+
+
+HCI_EXT_LLTestModeDone
+----------------------
+:Opcode: 0x0470
+:Event Description: LL Test Mode event.
+
+**Event Parameters**
+
+:Status: 
+
+ :Size: 1 byte(s)
+ :Range: See Status Table
+
+:Command Opcode: 
+
+ :Size: 2 byte(s)
+ :Range: See Command Table
+

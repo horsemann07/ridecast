@@ -1,0 +1,56 @@
+.. _NimBLE-APIs: https://mynewt.apache.org/latest/network/ble_hs/ble_hs.html
+
+NimBLE Bluetooth Stack
+**********************
+
+Overview
+========
+Apache Mynewt offers the world’s first fully open-source Bluetooth Low Energy (BLE) or Bluetooth Smart stack fully compliant with Bluetooth 5 specifications. It is called NimBLE.
+
+Features
+--------
+
+* NimBLE complies with Bluetooth Core Specification 5.0 which makes it an ideal wireless technology for the Internet of Things (IoT).
+
+* LE Advertising Extensions
+
+* 2M PHY for higher throughput
+
+* Coded PHY for LE Long Range
+
+* High Duty Cycle Non-Connectable Advertising
+
+* Channel Selection Algorithm #2 to utilize channels in more efficient way
+
+* LE Privacy 1.2 for frequent changes to the device address to make it difficult to track for outsiders
+
+* LE Secure Connections featuring FIPS-compliant algorithms
+
+* LE Data Length Extension for higher throughput
+
+
+Host Component
+--------------
+* Logical Link Control and Adaptation Protocol (L2CAP): provides logical channels, named L2CAP channels, which are multiplexed over one or more logical links to provide packet segmentation and reassembly, flow control, error control, streaming, QoS etc.
+
+* Security Manager (SM): uses Security Manager Protocol (SMP) for pairing and transport specific key distribution for securing radio communication
+
+* Attribute protocol (ATT): allows a device (Server) to expose certain pieces of data, known as Attributes, to another device (Client)
+
+* Generic Attribute Profile (GATT): a framework for using the ATT protocol to exchange attributes encapsulated as Characteristics or Services
+
+* Generic Access Profile (GAP): a base profile which all Bluetooth devices implement, which in the case of LE, defines the Physical Layer, Link Layer, L2CAP, Security Manager, Attribute Protocol and Generic Attribute Profile
+
+* Host Controller Interface (HCI): the interface between the host and controller either through software API or by a hardware interface such as SPI, UART or USB
+
+Software Architecture
+---------------------
+
+.. figure:: resources/nimblearch.png
+   :align: center
+   :scale: 80
+
+
+APIs 
+----
+`NimBLE-APIs`_ reference can be found on the MyNewt website

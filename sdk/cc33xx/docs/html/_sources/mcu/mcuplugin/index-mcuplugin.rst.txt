@@ -1,0 +1,17 @@
+
+#################
+CC33XX MCU Plugin 
+#################
+
+.. rubric:: Table of contents
+
+.. toctree::
+   :maxdepth: 2
+
+   ./cc33xx-mcu-plugin.rst
+   ./cc13xx_26xx/index.rst
+    
+   
+
+
+

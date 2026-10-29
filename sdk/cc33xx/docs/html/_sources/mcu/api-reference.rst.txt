@@ -1,0 +1,27 @@
+.. _WiLink MCU API Reference:	..\/..\/doxygen\/cc33xx\/html\/index.html
+.. _wlan_interface:		..\/..\/doxygen\/cc33xx\/html\/group__UPPER__MAC.html
+.. _init_adapt:		..\/..\/doxygen\/cc33xx\/html\/group__INIT__ADAPT.html
+.. _spi_adapt:			..\/..\/doxygen\/cc33xx\/html\/group__SPI__ADAPT.html
+.. _osi_freertos:		..\/..\/doxygen\/cc33xx\/html\/group__OSI__FREERTOS.html
+.. _osi_filesystem:		..\/..\/doxygen\/cc33xx\/html\/group__OSI__FILESYSTEM.html
+
+.. _TI Vendor Specific HCI Guide: ../vs-hci-commands/index-vs-hci-commands.html
+
+API References
+***************
+
+User Interface
+^^^^^^^^^^^^^^^
+* `wlan_interface`_
+
+Porting Files
+^^^^^^^^^^^^^^
+* `init_adapt`_
+* `spi_adapt`_
+* `osi_freertos`_
+* `osi_filesystem`_
+
+
+Vendor Specific HCI Guide
+^^^^^^^^^^^^^^^^^^^^^^^^^
+For detailed information on BLE HCI commands please refer to the `TI Vendor Specific HCI Guide`_ 

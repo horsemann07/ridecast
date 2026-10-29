@@ -1,0 +1,20 @@
+	
+The Network Terminal Application
+*********************************
+
+The **Network Terminal** example provide a command-line interface that enables running basic operations.
+The following menu should appear on the terminal. 
+ 
+	.. figure:: resources/IMG-NetworkTerminal.png
+	   :scale: 100%
+	   :width: 720px	
+
+	   Terminal Network Example
+ 
+ | Typing ``help`` will show this menu.
+ | Typing the name of a command will show the required parameters.
+ | The role (AP or station) should be started before any other command, e.g. with ``wlan_sta_role_up`` or ``wlan_ap_role_up``.
+ | Starting an access-point will enable mobile devices to connect to the CC33XX.
+ | Starting a station role will enable commands such as ``wlan_scan`` and ``wlan_connect``.
+ | Once connected to an access point, you can use ``send` and ``receive`` (over LWIP - the reference network stack).
+ | For more details on the application, check the example's ``README`` file.

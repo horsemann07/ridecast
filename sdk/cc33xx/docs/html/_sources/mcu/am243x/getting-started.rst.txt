@@ -1,0 +1,242 @@
+.. _LP-AM243: https://www.ti.com/tool/LP-AM243
+.. _LP-AM243_EVM-SETUP: https://software-dl.ti.com/mcu-plus-sdk/esd/AM243X/08_05_00_24/exports/docs/api_guide_am243x/EVM_SETUP_PAGE.html
+.. _MCU-PLUS-AM243X-SDK: https://www.ti.com/tool/download/MCU-PLUS-SDK-AM243X/08.05.00.24
+.. _CCS 10.3 and up: https://www.ti.com/tool/download/CCSTUDIO/ 
+.. _TI_Clang 1.3.0 LTS: https://www.ti.com/tool/download/ARM-CGT-CLANG-1 
+.. _Python: https://www.python.org/downloads/release/python-3712/
+.. _`Sitara LP Manual`: https://software-dl.ti.com/mcu-plus-sdk/esd/AM243X/08_05_00_24/exports/docs/api_guide_am243x/SDK_DOWNLOAD_PAGE.html#INSTALL_PYTHON3
+.. _`AM243x UART Boot Mode`: https://software-dl.ti.com/mcu-plus-sdk/esd/AM243X/08_05_00_24/exports/docs/api_guide_am243x/GETTING_STARTED_FLASH.html#autotoc_md45
+.. _`AM243x QSPI Boot Mode`: https://software-dl.ti.com/mcu-plus-sdk/esd/AM243X/08_05_00_24/exports/docs/api_guide_am243x/GETTING_STARTED_FLASH.html#autotoc_md48
+.. _`AM243x No Boot Mode`: https://software-dl.ti.com/mcu-plus-sdk/esd/AM243X/08_05_00_24/exports/docs/api_guide_am243x/EVM_SETUP_PAGE.html#autotoc_md29
+.. _`CCS Launch instructions`: https://software-dl.ti.com/mcu-plus-sdk/esd/AM243X/08_05_00_24/exports/docs/api_guide_am243x/CCS_LAUNCH_PAGE.html
+.. _`CC33XX Host-Driver Porting Guide`: ../porting-guide.html
+.. _`BP-CC33XX`:  https://ti.com/product/CC3351
+.. _`BP-CC33XX Hardware User's Guide`: ../../cc33xx/BP-CC33X1_HW_UserGuide.html
+.. _`CC33XX_MCU_package`: https://www.ti.com/tool/download/CC33XX-RTOS-MCU
+
+AM243 Guide
+***********
+
+Overview
+========
+
+This Getting Started Guide demonstrates how to start evaluating the CC33xx "Thick MAC". 
+The reference platform contains the AM243x LaunchPad (AM243x-LP) and the CC33xx Lx Base Board.
+Below are the instructions for building and running the Wi-Fi example (Network Terminal) from the CC33xx MCU package on the reference platform.
+The MCU package is a plugin that is based on content (such as TI drivers for peripherals, LWIP network stack, FreeRTOS OS adaptation) available in the base SDK (MCU-PLUS-AM243X-SDK).
+Guidance about porting to other platforms is available through the `CC33XX Host-Driver Porting Guide`_.
+
+Prerequisites
+=============
+**Hardware**
+	* `LP-AM243`_
+	* `BP-CC33XX`_
+**Software**
+	* `MCU-PLUS-AM243X-SDK`_ (version 08.05.00.24)
+		* Follow the AM243 Getting Started Guide to get AM243 up and running
+	* `CC33XX_MCU_package`_
+	* `CCS 10.3 and up`_ 
+	* `TI_Clang 1.3.0 LTS`_ 
+	* `Python`_ 3.7 (see instructions in `Sitara LP Manual`_)
+	* `SysConfig`_ version 1.19 or below
+
+Folder Structure of "cc33xx_mcu_package"
+========================================
+* **ccs_projects/** - Projects to build required libraries
+	* ble_host_nimble
+	* ble_interface
+	* lwip
+	* wifi_host_driver
+	* wifi_interface
+	* wifi_platform_cc33xx
+
+* **docs/** - User guides and API references
+
+* **examples/** - Example applications
+	 * CC3xx_ble_wifi_provisioning
+	 * CC3xx_thick_mac_network_terminal
+
+* **source/** - Drivers and libraries source code
+	* **Wi-Fi Stack API** is under source/ti/net/wifi_interface  
+	* **cc33xx Driver** is under source/ti/drivers/net/wifi  
+	* **NimBLE Stack** is under source/third_party/nimble
+
+* **tools/** - 
+	 - programing - contains flash programming (Python_) scripts 
+	 - wifi_fw - contains CC33xx .bin files 
+
+Setup - Sitara AM243x and CC33xx
+================================
+For Information on the Sitara LaunchPad please refer to `LP-AM243_EVM-SETUP`_. 
+
+To use the CC3301 with Linux you may stack the CC3301 BoosterPack to the Sitara EVM LP-AM243. When connecting make sure to align the 5v and GND of both boards to result in the picture below;
+
+.. _platform_figure:
+.. figure:: resources/BP+LP.png
+	:alt: AM243_on_BP-CC3301
+
+.. _platform_table:
+
+The table below shows the header pin interface between the AM243 LaunchPad and the BP-CC3301. For more information on the header pin assignment for the BP-CC3301, please refer to the `BP-CC33XX Hardware User's Guide`_.
+
++--------------+-------------+------------------------------+
+| Sitara Pin   | BP-CC3301   | Description                  |
++==============+=============+==============================+
+| 21           | P1.21       | 5V                           |
++--------------+-------------+------------------------------+
+| 22           | P1.22       | GND                          |
++--------------+-------------+------------------------------+
+| 3            | P1.3        | LP-AM243:RX / BP-CC3301: TX  |
++--------------+-------------+------------------------------+
+| 4            | P1.4        | LP-AM243:TX / BP-CC3301: RX  |
++--------------+-------------+------------------------------+
+| 5            | P1.5        | nRESET                       |
++--------------+-------------+------------------------------+
+| 8            | P1.8        | WLAN IRQ                     |
++--------------+-------------+------------------------------+
+| 7            | P1.7        | SPI CLK                      |
++--------------+-------------+------------------------------+
+| 37           | P2.37       | BP-CC3301: CTS               |
++--------------+-------------+------------------------------+
+| 38           | P2.36       | BP-CC3301: RTS               |
++--------------+-------------+------------------------------+
+| 18           | P2.18       | SPI CS                       |
++--------------+-------------+------------------------------+
+| 14           | P2.15       | SPI PICO                     |
++--------------+-------------+------------------------------+
+| 15           | P2.14       | SPI POCI                     |
++--------------+-------------+------------------------------+
+
+	**Power Connections:**
+
+		a. Connect the Sitara to its power supply and to the PC. 
+
+			.. note::
+				The Sitara needs a 5V / 3A power supply. When powered correctly, 3 green LEDs will turn on.
+
+		b. When Disconnecting/Connecting the Sitara, always make sure you do it in the following sequence:
+
+			+------------+------------------------------------------------------------+
+			| PLUG IN    | Connect Power (USB-C), then Connect Data (micro USB)       |
+			+------------+------------------------------------------------------------+
+			| PLUG OUT   | Disconnect Data (Micro USB), then Disconnect Power (USB-C) |
+			+------------+------------------------------------------------------------+
+
+Import projects and compile in CCS
+==================================
+1. Go to ``File->Import``
+2. Choose ``C/C++ -> CCS Projects``
+3. Browse... -> ``<cc33xx_mcu_package>/``
+4. Choose all - ``wifi_host_driver``, ``wifi_platform_cc33xx``, ``wifi_stack_interface``, ``lwip``, ``ble_host_nimble``, ``ble_interface`` and ``CC3xxx_network_terminal``
+5. First compile the Wi-Fi and BLE projects, then compile the ``network_terminal`` application
+
+Program the Flash
+=================
+
+Before running the example, the RAM bootloader and CC33xx Firmware need to be programmed to the flash on the AM243.
+The content of the 3 files can be found under ``<cc33xx_mcu_package>/tools/wifi_fw``.
+
+.. note::
+	1. The image is loaded and executed from the AM243x MSRAM. To save RAM space the binaries are stored in the flash and read during the FW init.
+	2. The binaries should be programmed to a pre-defined offset in the flash, as shown below:
+
+	    +------------------------+-------------------------+---------------------------------+-------------+
+	    | Binary Name            | Description             | Location                        | Offset      |
+	    +========================+=========================+=================================+=============+
+	    | <app-name>.appimage    | Application Image       | under app project output folder | 0x00080000  |
+	    |                        | (see 3)                 |                                 |             |
+	    +------------------------+-------------------------+---------------------------------+-------------+
+	    | cc33xx_fw.bin          | CC33XX Firmware         | under tools/cc33xx_firmware/    | 0x00800000  |
+	    +------------------------+-------------------------+---------------------------------+-------------+
+	    | cc33xx_2nd_loader.bin  | RAM Bootloader          | under tools/cc33xx_firmware/    | 0x00900000  |
+	    +------------------------+-------------------------+---------------------------------+-------------+
+
+	3. The application image programming is optional. The application image can be executed from flash (see `run from flash`_)
+	4. After the successful compilation of the application, the binary image (``.appimage`` or ``.appimage.hs_fs`` (for secure devices) file, e.g. ``cc3xxx_network_terminal.appimage``) can be found in the *Release/* folder inside the project.
+
+
+Programming Instructions:
+-------------------------
+1. Configure the LaunchPad to UART boot according to `AM243x UART Boot Mode`_.
+	
+	.. figure:: resources/UARTbootmode.png
+		:align: center
+		:scale: 80
+
+2. If you are using a secure MCU (LP-AM243 PROC1093B or newer) - open the ``<cc33xx_mcu_package>/tools/secured_programming`` folder (in a command line window).
+   If you are using an older LP version - move to the ``<cc33xx_mcu_package>/tools/programming/`` folder.
+
+
+3. Set up the programmer's configuration file (if needed, see below)
+
+	In the secured_programming folder, there are 2 configuration files:
+
+		a. ``only_wifi_fw.cfg`` - contains just the Firmware binaries
+		b. ``program_application_and_wifi_fw.cfg`` - contains both the Firmware binaries and the application image. 
+
+	By default the ``program_application_and_wifi_fw.cfg`` is set to the default locations of the firmware. The location of the application image
+	``cc3xxx_network_terminal.appimage.hs_fs`` will need to be set manually
+ 
+	
+4. Run the `uart_uniflash.py` python script:
+
+	a. In Windows: 
+
+		.. code-block:: bash
+
+			python3 uart_uniflash.py -p COM<XDS uart number> --cfg=<config-file-edited-in-step-3>.cfg
+
+	b. In Linux: 
+
+		.. code-block:: bash
+
+			python3 uart_uniflash.py -p /dev/ttyACM<XDS uart number> --cfg=<config-file-edited-in-step-3>.cfg
+
+		**example:** 
+
+		.. code-block:: bash
+
+			python3 uart_uniflash.py -p /dev/ttyACM3 --cfg=only_wifi_fw.cfg
+			
+Below is a screenshot of a successful execution:
+
+	.. figure:: resources/IMG-Programming.png
+		:align: center
+		:scale: 70%
+
+		Successful flash
+
+5. Exit from UART boot (return the switch pins).
+
+	.. figure:: resources/QSPIbootmode.png
+		:align: center
+		:scale: 80
+
+
+.. _run from flash:
+
+Run the example from flash
+==========================
+When loading the code from flash (make sure to follow step 3.b in the Programing instructions), configure the LP for `AM243x QSPI Boot Mode`_.
+
+1. Open a serial terminal (see `Serial Terminal Configuration`_).
+2. Pressing the reset button (see `platform_figure`_) on the launchpad will trigger the application.
+
+.. _`Serial Terminal Configuration`:
+
+Serial Terminal Configuration:
+------------------------------
+	| COM Port: 	  Listed as ``Applications/User UART`` (see note below)
+	| Baud-rate:    115200
+	| Data bits:         8
+	| Stop bits:         1
+	| Parity:         None
+	| Flow Control:   None
+	
+	.. note::
+		The COM port can be determined via Device Manager in Windows or via ls /dev/tty* in Linux.
+	
+
+
+
+

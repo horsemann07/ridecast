@@ -1,0 +1,12 @@
+#################
+Software Examples 
+#################
+
+.. rubric:: Table of contents
+
+.. toctree::
+   :maxdepth: 2
+
+   ./network-terminal.rst
+   ./wifi-provisioning.rst
+

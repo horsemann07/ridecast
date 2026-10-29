@@ -1,0 +1,623 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>AM243 Guide &mdash; Mcu CC33XX User&#39;s Guide R8 documentation</title>
+  
+
+  
+  
+    <link rel="shortcut icon" href="../../_static/favicon.ico"/>
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/css/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/theme_overrides.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="CC33XX MCU Plugin" href="../mcuplugin/index-mcuplugin.html" />
+    <link rel="prev" title="Software Overview" href="overview.html" />
+    <script language="JavaScript">
+        var tiPageName;
+        tiPageName = "sug mcu am243x getting-started";
+
+        if (location.protocol == "file:"){
+            var ci_analytics_poc_load = true;
+        }
+    </script>
+
+    <script src="http://www.ti.com/assets/js/headerfooter/analytics.js" type="text/javascript" charset="utf-8"></script>
+
+
+</head>
+
+<body class="wy-body-for-nav">
+   <!---- extra body elements for TI beyond RTD Sphinx Theme --->
+<div class="DocSite-globalNav tiNav">
+    <ul>
+    </ul>
+</div>
+
+<a class="DocSite-nav" href="https://www.ti.com" style="padding-bottom: 85px;">
+  <img class="DocSiteNav-logo"
+    src="../../_static/img/ti_logo.png"
+    alt="TI Logo">
+  <div class="DocSiteNav-title"></div>
+</a> 
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../cc33xx-index.html" class="icon icon-home" alt="Documentation Home"> Mcu CC33XX User's Guide
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                R8
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../intro-mcu.html">Overview and Features</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Getting Started</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="overview.html">Software Overview</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">AM243 Guide</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#prerequisites">Prerequisites</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#folder-structure-of-cc33xx-mcu-package">Folder Structure of “cc33xx_mcu_package”</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#setup-sitara-am243x-and-cc33xx">Setup - Sitara AM243x and CC33xx</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#import-projects-and-compile-in-ccs">Import projects and compile in CCS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#program-the-flash">Program the Flash</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#programming-instructions">Programming Instructions:</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#run-the-example-from-flash">Run the example from flash</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#serial-terminal-configuration-1">Serial Terminal Configuration:</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../mcuplugin/index-mcuplugin.html">CC33XX MCU Plugin</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../wifi/cc35xx-basic-operations.html">Basic Operations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../wifi/cc35xx-basic-operations.html#get-and-set">GET and SET</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../wifi/cc35xx-network-addresses.html">Network Address - Addressing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../wifi/cc35xx-sockets.html">Sockets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../sw-examples/index.html">Software Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../porting-guide.html">Driver Porting Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../nimble/nimble.html">NimBLE Bluetooth Stack</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../calibrator/index-calibrator.html">Calibrator Tool</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../cc33xx/BP-CC33X1_HW_UserGuide.html">CC33X1 BoosterPack Hardware User’s Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api-reference.html">API References</a></li>
+</ul>
+
+            
+          
+          <!-- extra nav elements for TI beyond RTD Sphinx Theme --->
+<div id="sideBanner">
+    <br/>
+    <br/><br/><br/>
+</div>
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../cc33xx-index.html">Mcu CC33XX User's Guide</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../cc33xx-index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="index.html">Getting Started</a> &raquo;</li>
+        
+      <li>AM243 Guide</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="am243-guide">
+<h1>AM243 Guide<a class="headerlink" href="#am243-guide" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p>This Getting Started Guide demonstrates how to start evaluating the CC33xx “Thick MAC”.
+The reference platform contains the AM243x LaunchPad (AM243x-LP) and the CC33xx Lx Base Board.
+Below are the instructions for building and running the Wi-Fi example (Network Terminal) from the CC33xx MCU package on the reference platform.
+The MCU package is a plugin that is based on content (such as TI drivers for peripherals, LWIP network stack, FreeRTOS OS adaptation) available in the base SDK (MCU-PLUS-AM243X-SDK).
+Guidance about porting to other platforms is available through the <a class="reference external" href="../porting-guide.html">CC33XX Host-Driver Porting Guide</a>.</p>
+</div>
+<div class="section" id="prerequisites">
+<h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Permalink to this headline">¶</a></h2>
+<dl class="docutils">
+<dt><strong>Hardware</strong></dt>
+<dd><ul class="first last simple">
+<li><a class="reference external" href="https://www.ti.com/tool/LP-AM243">LP-AM243</a></li>
+<li><a class="reference external" href="https://ti.com/product/CC3351">BP-CC33XX</a></li>
+</ul>
+</dd>
+<dt><strong>Software</strong></dt>
+<dd><ul class="first last simple">
+<li><dl class="first docutils">
+<dt><a class="reference external" href="https://www.ti.com/tool/download/MCU-PLUS-SDK-AM243X/08.05.00.24">MCU-PLUS-AM243X-SDK</a> (version 08.05.00.24)</dt>
+<dd><ul class="first last">
+<li>Follow the AM243 Getting Started Guide to get AM243 up and running</li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><a class="reference external" href="https://www.ti.com/tool/download/CC33XX-RTOS-MCU">CC33XX_MCU_package</a></li>
+<li><a class="reference external" href="https://www.ti.com/tool/download/CCSTUDIO/">CCS 10.3 and up</a></li>
+<li><a class="reference external" href="https://www.ti.com/tool/download/ARM-CGT-CLANG-1">TI_Clang 1.3.0 LTS</a></li>
+<li><a class="reference external" href="https://www.python.org/downloads/release/python-3712/">Python</a> 3.7 (see instructions in <a class="reference external" href="https://software-dl.ti.com/mcu-plus-sdk/esd/AM243X/08_05_00_24/exports/docs/api_guide_am243x/SDK_DOWNLOAD_PAGE.html#INSTALL_PYTHON3">Sitara LP Manual</a>)</li>
+<li><a class="reference external" href="http://www.ti.com/tool/sysconfig">SysConfig</a> version 1.19 or below</li>
+</ul>
+</dd>
+</dl>
+</div>
+<div class="section" id="folder-structure-of-cc33xx-mcu-package">
+<h2>Folder Structure of “cc33xx_mcu_package”<a class="headerlink" href="#folder-structure-of-cc33xx-mcu-package" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><dl class="first docutils">
+<dt><strong>ccs_projects/</strong> - Projects to build required libraries</dt>
+<dd><ul class="first last">
+<li>ble_host_nimble</li>
+<li>ble_interface</li>
+<li>lwip</li>
+<li>wifi_host_driver</li>
+<li>wifi_interface</li>
+<li>wifi_platform_cc33xx</li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><strong>docs/</strong> - User guides and API references</li>
+<li><dl class="first docutils">
+<dt><strong>examples/</strong> - Example applications</dt>
+<dd><ul class="first last">
+<li>CC3xx_ble_wifi_provisioning</li>
+<li>CC3xx_thick_mac_network_terminal</li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt><strong>source/</strong> - Drivers and libraries source code</dt>
+<dd><ul class="first last">
+<li><strong>Wi-Fi Stack API</strong> is under source/ti/net/wifi_interface</li>
+<li><strong>cc33xx Driver</strong> is under source/ti/drivers/net/wifi</li>
+<li><strong>NimBLE Stack</strong> is under source/third_party/nimble</li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt><strong>tools/</strong> -</dt>
+<dd><ul class="first last">
+<li>programing - contains flash programming (<a class="reference external" href="https://www.python.org/downloads/release/python-3712/">Python</a>) scripts</li>
+<li>wifi_fw - contains CC33xx .bin files</li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div>
+<div class="section" id="setup-sitara-am243x-and-cc33xx">
+<h2>Setup - Sitara AM243x and CC33xx<a class="headerlink" href="#setup-sitara-am243x-and-cc33xx" title="Permalink to this headline">¶</a></h2>
+<p>For Information on the Sitara LaunchPad please refer to <a class="reference external" href="https://software-dl.ti.com/mcu-plus-sdk/esd/AM243X/08_05_00_24/exports/docs/api_guide_am243x/EVM_SETUP_PAGE.html">LP-AM243_EVM-SETUP</a>.</p>
+<p>To use the CC3301 with Linux you may stack the CC3301 BoosterPack to the Sitara EVM LP-AM243. When connecting make sure to align the 5v and GND of both boards to result in the picture below;</p>
+<div class="figure" id="platform-figure">
+<img alt="AM243_on_BP-CC3301" src="../../_images/BP+LP.png" />
+</div>
+<p id="platform-table">The table below shows the header pin interface between the AM243 LaunchPad and the BP-CC3301. For more information on the header pin assignment for the BP-CC3301, please refer to the <a class="reference external" href="../../cc33xx/BP-CC33X1_HW_UserGuide.html">BP-CC33XX Hardware User’s Guide</a>.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="25%" />
+<col width="23%" />
+<col width="53%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Sitara Pin</th>
+<th class="head">BP-CC3301</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>21</td>
+<td>P1.21</td>
+<td>5V</td>
+</tr>
+<tr class="row-odd"><td>22</td>
+<td>P1.22</td>
+<td>GND</td>
+</tr>
+<tr class="row-even"><td>3</td>
+<td>P1.3</td>
+<td>LP-AM243:RX / BP-CC3301: TX</td>
+</tr>
+<tr class="row-odd"><td>4</td>
+<td>P1.4</td>
+<td>LP-AM243:TX / BP-CC3301: RX</td>
+</tr>
+<tr class="row-even"><td>5</td>
+<td>P1.5</td>
+<td>nRESET</td>
+</tr>
+<tr class="row-odd"><td>8</td>
+<td>P1.8</td>
+<td>WLAN IRQ</td>
+</tr>
+<tr class="row-even"><td>7</td>
+<td>P1.7</td>
+<td>SPI CLK</td>
+</tr>
+<tr class="row-odd"><td>37</td>
+<td>P2.37</td>
+<td>BP-CC3301: CTS</td>
+</tr>
+<tr class="row-even"><td>38</td>
+<td>P2.36</td>
+<td>BP-CC3301: RTS</td>
+</tr>
+<tr class="row-odd"><td>18</td>
+<td>P2.18</td>
+<td>SPI CS</td>
+</tr>
+<tr class="row-even"><td>14</td>
+<td>P2.15</td>
+<td>SPI PICO</td>
+</tr>
+<tr class="row-odd"><td>15</td>
+<td>P2.14</td>
+<td>SPI POCI</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<div><p><strong>Power Connections:</strong></p>
+<blockquote>
+<div><ol class="loweralpha">
+<li><p class="first">Connect the Sitara to its power supply and to the PC.</p>
+<blockquote>
+<div><div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">The Sitara needs a 5V / 3A power supply. When powered correctly, 3 green LEDs will turn on.</p>
+</div>
+</div></blockquote>
+</li>
+<li><p class="first">When Disconnecting/Connecting the Sitara, always make sure you do it in the following sequence:</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="17%" />
+<col width="83%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td>PLUG IN</td>
+<td>Connect Power (USB-C), then Connect Data (micro USB)</td>
+</tr>
+<tr class="row-even"><td>PLUG OUT</td>
+<td>Disconnect Data (Micro USB), then Disconnect Power (USB-C)</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+</li>
+</ol>
+</div></blockquote>
+</div></blockquote>
+</div>
+<div class="section" id="import-projects-and-compile-in-ccs">
+<h2>Import projects and compile in CCS<a class="headerlink" href="#import-projects-and-compile-in-ccs" title="Permalink to this headline">¶</a></h2>
+<ol class="arabic simple">
+<li>Go to <code class="docutils literal notranslate"><span class="pre">File-&gt;Import</span></code></li>
+<li>Choose <code class="docutils literal notranslate"><span class="pre">C/C++</span> <span class="pre">-&gt;</span> <span class="pre">CCS</span> <span class="pre">Projects</span></code></li>
+<li>Browse… -&gt; <code class="docutils literal notranslate"><span class="pre">&lt;cc33xx_mcu_package&gt;/</span></code></li>
+<li>Choose all - <code class="docutils literal notranslate"><span class="pre">wifi_host_driver</span></code>, <code class="docutils literal notranslate"><span class="pre">wifi_platform_cc33xx</span></code>, <code class="docutils literal notranslate"><span class="pre">wifi_stack_interface</span></code>, <code class="docutils literal notranslate"><span class="pre">lwip</span></code>, <code class="docutils literal notranslate"><span class="pre">ble_host_nimble</span></code>, <code class="docutils literal notranslate"><span class="pre">ble_interface</span></code> and <code class="docutils literal notranslate"><span class="pre">CC3xxx_network_terminal</span></code></li>
+<li>First compile the Wi-Fi and BLE projects, then compile the <code class="docutils literal notranslate"><span class="pre">network_terminal</span></code> application</li>
+</ol>
+</div>
+<div class="section" id="program-the-flash">
+<h2>Program the Flash<a class="headerlink" href="#program-the-flash" title="Permalink to this headline">¶</a></h2>
+<p>Before running the example, the RAM bootloader and CC33xx Firmware need to be programmed to the flash on the AM243.
+The content of the 3 files can be found under <code class="docutils literal notranslate"><span class="pre">&lt;cc33xx_mcu_package&gt;/tools/wifi_fw</span></code>.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<ol class="last arabic">
+<li><p class="first">The image is loaded and executed from the AM243x MSRAM. To save RAM space the binaries are stored in the flash and read during the FW init.</p>
+</li>
+<li><p class="first">The binaries should be programmed to a pre-defined offset in the flash, as shown below:</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="25%" />
+<col width="26%" />
+<col width="35%" />
+<col width="14%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Binary Name</th>
+<th class="head">Description</th>
+<th class="head">Location</th>
+<th class="head">Offset</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>&lt;app-name&gt;.appimage</td>
+<td>Application Image
+(see 3)</td>
+<td>under app project output folder</td>
+<td>0x00080000</td>
+</tr>
+<tr class="row-odd"><td>cc33xx_fw.bin</td>
+<td>CC33XX Firmware</td>
+<td>under tools/cc33xx_firmware/</td>
+<td>0x00800000</td>
+</tr>
+<tr class="row-even"><td>cc33xx_2nd_loader.bin</td>
+<td>RAM Bootloader</td>
+<td>under tools/cc33xx_firmware/</td>
+<td>0x00900000</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+</li>
+<li><p class="first">The application image programming is optional. The application image can be executed from flash (see <a class="reference internal" href="#run-from-flash">run from flash</a>)</p>
+</li>
+<li><p class="first">After the successful compilation of the application, the binary image (<code class="docutils literal notranslate"><span class="pre">.appimage</span></code> or <code class="docutils literal notranslate"><span class="pre">.appimage.hs_fs</span></code> (for secure devices) file, e.g. <code class="docutils literal notranslate"><span class="pre">cc3xxx_network_terminal.appimage</span></code>) can be found in the <em>Release/</em> folder inside the project.</p>
+</li>
+</ol>
+</div>
+<div class="section" id="programming-instructions">
+<h3>Programming Instructions:<a class="headerlink" href="#programming-instructions" title="Permalink to this headline">¶</a></h3>
+<ol class="arabic">
+<li><p class="first">Configure the LaunchPad to UART boot according to <a class="reference external" href="https://software-dl.ti.com/mcu-plus-sdk/esd/AM243X/08_05_00_24/exports/docs/api_guide_am243x/GETTING_STARTED_FLASH.html#autotoc_md45">AM243x UART Boot Mode</a>.</p>
+<blockquote>
+<div><div class="figure align-center">
+<a class="reference internal image-reference" href="../../_images/UARTbootmode.png"><img alt="../../_images/UARTbootmode.png" src="../../_images/UARTbootmode.png" style="width: 463.20000000000005px; height: 345.6px;" /></a>
+</div>
+</div></blockquote>
+</li>
+<li><p class="first">If you are using a secure MCU (LP-AM243 PROC1093B or newer) - open the <code class="docutils literal notranslate"><span class="pre">&lt;cc33xx_mcu_package&gt;/tools/secured_programming</span></code> folder (in a command line window).
+If you are using an older LP version - move to the <code class="docutils literal notranslate"><span class="pre">&lt;cc33xx_mcu_package&gt;/tools/programming/</span></code> folder.</p>
+</li>
+<li><p class="first">Set up the programmer’s configuration file (if needed, see below)</p>
+<blockquote>
+<div><p>In the secured_programming folder, there are 2 configuration files:</p>
+<blockquote>
+<div><ol class="loweralpha simple">
+<li><code class="docutils literal notranslate"><span class="pre">only_wifi_fw.cfg</span></code> - contains just the Firmware binaries</li>
+<li><code class="docutils literal notranslate"><span class="pre">program_application_and_wifi_fw.cfg</span></code> - contains both the Firmware binaries and the application image.</li>
+</ol>
+</div></blockquote>
+<p>By default the <code class="docutils literal notranslate"><span class="pre">program_application_and_wifi_fw.cfg</span></code> is set to the default locations of the firmware. The location of the application image
+<code class="docutils literal notranslate"><span class="pre">cc3xxx_network_terminal.appimage.hs_fs</span></code> will need to be set manually</p>
+</div></blockquote>
+</li>
+<li><p class="first">Run the <cite>uart_uniflash.py</cite> python script:</p>
+<blockquote>
+<div><ol class="loweralpha">
+<li><p class="first">In Windows:</p>
+<blockquote>
+<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3 uart_uniflash.py -p COM&lt;XDS uart number&gt; --cfg<span class="o">=</span>&lt;config-file-edited-in-step-3&gt;.cfg
+</pre></div>
+</div>
+</div></blockquote>
+</li>
+<li><p class="first">In Linux:</p>
+<blockquote>
+<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3 uart_uniflash.py -p /dev/ttyACM&lt;XDS uart number&gt; --cfg<span class="o">=</span>&lt;config-file-edited-in-step-3&gt;.cfg
+</pre></div>
+</div>
+<p><strong>example:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3 uart_uniflash.py -p /dev/ttyACM3 --cfg<span class="o">=</span>only_wifi_fw.cfg
+</pre></div>
+</div>
+</div></blockquote>
+</li>
+</ol>
+</div></blockquote>
+</li>
+</ol>
+<p>Below is a screenshot of a successful execution:</p>
+<blockquote>
+<div><div class="figure align-center" id="figure-1">
+<a class="reference internal image-reference" href="../../_images/IMG-Programming.png"><img alt="../../_images/IMG-Programming.png" src="../../_images/IMG-Programming.png" style="width: 791.0px; height: 392.7px;" /></a>
+<p class="caption"><span class="caption-number">Fig. 3 </span><span class="caption-text">Successful flash</span></p>
+</div>
+</div></blockquote>
+<ol class="arabic" start="5">
+<li><p class="first">Exit from UART boot (return the switch pins).</p>
+<blockquote>
+<div><div class="figure align-center">
+<a class="reference internal image-reference" href="../../_images/QSPIbootmode.png"><img alt="../../_images/QSPIbootmode.png" src="../../_images/QSPIbootmode.png" style="width: 452.0px; height: 332.0px;" /></a>
+</div>
+</div></blockquote>
+</li>
+</ol>
+</div>
+</div>
+<div class="section" id="run-the-example-from-flash">
+<span id="run-from-flash"></span><h2>Run the example from flash<a class="headerlink" href="#run-the-example-from-flash" title="Permalink to this headline">¶</a></h2>
+<p>When loading the code from flash (make sure to follow step 3.b in the Programing instructions), configure the LP for <a class="reference external" href="https://software-dl.ti.com/mcu-plus-sdk/esd/AM243X/08_05_00_24/exports/docs/api_guide_am243x/GETTING_STARTED_FLASH.html#autotoc_md48">AM243x QSPI Boot Mode</a>.</p>
+<ol class="arabic simple">
+<li>Open a serial terminal (see <a class="reference internal" href="#serial-terminal-configuration">Serial Terminal Configuration</a>).</li>
+<li>Pressing the reset button (see <a class="reference internal" href="#platform-figure">platform_figure</a>) on the launchpad will trigger the application.</li>
+</ol>
+<div class="section" id="serial-terminal-configuration-1">
+<span id="serial-terminal-configuration"></span><h3>Serial Terminal Configuration:<a class="headerlink" href="#serial-terminal-configuration-1" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><div class="line-block">
+<div class="line">COM Port:       Listed as <code class="docutils literal notranslate"><span class="pre">Applications/User</span> <span class="pre">UART</span></code> (see note below)</div>
+<div class="line">Baud-rate:    115200</div>
+<div class="line">Data bits:         8</div>
+<div class="line">Stop bits:         1</div>
+<div class="line">Parity:         None</div>
+<div class="line">Flow Control:   None</div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">The COM port can be determined via Device Manager in Windows or via ls /dev/tty* in Linux.</p>
+</div>
+</div></blockquote>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="../mcuplugin/index-mcuplugin.html" class="btn btn-neutral float-right" title="CC33XX MCU Plugin" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="overview.html" class="btn btn-neutral float-left" title="Software Overview" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        <a href="https://www.ti.com/corp/docs/legal/copyright.shtml">2025, Texas Instruments</a>, Texas Instruments Incorporated. All rights reserved. <br>
+        <a href="https://www.ti.com/corp/docs/legal/trademark/trademrk.htm">Trademarks</a> | <a href="https://www.ti.com/corp/docs/legal/privacy.shtml">Privacy policy</a> | <a href="https://www.ti.com/corp/docs/legal/termsofuse.shtml">Terms of use</a> | <a href="https://www.ti.com/lsds/ti/legal/termsofsale.page">Terms of sale</a>
+
+    </p>
+  </div> 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+  
+ <script type="text/javascript">
+    $(document).ready(function() {
+        $(".toggle > *").hide();
+        $(".toggle .header").show();
+        $(".toggle .header").click(function() {
+            $(this).parent().children().not(".header").toggle(400);
+            $(this).parent().children(".header").toggleClass("open");
+        })
+    });
+</script>
+
+
+</body>
+</html>

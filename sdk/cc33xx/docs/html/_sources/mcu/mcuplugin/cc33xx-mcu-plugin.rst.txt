@@ -1,0 +1,86 @@
+.. _`CC33XX Host-Driver Porting Guide`: ../porting-guide.html
+
+
+Plugin Overview
+***************
+The plugin is not an SDK. It was designed as add-on on top of a Host MCU SDK.
+
+The plugin provides referrences for the porting of the CC33xx stack and host driver into different host platforms.
+It also provides a reference for porting an operating system (the reference provided is FreeRTOS), Network Stack (LWIP) and for porting
+peripherals drivers (references for TI Simplelink and TI SITARA SDKs). 
+
+The plugin splits between platform-independent (under uppermac/sources/ and examples/) and platform-dependent code (under platforms/).
+
+The cc33xx-mcu-plugin directory structure is broken down into a few major directories at the root to allow 
+easy differentiation between documentation, examples, and other source code. From the root directory, 
+the sub-directories are:
+
+* ``docs/``: All documentation for the SDK
+* ``examples/``: Platform-independent source code for example projects (+build scripts) 
+* ``uppermac/source/``: platform independent Source code for the wi-fi host driver and for required TI and third-party libraries (e.g. LWIP, NimBLE) 
+* ``tools/``: CC33xx firmware and build scripts 
+* ``platforms/``: platform-specific adaptation code, build scripts and tools 
+
+	* ``platforms/inc``: header files for the abstraction interfaces and user settings for specific modules. 
+	* ``platforms/os`` (e.g. platforms/os/freertos) : Operating Systems abstraction implementations (main() to start OS scheduler and OSI adaptation).
+	* ``platforms/ns`` (e.g. platforms/ns/lwip) : Network Stack abstraction implementations.
+	* ``platforms/drivers`` (e.g. platforms/drivers/simplelink) : application services (e.g. LED control, Button, UART Terminal and debug) and peripheral access (UART/SPI/GPIO)
+	* ``platforms/[host-platform]`` (e.g. platforms/am24x): contains tools for the platform (such as firmware programming scripts), platform-specific build scripts and a common linker file. 
+	* ``platforms/platforms/[host-platform]/[ref-board]:`` (e.g. platforms/cc13x4_cc26x4/LP-EM_CC1354P10_6): contains the file system implementation (per platform's storage) and a reference (common) sys-config.
+
+The following diagram depicts the platform abstraction interfaces as used by the CC33xx-MCU-Plugin examples: 
+
+.. figure:: resources/BD-cc33xx-plugin.png
+    :name: fig-cc33xx-plugin-diagram
+    :align: center
+
+    CC3XX MCU Plugin Block Diagram
+
+
+A "Thick-MAC" Architecture
+==========================
+
+The following figure shows a generic block diagram of the CC33xx + MCU host platform solution at a high level.
+For **MCU hosts**, this CC33XX package introduces the **Thick-MAC** concept where the WPA Supplicant and the connection management are implemented within the CC33XX device. 
+This configuration reduces the footprint of the host application and simplifies the Wi-Fi control.
+Note that having the Supplicant inside the device is different from the **Linux Transceiver** partitioning used by the **MPU** based hosts.   
+
+.. figure:: resources/BD-ThickMAC-Arch.png
+    :name: fig-thick-mac-arch-diagram
+    :align: center
+
+    Thick-MAC Architecture Block Diagram
+
+The host may use an XIP flash or RAM to run the application image. The program memory must be larger than 512KB for the basic wi-fi example to work. A 1 MB is recommended depending on specific application requirements.
+
+The package supports Wi-Fi + BLE examples and contains a TCPIP and MQTT stacks (using LWIP as reference for both) and a BLE stack (NimBLE). A typical application will also require a TLS stack. Other networking protocols (e.g. HTTP) are available as part of the LWIP stack but are not supported by the current examples. The network stack and the BLE stack are included in the plugin but they can be replaced by an external library for example from the Host MCU SDK (e.g. for AM24x the LWIP library is used from the Sitara MCU-PLUS SDK.) 
+
+The CC33xx firmware binaries (which is ~400KB) may be stored on an external storage (a serial SPI flash is used in our references). Upon Boot (``WlanStart()``) - the driver reads the firmware through a file-system abstraction API. The file access is currently implemented by hard-coded translation to SPI Flash offsets. If the MCU has enough memory for he CC33xx firmware - the implementation may read the firmware from constant arrays as part of the application code. 
+
+Since the reference platforms use an external flash, each platforms provides its own tool to program the firmware before the operational code can start. The **FirmwareProgrammer** application or script can be found under ``platforms/<platform-name>/tools.``  
+Check the ``Getting Started`` guide of a specific platform for more details.
+
+The Wi-Fi default host interface is SPI. It can be replaced by SDIO by changing build options of the wi-fi platform driver. The BLE default host interface is UART. 
+For more details on the host interface, see the `CC33XX Host-Driver Porting Guide`_.
+
+
+
+Host Driver Architecture
+========================
+
+The CC33xx Wi-Fi stack is composed of 3 components (and libraries):
+
+	* **Wi-Fi Stack Interface** is handling the user API for controlling and configuring the wifi and the data-path interfaces (interfaces to the network-stack), The "stack interface" implements the Thick MAC interface (in which the connection manager and hostapd are implemented in the device) and is mostly used to build (serialize) the user commands in format accepted by the FW. The component is also responsible the init sequence (fw download etc) and TX flow control. 
+	* **Wi-Fi Host Driver** handles the transport layer (i.e. the logical interfaces towards the CC33xx FW) which defines how to send a generic command (or transmit an Ethernet packet) to the FW and how to receive a command response, asynchronous event or RX (ethernet) frame. 
+	* **Wi-Fi Platform Driver** is an abstraction driver that handles the cc33xx-specific initialization requirements and the different bus options (specifically it is adding the wSPI logic on top of SPI that imitates the SDIO operation by making similar memory mapping) . Using SDIO or wSPI is configurable when building the library.
+
+The following block diagram presents the CC33xx Wi-Fi host driver components.
+
+.. figure:: resources/BD-HostDriver-1.png
+    :name: fig-cc13xx_26xx-cc33xx-host-driver-block-diagram
+    :align: center
+
+    Host Driver Block Diagram
+
+
+

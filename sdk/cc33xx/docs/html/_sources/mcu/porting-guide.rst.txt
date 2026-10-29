@@ -1,0 +1,151 @@
+.. _wlan_irq_adapt:	  ..\/..\/doxygen\/cc33xx\/html\/group__INIT__ADAPT.html
+.. _spi_adapt:		  ..\/..\/doxygen\/cc33xx\/html\/group__SPI__ADAPT.html
+.. _osi_freertos:	  ..\/..\/doxygen\/cc33xx\/html\/group__OSI__FREERTOS.html
+.. _osi_filesystem:	  ..\/..\/doxygen\/cc33xx\/html\/group__OSI__FILESYSTEM.html
+.. _Free-RTOS:		  https://aws.amazon.com/freertos/https://aws.amazon.com/freertos/
+.. _MCU-PLUS-AM243X-SDK: http://tigt_qa.dal.englab.ti.com/qacm/test_area/MCU_PLUS_SDK/08.00.00/am243x/08_00_00_21/
+
+Driver Porting Guide
+********************
+
+| This guide is intended to help customers port the software components required to use the CC33xx MCU with a non-TI microcontroller.
+| This porting guide is focusing on the Wi-Fi host driver porting. Note that the example applications (e.g. Network Terminal) use TI Drivers, FreeRTOS operating system and LWIP network stack which will require their own ports and are out of the scope of this guide.  
+| More details on the commands listed below can be found through the API reference.
+
+Porting Layer Files
+====================
+| The CC33XX MCU SW Package example contains a porting layer that acts as the adaptation layer for the host microcontroller. 
+| When moving to another host platform or operating system these files must be ported. 
+| The following sections will walk through this porting layer in detail. The adaptation layer implementation files can be found inside the **WiFi_adaptation_layer/** folder of the example project:
+
+* ``wlan_irq_adapt.c``
+* ``spi_adapt.c``
+* ``osi_filesystem.c``
+* ``osi_freertos.c``
+
+| In this package, these files are available for the AM243x host. 
+| Many of these files include header files specific to TI microcontrollers, such as ``ti_drivers_config.h``. 
+| These include paths can be removed or replaced for non-TI MCUs.
+
+WLAN Enable/Disable
+======================
+The CC33XX device can be enabled and disabled by controlling the WLAN_EN signal via GPIO output.
+
+**`wlan_irq_adapt`_:**
+
+* ``TurnOn_WL``: Toggles the WLAN_EN signal high, then delays 2 seconds.
+* ``TurnOff_WL``: Toggles the WLAN_EN signal low.
+* ``GetState_WL``: Checks the current state of the WLAN_EN signal.
+
+Host Interface
+===================
+The host communication interface is SPI. The porting layer requires functionality for SPI open, close, read, write, and registering an interrupt handler routine for the IRQ signal.
+
+The SPI interface on the host MCU has the following hardware requirements: 
+
+* Master mode
+* 4 pin mode
+* Chip select active low
+* Polarity 0 phase 0
+* Max frequency: 32000000 Hz
+* Data block: 32 bits
+
+**`spi_adapt`_:**
+
+* ``spi_Init``: Initialize and open the host MCU SPI module
+* ``spi_ReadSync``: Read from SPI (blocking)
+* ``spi_WriteSync``: Write to SPI (blocking)
+
+
+The host interface also requires an IRQ signal with a registered interrupt and a GPIO to control the CC33xx Enable pin.
+
+**`wlan_irq_adapt`_:**
+
+* ``wlan_IRQInit``: Initialize the GPIO input and register a pin interrupt
+* ``wlan_IRQDeinit``: Destroy the GPIO interrupt
+* ``wlan_IRQEableInt``: Enable GPIO interrupt. If working with edge-trigger, this is not required.
+* ``wlan_IRQDisableInt``: Disable GPIO interrupt. If working with edge-trigger, this is not required.
+* ``wlan_IRQClearInt``: Clear GPIO interrupt. If working with edge-trigger, this is not required.
+
+* ``wlan_TurnOffWlan``: Set the CC33xx enable pin (GPIO) to off state.
+* ``wlan_TurnOnWlan``: Set the CC33xx enable pin (GPIO) to on state.
+* ``wlan_GetStateWlan``: Retrieve the CC33xx enable pin (GPIO) state.
+
+OS Abstraction
+=================
+This software package utilizes `Free-RTOS`_, which is included with the `MCU-PLUS-AM243X-SDK`_. The porting layer defines generic "osi" APIs used by the firmware. This allows the firmware to adapt to another RTOS.
+
+**`osi_freertos`_:**
+
+* ``osi_SyncObjCreate``: Create a sync object (e.g. a semaphore or a message queue) where a thread can block and wait for an external event
+* ``osi_SyncObjDelete``: Delete sync object
+* ``osi_SyncObjSignal``: Generate a sync signal, or give the sempahore
+* ``osi_SyncObjSignalFromISR``: Generate a sync signal from the ISR context
+* ``osi_SyncObjWait``: Wait for a sync signal, or take the semaphore
+* ``osi_SyncObjClear``: Clear sync object
+* ``osi_LockObjCreate``: Create a locking object
+* ``osi_LockObjDelete``: Delete the locking object
+* ``osi_LockObjLock``: Lock the locking object
+* ``osi_LockObjUnlock``: Unlock the locking object
+* ``osi_MsgQCreate``: Create a message queue
+* ``osi_MsgQDelete``: Delete message queue
+* ``osi_MsgQWrite``: Post message to queue
+* ``osi_MsgQRead``: Read message from queue
+* ``osi_MsgQCount``: Returns the number of messages in the message queue
+* ``osi_MsgQIsEmpty``: Boolean returns whether the message count in the queue is zero
+* ``osi_ThreadCreate``: Create a task. In the example, this API uses a legacy osi_TaskCreate.
+* ``osi_ThreadDelete``: Delete the task. In the example, this API uses a legacy osi_TaskDelete.
+* ``osi_EnterCritical``: Enter critical section (lock + context switch prevention)
+* ``osi_ExitCritical``: Exit critical section
+* ``assert``: Assert function
+
+Memory Management
+==================
+The control block for the host driver requires memory allocation.
+
+**`osi_freertos`_:**
+
+* ``os_malloc``: Allocate dynamic memory
+* ``os_realloc``: Reallocate dynamic memory
+* ``os_realloc_array``: Reallocate and zero memory blocks
+* ``os_calloc``: Allocate and zero memory blocks
+* ``os_zalloc``: Allocate and zero memory
+* ``os_free``: Free memory
+
+Timer Mechanism
+================
+This timestamp mechanism is used to determine timeouts for the host driver.
+
+**`osi_freertos`_:**
+
+* ``osi_Sleep``: Put the thread to sleep (seconds)
+* ``osi_uSleep``: Put the thread to sleep (microseconds)
+* ``osi_GetTimeMS``: Get the running tick count (milliseconds)
+* ``osi_TimerCreate``: Create a timer
+* ``osi_TimerDelete``: Delete timer
+* ``osi_TimerStart``: Start timer
+* ``osi_TimerStop``: Stop timer
+* ``osi_TimerGetRemainingTime``: Get remaining time
+
+The system tick period for the target host MCU must be set in the define ``TICK_PERIOD_US`` at the top of ``osi_freertos.c``.
+
+File System
+============
+These functions are required for the file management of the host driver.
+For now the driver only uses the read function to retrieve the pre-installed firmware when downloading it as part of the cc33xx init. 
+
+**`osi_filesystem`_:**
+
+* ``osi_fopen``: File open
+* ``osi_fclose``: File close
+* ``osi_fread``: File read
+* ``osi_write``: File write (not used currently)
+* ``osi_filelength``: Get file size
+
+Asynchronous Event Handler 
+==========================
+| Asynchronous event handlers are used to process aynchronous events from the CC33XX to the host application. 
+| This includes errors, notifications of WLAN connections and disconnections, scans, and more.
+| The async event handler is implemented by the developer in the application, and it is registered when the application calls ``Wlan_Start``. The event handler should be customized for the application.
+| In the network_terminal example, the event handler is ``WlanEventHandler()`` defined in ``network_terminal.c``.
+

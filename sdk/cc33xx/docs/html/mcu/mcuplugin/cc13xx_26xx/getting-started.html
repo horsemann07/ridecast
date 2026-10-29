@@ -1,0 +1,575 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>CC13xx and CC26xx Getting Started Guide &mdash; Mcu CC33XX User&#39;s Guide R8 documentation</title>
+  
+
+  
+  
+    <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/css/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/theme_overrides.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+    <link rel="next" title="Basic Operations" href="../../../wifi/cc35xx-basic-operations.html" />
+    <link rel="prev" title="Overview" href="overview.html" />
+    <script language="JavaScript">
+        var tiPageName;
+        tiPageName = "sug mcu mcuplugin cc13xx_26xx getting-started";
+
+        if (location.protocol == "file:"){
+            var ci_analytics_poc_load = true;
+        }
+    </script>
+
+    <script src="http://www.ti.com/assets/js/headerfooter/analytics.js" type="text/javascript" charset="utf-8"></script>
+
+
+</head>
+
+<body class="wy-body-for-nav">
+   <!---- extra body elements for TI beyond RTD Sphinx Theme --->
+<div class="DocSite-globalNav tiNav">
+    <ul>
+    </ul>
+</div>
+
+<a class="DocSite-nav" href="https://www.ti.com" style="padding-bottom: 85px;">
+  <img class="DocSiteNav-logo"
+    src="../../../_static/img/ti_logo.png"
+    alt="TI Logo">
+  <div class="DocSiteNav-title"></div>
+</a> 
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../cc33xx-index.html" class="icon icon-home" alt="Documentation Home"> Mcu CC33XX User's Guide
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                R8
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../intro-mcu.html">Overview and Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../am243x/index.html">Getting Started</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index-mcuplugin.html">CC33XX MCU Plugin</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../cc33xx-mcu-plugin.html">Plugin Overview</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">CC13x4_26x4</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="overview.html">Overview</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">CC13xx and CC26xx Getting Started Guide</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#prerequisites">Prerequisites</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#platforms-cc13x4-cc2x4-folder-structure">platforms/cc13x4_cc2x4 Folder Structure</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#setup-cc13xx-cc26xx-and-cc33xx">Setup - CC13xx/CC26xx and CC33xx</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ccs-preparation">CCS Preparation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#program-the-flash">Program the Flash</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#run-the-example-from-ccs">Run the example from CCS</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../wifi/cc35xx-basic-operations.html">Basic Operations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../wifi/cc35xx-basic-operations.html#get-and-set">GET and SET</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../wifi/cc35xx-network-addresses.html">Network Address - Addressing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../wifi/cc35xx-sockets.html">Sockets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../sw-examples/index.html">Software Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../porting-guide.html">Driver Porting Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../nimble/nimble.html">NimBLE Bluetooth Stack</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../calibrator/index-calibrator.html">Calibrator Tool</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../cc33xx/BP-CC33X1_HW_UserGuide.html">CC33X1 BoosterPack Hardware User’s Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api-reference.html">API References</a></li>
+</ul>
+
+            
+          
+          <!-- extra nav elements for TI beyond RTD Sphinx Theme --->
+<div id="sideBanner">
+    <br/>
+    <br/><br/><br/>
+</div>
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../cc33xx-index.html">Mcu CC33XX User's Guide</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../cc33xx-index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../index-mcuplugin.html">CC33XX MCU Plugin</a> &raquo;</li>
+        
+          <li><a href="index.html">CC13x4_26x4</a> &raquo;</li>
+        
+      <li>CC13xx and CC26xx Getting Started Guide</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="cc13xx-and-cc26xx-getting-started-guide">
+<h1>CC13xx and CC26xx Getting Started Guide<a class="headerlink" href="#cc13xx-and-cc26xx-getting-started-guide" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p>This Getting Started Guide demonstrates how to start evaluating the <strong>CC33xx in “Thick MAC” configuration</strong> with <strong>CC13xx/CC26xx</strong> as the host MCU.
+The reference platform contains the CC1354 Launchpad (LP_EM_CC1354P10_6) and the CC3351 Booster pack (BP-CC3351).
+Below are the instructions for building and running the Wi-Fi example (Network Terminal) from the CC33xx MCU package on the reference platform.
+The MCU package is a plugin which is based on content (such as TI drivers for peripherals, FreeRTOS OS adaptation) available in the base SDK (simplelink_cc13xx_cc26xx_sdk_7_10_01_24).
+Guidance about porting to other platforms is available through the <a class="reference external" href="../../porting-guide.html">CC33XX Host-Driver Porting Guide</a>.</p>
+</div>
+<div class="section" id="prerequisites">
+<h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Permalink to this headline">¶</a></h2>
+<dl class="docutils">
+<dt><strong>Hardware</strong></dt>
+<dd><ul class="first last simple">
+<li><a class="reference external" href="https://www.ti.com/tool/LP-EM-CC1354P10">LP-EM-CC1354P10</a></li>
+<li><a class="reference external" href="https://www.ti.com/tool/LP-XDS110ET">LP-XDS110ET</a></li>
+<li><a class="reference external" href="https://ti.com/product/CC3301">BP-CC33XX</a></li>
+</ul>
+</dd>
+<dt><strong>Software</strong></dt>
+<dd><ul class="first last simple">
+<li><a class="reference external" href="https://www.ti.com/tool/SIMPLELINK-CC13XX-CC26XX-SDK">HOST-SDK</a> (simplelink_cc13xx_cc26xx_sdk_7_10_01_24)</li>
+<li>CC33XX-MCU-Plugin</li>
+<li><a class="reference external" href="https://www.ti.com/tool/download/CCSTUDIO/">CCS</a> 11.1 and up (recommended CCS 11.2)</li>
+<li><code class="docutils literal notranslate"><span class="pre">ARM</span> <span class="pre">GCC</span></code>: gcc-arm-none-eabi-9-2019-q4-major</li>
+<li><a class="reference external" href="https://www.freertos.org">FreeRTOS</a> (version 202104.00 recommended)</li>
+</ul>
+</dd>
+</dl>
+</div>
+<div class="section" id="platforms-cc13x4-cc2x4-folder-structure">
+<h2>platforms/cc13x4_cc2x4 Folder Structure<a class="headerlink" href="#platforms-cc13x4-cc2x4-folder-structure" title="Permalink to this headline">¶</a></h2>
+<p>The plugin folder structure is described in <a class="reference external" href="../cc33xx-mcu-plugin.html">MCU_PLUGIN</a>. This section focuses on the content of platforms/CC13x4_cc2x4:</p>
+<ul>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">linker/</span></code>: cc13xx/cc26xx linker command files (.lds for gcc, .cmd for ticlang <code class="docutils literal notranslate"><span class="pre">.lds</span></code>)</p>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">LP_EM_CC1354P10_6/</span></code>: - board-specific adaptation</p>
+<blockquote>
+<div><ul class="simple">
+<li><code class="docutils literal notranslate"><span class="pre">LP_EM_CC1354P10_6/common.syscfg</span></code>: Launchpad’s generic syscfg file (can be updated or overwritten for a specific example)</li>
+<li><code class="docutils literal notranslate"><span class="pre">LP_EM_CC1354P10_6/port/</span></code>: board-specific adaptation sources (compiled and linked with the example code): osi_filesystem.c, spi_adapt.c, wifi_irq_adapt.c</li>
+</ul>
+</div></blockquote>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">LP-CC2651P3-CC1354P10/</span></code>: - board-specific adaptation</p>
+<blockquote>
+<div><ul class="simple">
+<li><code class="docutils literal notranslate"><span class="pre">LP-CC2651P3-CC1354P10/common.syscfg</span></code>: Launchpad’s generic syscfg file (can be updated or overwritten for a specific example)</li>
+<li><code class="docutils literal notranslate"><span class="pre">LP-CC2651P3-CC1354P10/port/</span></code>: board-specific adaptation sources (compiled and linked with the example code): osi_filesystem.c, spi_adapt.c, wifi_irq_adapt.c</li>
+</ul>
+</div></blockquote>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">tools/cc33xx-firmware-programmer/</span></code>: a CCS project for programming the CC33xx firmware to the Launchpad’s serial flash - to be imported and executed before running an example.</p>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">cc13x4_cc26x4.mak</span></code>: platform-specific makefile configuration (used by the makefile from the plugin root)</p>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">cc13x4_cc26x4.cmake</span></code>: platform-specific cmake configuration</p>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">CMakePresets.json</span></code>:  Presets for platform cmake configuration</p>
+</li>
+</ul>
+</div>
+<div class="section" id="setup-cc13xx-cc26xx-and-cc33xx">
+<h2>Setup - CC13xx/CC26xx and CC33xx<a class="headerlink" href="#setup-cc13xx-cc26xx-and-cc33xx" title="Permalink to this headline">¶</a></h2>
+<ol class="arabic">
+<li><p class="first">For the LaunchPad setup, please refer to  <a class="reference external" href="https://www.ti.com/tool/LP-EM-CC1354P10">LP-EM-CC1354P10</a>.
+Note that <code class="docutils literal notranslate"><span class="pre">LP_EM_CC1354P10_6</span></code> does not contain a debug chip and requires connection to a <a class="reference external" href="https://www.ti.com/tool/LP-XDS110ET">LP-XDS110ET</a> for the debugging interface (as shown in the <a class="reference internal" href="#platform-figure">platform_figure</a>).</p>
+</li>
+<li><p class="first">Currently, the booster pack cannot be stacked on top of the launchpad (due to a conflict on a non-interface pin).
+Instead, the following pins should be wired (see photo below):</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="55%" />
+<col width="45%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">LP_EM_CC1354P PIN</th>
+<th class="head">BP-CC3301 Pin</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>J1_21 (5V)</td>
+<td>P1_21 (5V)</td>
+</tr>
+<tr class="row-odd"><td>J1_21 (GND)</td>
+<td>P1_22 (GND)</td>
+</tr>
+<tr class="row-even"><td>J1_5  (DIO22)</td>
+<td>P1_5 (WLAN EN)</td>
+</tr>
+<tr class="row-odd"><td>J1_6  (DIO21)</td>
+<td>P1_8 (WLAN IRQ)</td>
+</tr>
+<tr class="row-even"><td>J1_7  (DIO10)</td>
+<td>P1_7 (SPI CLK)</td>
+</tr>
+<tr class="row-odd"><td>J2_18 (DIO11)</td>
+<td>P2_18 (SPI CS)</td>
+</tr>
+<tr class="row-even"><td>J2_14 (DIO08)</td>
+<td>P2_14 (SPI_POCI)</td>
+</tr>
+<tr class="row-odd"><td>J2_15 (DIO09)</td>
+<td>P2_15 (SPI_PICO)</td>
+</tr>
+<tr class="row-even"><td>J1_10 (DIO04)</td>
+<td>P2_14 (UART RX)</td>
+</tr>
+<tr class="row-odd"><td>J1_09 (DIO05)</td>
+<td>P2_15 (UART TX)</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+</li>
+</ol>
+<p id="platform-figure">The following photos show the connection of the LAUNCHXL-CC1354 (board in the back) and CC3351 Launchpad (board in the front):</p>
+<blockquote>
+<div><div class="figure align-center" id="figure-1">
+<a class="reference internal image-reference" href="../../../_images/IMG-LP_EM_CC1354P10_6__BP-CC3301.png"><img alt="../../../_images/IMG-LP_EM_CC1354P10_6__BP-CC3301.png" src="../../../_images/IMG-LP_EM_CC1354P10_6__BP-CC3301.png" style="width: 360px;" /></a>
+<p class="caption"><span class="caption-number">Fig. 8 </span><span class="caption-text">LP_EM_CC1354P10_6 + BP-CC3301</span></p>
+</div>
+</div></blockquote>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Connect a PC to the XDS110 Launchpad’s USB-C connector for powering up the platform and for collecting terminal logs.</p>
+</div>
+</div>
+<div class="section" id="ccs-preparation">
+<h2>CCS Preparation<a class="headerlink" href="#ccs-preparation" title="Permalink to this headline">¶</a></h2>
+<p>Before using the firmware programmer or any of the examples, the following parameters should be configured in CCS.
+<strong>In CCS -&gt; Window - Select Preferences.
+In Code Composer Studio -&gt; Build -&gt; Variables, define the following</strong>:</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="32%" />
+<col width="24%" />
+<col width="8%" />
+<col width="35%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Name</th>
+<th class="head">Type</th>
+<th class="head" colspan="2">Value</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>CC33XX-PLUGIN-ROOT</td>
+<td>Directory</td>
+<td colspan="2">&lt;path-to-plugin-root&gt;</td>
+</tr>
+<tr class="row-odd"><td>FREERTOS_INSTALL_DIR</td>
+<td>Directory</td>
+<td colspan="2">&lt;path-to-freertos-installation&gt;</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>This must be done once and get updated if one of the paths changes.</p>
+</div>
+<div class="section" id="program-the-flash">
+<h2>Program the Flash<a class="headerlink" href="#program-the-flash" title="Permalink to this headline">¶</a></h2>
+<p>Before running the example, the RAM bootloader, CC33xx Firmware, and initial configuration data file need to be programmed to the external flash on the LP_EM_CC1354P10_6.
+This will be done using the <strong>CC33xx Firmware Programmer</strong> application (under <code class="docutils literal notranslate"><span class="pre">platforms/cc13x4_26x4/freertos/boards-support/LP_EM_CC1354P10_6/tools/</span></code>).
+This project already contains the CC33xx binaries (firmware, RAM bootloader, and conf file) converted to <code class="docutils literal notranslate"><span class="pre">C</span></code> arrays. The programmer writes the
+content of the serial SPI flash using the TI NVS driver. See the flash offsets in the notes below - these offsets are used by the host driver (through <a class="reference external" href="../../doxygen/cc33xx/html/group__OSI__FILESYSTEM.html">osi_filesystem</a>).</p>
+<ol class="arabic simple">
+<li><dl class="first docutils">
+<dt>Import the project</dt>
+<dd><ol class="first last arabic">
+<li>In CCS, go to <code class="docutils literal notranslate"><span class="pre">File-&gt;Import</span></code></li>
+<li>Choose <code class="docutils literal notranslate"><span class="pre">C/C++</span> <span class="pre">-&gt;</span> <span class="pre">CCS</span> <span class="pre">Projects</span></code></li>
+<li>Browse… -&gt; <code class="docutils literal notranslate"><span class="pre">&lt;CC33xx_Plugin&gt;/platforms/cc13x4_cc26x4/tools/cc33xx-firmware-programmer/</span></code></li>
+<li>Select <code class="docutils literal notranslate"><span class="pre">CC33XX-FirmwareProgrammer_LP_EM_CC1354P10_6</span></code></li>
+</ol>
+</dd>
+</dl>
+</li>
+<li>Build the project</li>
+<li>Debug the project (load it to the platform and run it). Use the terminal to monitor the status.</li>
+</ol>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<ol class="last arabic">
+<li><p class="first">The image is loaded and executed from the CC13XX/CC26XX internal execute-in-place (XIP) flash.
+To save XIP flash space (the CC33xx firmware is about 400KB) the binaries will be  stored in the external flash and read during the FW init.</p>
+</li>
+<li><p class="first">The binaries (available under tools/cc33xx_firmware) should be programmed to a pre-defined offset in the flash (which is already handled by the FirmwareProgrammer), as shown below:</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="24%" />
+<col width="31%" />
+<col width="32%" />
+<col width="13%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Binary Name</th>
+<th class="head">Description</th>
+<th class="head">Location</th>
+<th class="head">Offset</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>cc33xx_fw.bin</td>
+<td>CC33XX Firmware</td>
+<td>under tools/cc33xx_firmware/</td>
+<td>0x00001000</td>
+</tr>
+<tr class="row-odd"><td>cc33xx_2nd_loader.bin</td>
+<td>RAM Bootloader</td>
+<td>under tools/cc33xx_firmware/</td>
+<td>0x0008A000</td>
+</tr>
+<tr class="row-even"><td>cc33xx-conf.bin</td>
+<td>CC33xx initial configuration</td>
+<td>under tools/cc33xx_firmware/</td>
+<td>0x000bA000</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+</li>
+<li><p class="first">The application image should be loaded separately by the CCS debugger (see <a class="reference internal" href="#run-an-example">run an example</a>).</p>
+</li>
+</ol>
+</div>
+</div>
+<div class="section" id="run-the-example-from-ccs">
+<span id="run-an-example"></span><h2>Run the example from CCS<a class="headerlink" href="#run-the-example-from-ccs" title="Permalink to this headline">¶</a></h2>
+<ol class="arabic">
+<li><dl class="first docutils">
+<dt>Import the project</dt>
+<dd><ol class="first last arabic simple">
+<li>In CCS, go to <code class="docutils literal notranslate"><span class="pre">File-&gt;Import</span></code></li>
+<li>Choose <code class="docutils literal notranslate"><span class="pre">C/C++</span> <span class="pre">-&gt;</span> <span class="pre">CCS</span> <span class="pre">Projects</span></code></li>
+<li>Browse… -&gt; <code class="docutils literal notranslate"><span class="pre">&lt;CC33xx_Plugin&gt;/examples/</span></code></li>
+<li>Select the example project for the combination of host platform and compiler (e.g. CC33XX-MQTTClient_LP-EM_CC1354P10_6_freertos_gcc)</li>
+</ol>
+</dd>
+</dl>
+</li>
+<li><p class="first">Open a serial terminal (see <a class="reference internal" href="#cc13xx-cc26xx-serial-terminal-configuration">CC13xx/CC26xx Serial Terminal Configuration</a>).</p>
+</li>
+<li><p class="first">Build the project</p>
+<blockquote>
+<div><div class="admonition note">
+<p class="first admonition-title">Note</p>
+<div class="last line-block">
+<div class="line">The build process requires linking the example code with libraries provided with the plugin.</div>
+<div class="line">These components currently includes the Wi-Fi Host Driver and <a class="reference external" href="https://savannah.nongnu.org/projects/lwip/">LWIP</a> networking stack (lwip, nimble).</div>
+<div class="line">The libraries are pre-built but can be modified and rebuilt if needed. See details in <a class="reference internal" href="#rebuilding-the-libraries">Rebuilding the libraries</a> .</div>
+<div class="line">Other Libraries (such as Freertos, TI driver, and driverlib) are taken directly from the <a class="reference external" href="https://www.ti.com/tool/SIMPLELINK-CC13XX-CC26XX-SDK">HOST-SDK</a>.</div>
+</div>
+</div>
+</div></blockquote>
+</li>
+<li><p class="first">Debug the project</p>
+</li>
+<li><p class="first">Once the application (<code class="docutils literal notranslate"><span class="pre">.out</span></code> file) is loaded to the CC13xx/CC26xx XIP flash, it can be restarted with an MCU reset (e.g. through the launchpad button or the CCS Debugger).</p>
+</li>
+</ol>
+<div class="section" id="cc13xx-cc26xx-serial-terminal-configuration-1">
+<span id="cc13xx-cc26xx-serial-terminal-configuration"></span><h3>CC13xx/CC26xx Serial Terminal Configuration:<a class="headerlink" href="#cc13xx-cc26xx-serial-terminal-configuration-1" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><div class="line-block">
+<div class="line">COM Port:       Listed as <code class="docutils literal notranslate"><span class="pre">Applications/User</span> <span class="pre">UART</span></code> (see note below)</div>
+<div class="line">Baud-rate:    115200</div>
+<div class="line">Data bits:         8</div>
+<div class="line">Stop bits:         1</div>
+<div class="line">Parity:         None</div>
+<div class="line">Flow Control:   None</div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">The COM port can be determined via Device Manager in Windows or via ls /dev/tty* in Linux.</p>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="rebuilding-the-libraries-1">
+<span id="rebuilding-the-libraries"></span><h3>Rebuilding the libraries:<a class="headerlink" href="#rebuilding-the-libraries-1" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><p>A makefile (based on gnu make which is available in the XDCTOOLS installed with CCS) can be used to build the libraries and applications.
+In the plugin root folder you can find BUILD-gmake with instructions or just run <code class="docutils literal notranslate"><span class="pre">gmake</span> <span class="pre">help</span></code>  to see detailed usage info.
+Once the libraries (<a href="#system-message-1"><span class="problematic" id="problematic-1">*</span></a>.a files) are built, the CCS projects will find and link with the new libraries.
+For cc13x4_26x4 - you can also build the examples (.out) using the makefiles (see the build-all script for supported configuration).</p>
+<div class="line-block">
+<div class="line">The sources of the wifi host driver are available under <code class="docutils literal notranslate"><span class="pre">&lt;CC33xx_Plugin&gt;/Uuppemac/source/ti/drivers/net/wifi/</span></code>.</div>
+<div class="line">The sources of the wifi stack interface are available under <code class="docutils literal notranslate"><span class="pre">&lt;CC33xx_Plugin&gt;/uppermac/source/ti/net/</span></code>.</div>
+<div class="line">The sources of the LWIP stack are available under <code class="docutils literal notranslate"><span class="pre">&lt;CC33xx_Plugin&gt;/uppermac/source/third_party/lwip</span></code>.</div>
+<div class="line">The sources of the NimBLE stack are available under <code class="docutils literal notranslate"><span class="pre">&lt;CC33xx_Plugin&gt;/uppermac/source/third_party/nimble</span></code>.</div>
+</div>
+</div></blockquote>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="../../../wifi/cc35xx-basic-operations.html" class="btn btn-neutral float-right" title="Basic Operations" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="overview.html" class="btn btn-neutral float-left" title="Overview" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        <a href="https://www.ti.com/corp/docs/legal/copyright.shtml">2025, Texas Instruments</a>, Texas Instruments Incorporated. All rights reserved. <br>
+        <a href="https://www.ti.com/corp/docs/legal/trademark/trademrk.htm">Trademarks</a> | <a href="https://www.ti.com/corp/docs/legal/privacy.shtml">Privacy policy</a> | <a href="https://www.ti.com/corp/docs/legal/termsofuse.shtml">Terms of use</a> | <a href="https://www.ti.com/lsds/ti/legal/termsofsale.page">Terms of sale</a>
+
+    </p>
+  </div> 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+  
+ <script type="text/javascript">
+    $(document).ready(function() {
+        $(".toggle > *").hide();
+        $(".toggle .header").show();
+        $(".toggle .header").click(function() {
+            $(this).parent().children().not(".header").toggle(400);
+            $(this).parent().children(".header").toggleClass("open");
+        })
+    });
+</script>
+
+
+</body>
+</html>

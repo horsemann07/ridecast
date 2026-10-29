@@ -1,0 +1,1354 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Calibrator Tool &mdash; Mcu CC33XX User&#39;s Guide R8 documentation</title>
+  
+
+  
+  
+    <link rel="shortcut icon" href="../../_static/favicon.ico"/>
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/css/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/theme_overrides.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="CC33X1 BoosterPack Hardware User’s Guide" href="../../cc33xx/BP-CC33X1_HW_UserGuide.html" />
+    <link rel="prev" title="NimBLE Bluetooth Stack" href="../nimble/nimble.html" />
+    <script language="JavaScript">
+        var tiPageName;
+        tiPageName = "sug mcu calibrator index-calibrator";
+
+        if (location.protocol == "file:"){
+            var ci_analytics_poc_load = true;
+        }
+    </script>
+
+    <script src="http://www.ti.com/assets/js/headerfooter/analytics.js" type="text/javascript" charset="utf-8"></script>
+
+
+</head>
+
+<body class="wy-body-for-nav">
+   <!---- extra body elements for TI beyond RTD Sphinx Theme --->
+<div class="DocSite-globalNav tiNav">
+    <ul>
+    </ul>
+</div>
+
+<a class="DocSite-nav" href="https://www.ti.com" style="padding-bottom: 85px;">
+  <img class="DocSiteNav-logo"
+    src="../../_static/img/ti_logo.png"
+    alt="TI Logo">
+  <div class="DocSiteNav-title"></div>
+</a> 
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../cc33xx-index.html" class="icon icon-home" alt="Documentation Home"> Mcu CC33XX User's Guide
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                R8
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../intro-mcu.html">Overview and Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../am243x/index.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mcuplugin/index-mcuplugin.html">CC33XX MCU Plugin</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../wifi/cc35xx-basic-operations.html">Basic Operations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../wifi/cc35xx-basic-operations.html#get-and-set">GET and SET</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../wifi/cc35xx-network-addresses.html">Network Address - Addressing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../wifi/cc35xx-sockets.html">Sockets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../sw-examples/index.html">Software Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../porting-guide.html">Driver Porting Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../nimble/nimble.html">NimBLE Bluetooth Stack</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Calibrator Tool</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#prerequisites">Prerequisites</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#commands">Commands</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#power-mode">power_mode</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#tune-channel">tune_channel</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#start-tx">start_tx</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#stop-tx">stop_tx</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#start-rx">start_rx</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#stop-rx">stop_rx</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#get-rx-stats">get_rx_stats</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#set-tx">set_tx</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#set-tx-default-parameters">Set_TX Default Parameters</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#get-tx-params">get_tx_params</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#set-tb-tx">set_tb_tx</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#beacon-rssi">beacon_rssi</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gi-ltf">gi_ltf</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#psm">psm</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#tx-start-tone">tx_start_tone</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#set-manual-calib">set_manual_calib</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#set-io-conf">set_io_conf</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#get-io-conf">get_io_conf</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#ble-plt">ble_plt</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#power-save-mode-in-calibrator">Power Save Mode in Calibrator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#default-values">Default Values</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../cc33xx/BP-CC33X1_HW_UserGuide.html">CC33X1 BoosterPack Hardware User’s Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api-reference.html">API References</a></li>
+</ul>
+
+            
+          
+          <!-- extra nav elements for TI beyond RTD Sphinx Theme --->
+<div id="sideBanner">
+    <br/>
+    <br/><br/><br/>
+</div>
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../cc33xx-index.html">Mcu CC33XX User's Guide</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../cc33xx-index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>Calibrator Tool</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="calibrator-tool">
+<h1>Calibrator Tool<a class="headerlink" href="#calibrator-tool" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="overview">
+<span id="calibrator"></span><h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p>The CC33xx Network Terminal Example provides the calibrator tool to configure the CC33xx device for various transmit
+and receive operations enabling measurement of RF performance of the device-under-test. The calibrator tool
+also provides an easy way to select the desired channel and power level. This enables the RF verification both in
+the lab and at certification test houses to perform the regulatory conformance tests and measure spectrum mask.
+The Calibrator tool can also be used for production line testing.</p>
+</div>
+<div class="section" id="prerequisites">
+<h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Permalink to this headline">¶</a></h2>
+<p>To run the calibrator tool you must build and flash the Network Terminal Example. Please reference the
+<code class="docutils literal notranslate"><span class="pre">Getting</span> <span class="pre">Started</span> <span class="pre">Guide</span></code> and <code class="docutils literal notranslate"><span class="pre">The</span> <span class="pre">Network</span> <span class="pre">Terminal</span> <span class="pre">Application</span></code> to get up and running.</p>
+</div>
+<div class="section" id="commands">
+<h2>Commands<a class="headerlink" href="#commands" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="power-mode">
+<h3>power_mode<a class="headerlink" href="#power-mode" title="Permalink to this headline">¶</a></h3>
+<p>Before running any of the commands, the device and the driver needs to be configured in Production Line Test
+(PLT) mode. Use the following commands to configure the device to PLT mode:</p>
+<blockquote>
+<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>calibrator power_mode on
+</pre></div>
+</div>
+</div></blockquote>
+<p>To exit PLT Mode use the below command:</p>
+<blockquote>
+<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>calibrator power_mode off
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="tune-channel">
+<h3>tune_channel<a class="headerlink" href="#tune-channel" title="Permalink to this headline">¶</a></h3>
+<p>The purpose of the <code class="docutils literal notranslate"><span class="pre">tune_channel</span></code> command is to configure the CC33xx device to operate in a specific Wi-Fi
+band and channel. The <code class="docutils literal notranslate"><span class="pre">tune_channel</span></code> command can be called using the following format:</p>
+<blockquote>
+<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>calibrator tune_channel &lt;CHAN&gt; &lt;BAND&gt; &lt;BANDWIDTH&gt;
+</pre></div>
+</div>
+</div></blockquote>
+<p>Where each argument is defined as the following:</p>
+<span id="tune-table"></span><table border="1" class="docutils align-center" id="table-1">
+<caption><span class="caption-number">Table 2 </span><span class="caption-text">Parameters for <strong>tune_channel</strong> Command</span><a class="headerlink" href="#table-1" title="Permalink to this table">¶</a></caption>
+<colgroup>
+<col width="24%" />
+<col width="22%" />
+<col width="53%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td>Parameter</td>
+<td>Option</td>
+<td>Description</td>
+</tr>
+<tr class="row-even"><td rowspan="2">CHAN</td>
+<td>1 - 14</td>
+<td>2.4 GHz Wi-Fi Channels</td>
+</tr>
+<tr class="row-odd"><td>34 - 180</td>
+<td>5 GHz Wi-Fi Channels</td>
+</tr>
+<tr class="row-even"><td rowspan="2">BAND</td>
+<td>0</td>
+<td>2.4 GHz Wi-Fi Band</td>
+</tr>
+<tr class="row-odd"><td>1</td>
+<td>5 GHz Wi-Fi Band</td>
+</tr>
+<tr class="row-even"><td>BANDWIDTH</td>
+<td>0</td>
+<td>Bandwidth Allocation</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Channel tune must be executed before any other calibrator activities. There is are no default channel tune parameters, thus they must be set before executing anything else.</p>
+</div>
+<p><strong>Example</strong></p>
+<p>The following <code class="docutils literal notranslate"><span class="pre">tune_channel</span></code> command configures the chip to operate in the 2.4 GHz band on channel 6:</p>
+<blockquote>
+<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>calibrator tune_channel <span class="m">6</span> <span class="m">0</span> <span class="m">0</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="start-tx">
+<h3>start_tx<a class="headerlink" href="#start-tx" title="Permalink to this headline">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">start_tx</span></code> command will start Calibrator Transmission</p>
+<blockquote>
+<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>calibrator start_tx
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="stop-tx">
+<h3>stop_tx<a class="headerlink" href="#stop-tx" title="Permalink to this headline">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">stop_tx</span></code> command will stop Calibrator Transmission</p>
+<blockquote>
+<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>calibrator stop_tx
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="start-rx">
+<h3>start_rx<a class="headerlink" href="#start-rx" title="Permalink to this headline">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">start_rx</span></code> command triggers the device to gather RX statistics</p>
+<blockquote>
+<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>calibrator start_rx <span class="o">[</span>-source_mac &lt;address&gt;<span class="o">]</span> <span class="o">[</span>-ack_enable &lt;enable&gt;<span class="o">]</span> <span class="o">[</span>-aid &lt;aid&gt;<span class="o">]</span> <span class="o">[</span>-rate &lt;rate&gt;<span class="o">]</span> <span class="o">[</span>-preamble_type &lt;type&gt;<span class="o">]</span>
+</pre></div>
+</div>
+</div></blockquote>
+<span id="start-rx-table"></span><table border="1" class="docutils align-center" id="table-2">
+<caption><span class="caption-number">Table 3 </span><span class="caption-text">Parameters for <strong>start_rx</strong> Command</span><a class="headerlink" href="#table-2" title="Permalink to this table">¶</a></caption>
+<colgroup>
+<col width="35%" />
+<col width="65%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td>Parameter</td>
+<td>Option</td>
+</tr>
+<tr class="row-even"><td>source_mac</td>
+<td>FF:FF:FF:FF:FF:FF</td>
+</tr>
+<tr class="row-odd"><td rowspan="2">ack_enable</td>
+<td>0 (Disabled)</td>
+</tr>
+<tr class="row-even"><td>1 (Enabled)</td>
+</tr>
+<tr class="row-odd"><td>aid</td>
+<td>Specify requested AID
+for PHY configuration</td>
+</tr>
+<tr class="row-even"><td rowspan="20">rate</td>
+<td>1 - 1Mb/s</td>
+</tr>
+<tr class="row-odd"><td>2 - 2Mb/s</td>
+</tr>
+<tr class="row-even"><td>3 - 5.5Mb/s</td>
+</tr>
+<tr class="row-odd"><td>4 - 11Mb/s</td>
+</tr>
+<tr class="row-even"><td>5 - 6Mb/s</td>
+</tr>
+<tr class="row-odd"><td>6 - 9Mb/s</td>
+</tr>
+<tr class="row-even"><td>7 - 12Mb/s</td>
+</tr>
+<tr class="row-odd"><td>8 - 18Mb/s</td>
+</tr>
+<tr class="row-even"><td>9 - 24Mb/s</td>
+</tr>
+<tr class="row-odd"><td>10 - 36Mb/s</td>
+</tr>
+<tr class="row-even"><td>11 - 48Mb/s</td>
+</tr>
+<tr class="row-odd"><td>12 - 54Mb/s</td>
+</tr>
+<tr class="row-even"><td>13 - MCS0 (6.5Mb/s)</td>
+</tr>
+<tr class="row-odd"><td>14 - MCS1 (13Mb/s)</td>
+</tr>
+<tr class="row-even"><td>15 - MCS2 (19.5.5Mb/s)</td>
+</tr>
+<tr class="row-odd"><td>16 - MCS3 (26Mb/s)</td>
+</tr>
+<tr class="row-even"><td>17 - MCS4 (39Mb/s)</td>
+</tr>
+<tr class="row-odd"><td>18 - MCS5 (52Mb/s)</td>
+</tr>
+<tr class="row-even"><td>19 - MCS6 (58.5Mb/s)</td>
+</tr>
+<tr class="row-odd"><td>20 - MCS7 (65Mb/s)</td>
+</tr>
+<tr class="row-even"><td rowspan="11">preamble_type</td>
+<td>0 - PREAMBLE_TYPE_SHORT</td>
+</tr>
+<tr class="row-odd"><td>1 - PREAMBLE_TYPE_LONG</td>
+</tr>
+<tr class="row-even"><td>2 - PREAMBLE_TYPE_OFDM</td>
+</tr>
+<tr class="row-odd"><td>3 - PREAMBLE_TYPE_N_MIXED_MODE</td>
+</tr>
+<tr class="row-even"><td>4 - PREAMBLE_TYPE_GREENFIELD</td>
+</tr>
+<tr class="row-odd"><td>5 - PREAMBLE_TYPE_AX_SU</td>
+</tr>
+<tr class="row-even"><td>6 - PREAMBLE_TYPE_AX_MU</td>
+</tr>
+<tr class="row-odd"><td>7 - PREAMBLE_TYPE_AX_SU_ER</td>
+</tr>
+<tr class="row-even"><td>8 - PREAMBLE_TYPE_AX_TB</td>
+</tr>
+<tr class="row-odd"><td>9 - PREAMBLE_TYPE_AX_TB_NDP_FB</td>
+</tr>
+<tr class="row-even"><td>10 - PREAMBLE_TYPE_AC_VHT</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="stop-rx">
+<h3>stop_rx<a class="headerlink" href="#stop-rx" title="Permalink to this headline">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">stop_trx</span></code> command will stop Calibrator Reception</p>
+<blockquote>
+<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>calibrator stop_rx
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="get-rx-stats">
+<h3>get_rx_stats<a class="headerlink" href="#get-rx-stats" title="Permalink to this headline">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">get_rx_stats</span></code> command will retrieve the RX statistics when rx has been turned on.</p>
+<blockquote>
+<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>calibrator get_rx_stats
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="set-tx">
+<h3>set_tx<a class="headerlink" href="#set-tx" title="Permalink to this headline">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">set_tx</span></code> command can control the entire TX datapath and front-end on the CC33xx device. This command is
+able to set preamble types, phy datarates, output power, control the number of data packets to transmit and the
+data value within the packets, and many other functions.</p>
+<p>Default TX settings are described in <a class="reference internal" href="#default-set-tx-table"><span class="std std-numref">Table 5</span></a> and can be enabled with the command:</p>
+<blockquote>
+<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>calibrator set_tx -default <span class="m">0</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>The full command format is provided below. Please note that it is not necessary
+to include every argument in the <code class="docutils literal notranslate"><span class="pre">set_tx</span></code> command.</p>
+<blockquote>
+<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>calibrator wlan0 cc33xx_plt set_tx
+    -preamble_type &lt;PREAMBLE_TYPE&gt;
+    -phy_rate &lt;PHY_RATE&gt;
+    -tx_power &lt;TX_POWER&gt;
+    -gi_ltf_type &lt;GI_LTF_TYPE&gt;
+    -dcm &lt;DCM&gt;
+    -length &lt;LENGTH&gt;
+    -delay &lt;DELAY&gt;
+    -pkt_mode &lt;PACKET_MODE&gt;
+    -num_pkts &lt;NUM_PACKETS&gt;
+    -data_mode &lt;DATA_MODE&gt;
+    -data_const_val &lt;DATA_VALUE&gt;
+    -cca &lt;CCA&gt;
+    -bss_color &lt;BSS_COLOR&gt;
+    -src_addr &lt;SRC_ADDR&gt;
+    -dst_addr &lt;DST_ADDR&gt;
+    -nominal_pkt_ext &lt;PKT_EXT&gt;
+    -feed_status &lt;FEED_STATUS&gt;
+    -aid &lt;AID&gt;
+    -group_id &lt;G_ID&gt;
+</pre></div>
+</div>
+</div></blockquote>
+<p>The arguments are defined in the table below:</p>
+<span id="params-set-tx-table"></span><table border="1" class="docutils align-center" id="table-3">
+<caption><span class="caption-number">Table 4 </span><span class="caption-text">Parameters for <strong>set_tx</strong> Command</span><a class="headerlink" href="#table-3" title="Permalink to this table">¶</a></caption>
+<colgroup>
+<col width="29%" />
+<col width="16%" />
+<col width="55%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head"><strong>Parameter</strong></th>
+<th class="head">Options</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td rowspan="11">preamble_type</td>
+<td>0</td>
+<td>11b short preamble</td>
+</tr>
+<tr class="row-odd"><td>1</td>
+<td>11b long preamble</td>
+</tr>
+<tr class="row-even"><td>2</td>
+<td>11a/g legacy OFDM</td>
+</tr>
+<tr class="row-odd"><td>3</td>
+<td>11n mixed mode</td>
+</tr>
+<tr class="row-even"><td>4</td>
+<td>11n GF (not supported)</td>
+</tr>
+<tr class="row-odd"><td>5</td>
+<td>11ax SU</td>
+</tr>
+<tr class="row-even"><td>6</td>
+<td>11ax MU (not supported)</td>
+</tr>
+<tr class="row-odd"><td>7</td>
+<td>11ax SU ER</td>
+</tr>
+<tr class="row-even"><td>8</td>
+<td>11ax TB</td>
+</tr>
+<tr class="row-odd"><td>9</td>
+<td>11ax TB NDP FB</td>
+</tr>
+<tr class="row-even"><td>10</td>
+<td>11ac VHT (5 GHz Only)</td>
+</tr>
+<tr class="row-odd"><td rowspan="20">phy_rate</td>
+<td>1</td>
+<td>1 Mbps</td>
+</tr>
+<tr class="row-even"><td>2</td>
+<td>2 Mbps</td>
+</tr>
+<tr class="row-odd"><td>3</td>
+<td>5.5 Mbps</td>
+</tr>
+<tr class="row-even"><td>4</td>
+<td>11 Mbps</td>
+</tr>
+<tr class="row-odd"><td>5</td>
+<td>6 Mbps</td>
+</tr>
+<tr class="row-even"><td>6</td>
+<td>9 Mbps</td>
+</tr>
+<tr class="row-odd"><td>7</td>
+<td>12 Mbps</td>
+</tr>
+<tr class="row-even"><td>8</td>
+<td>18 Mbps</td>
+</tr>
+<tr class="row-odd"><td>9</td>
+<td>24 Mbps</td>
+</tr>
+<tr class="row-even"><td>10</td>
+<td>36 Mbps</td>
+</tr>
+<tr class="row-odd"><td>11</td>
+<td>48 Mbps</td>
+</tr>
+<tr class="row-even"><td>12</td>
+<td>54 Mbps</td>
+</tr>
+<tr class="row-odd"><td>13</td>
+<td>MCS0</td>
+</tr>
+<tr class="row-even"><td>14</td>
+<td>MCS1</td>
+</tr>
+<tr class="row-odd"><td>15</td>
+<td>MCS2</td>
+</tr>
+<tr class="row-even"><td>16</td>
+<td>MCS3</td>
+</tr>
+<tr class="row-odd"><td>17</td>
+<td>MCS4</td>
+</tr>
+<tr class="row-even"><td>18</td>
+<td>MCS5</td>
+</tr>
+<tr class="row-odd"><td>19</td>
+<td>MCS6</td>
+</tr>
+<tr class="row-even"><td>20</td>
+<td>MCS7</td>
+</tr>
+<tr class="row-odd"><td>tx_power</td>
+<td>0-30</td>
+<td>Integer value with a range of -10 dBm to 20 dBm with 1 dB steps</td>
+</tr>
+<tr class="row-even"><td rowspan="6">gi_ltf_type</td>
+<td>0</td>
+<td>1xLTF + 1.6 µs GI</td>
+</tr>
+<tr class="row-odd"><td>1</td>
+<td>2xLTF + 1.6 µs GI</td>
+</tr>
+<tr class="row-even"><td>2</td>
+<td>4xLTF + 3.2 µs GI</td>
+</tr>
+<tr class="row-odd"><td>3</td>
+<td>2xLTF + 0.8 µs GI</td>
+</tr>
+<tr class="row-even"><td>4</td>
+<td>1xLTF + 0.8 µs GI</td>
+</tr>
+<tr class="row-odd"><td>5</td>
+<td>4xLTF + 0.8µs GI</td>
+</tr>
+<tr class="row-even"><td rowspan="2">dcm</td>
+<td>0</td>
+<td>Disable DCM</td>
+</tr>
+<tr class="row-odd"><td>1</td>
+<td>Enable DCM</td>
+</tr>
+<tr class="row-even"><td>length range &lt;start_length&gt; &lt;end_length&gt;</td>
+<td>100-3500</td>
+<td>Number of data bytes excluding MAC 802.11 header.
+“Range” string in LENGTH requires arguments of &lt;start_length&gt; and &lt;end_length&gt;.
+This is only supported in Continuous Mode or PACKET_MODE &lt;0&gt;.
+-length range 0 100</td>
+</tr>
+<tr class="row-odd"><td>length const packet &lt;length&gt;</td>
+<td>Non MCS rate: 0 - 3500
+MCS rate: 0 - 16000</td>
+<td>Number of data bytes excluding MAC 802.11 header. The “const packet” string in
+LENGTH requires argument of &lt;length&gt;
+-length const packet 2000</td>
+</tr>
+<tr class="row-even"><td>delay</td>
+<td>50 - 1000000</td>
+<td>Delay between packets (µs)</td>
+</tr>
+<tr class="row-odd"><td rowspan="3">pkt_mode</td>
+<td>0</td>
+<td>Continuous mode - transmits packets continuously until TX_STOP command is sent</td>
+</tr>
+<tr class="row-even"><td>1</td>
+<td>Transmits a single packet</td>
+</tr>
+<tr class="row-odd"><td>2</td>
+<td>&lt;NUM_PKTS&gt; is required if using this packet mode
+Transmits &lt;NUM_PKTS&gt; packets</td>
+</tr>
+<tr class="row-even"><td>num_pkts</td>
+<td>1 - 10000</td>
+<td>Used when &lt;PKT_MODE&gt; = 2
+Specifies number of packets to send</td>
+</tr>
+<tr class="row-odd"><td rowspan="3">data_mode</td>
+<td>0</td>
+<td>&lt;DATA_VAL&gt; is required if using this data mode
+Constant value</td>
+</tr>
+<tr class="row-even"><td>1</td>
+<td>Increment value</td>
+</tr>
+<tr class="row-odd"><td>2</td>
+<td>Random value</td>
+</tr>
+<tr class="row-even"><td>data_const_val</td>
+<td>0 - 255</td>
+<td>Required if &lt;DATA_MODE&gt; is 0
+Data value used in all packets</td>
+</tr>
+<tr class="row-odd"><td rowspan="2">cca</td>
+<td>0</td>
+<td>Disable CCA</td>
+</tr>
+<tr class="row-even"><td>1</td>
+<td>Enable CCA</td>
+</tr>
+<tr class="row-odd"><td>bss_color</td>
+<td>0 - 63</td>
+<td>This field is relevant for HE_SU and HE_SU_ER</td>
+</tr>
+<tr class="row-even"><td>src_addr</td>
+<td>xx:xx:xx:xx:xx:xx</td>
+<td>Source MAC Address</td>
+</tr>
+<tr class="row-odd"><td>dest_addr</td>
+<td>xx:xx:xx:xx:xx:xx</td>
+<td>Destination MAC Address</td>
+</tr>
+<tr class="row-even"><td rowspan="3">nominal_pkt_ext</td>
+<td>0</td>
+<td>0 µs</td>
+</tr>
+<tr class="row-odd"><td>1</td>
+<td>8 µs</td>
+</tr>
+<tr class="row-even"><td>2</td>
+<td>16 µs</td>
+</tr>
+<tr class="row-odd"><td>feed_status</td>
+<td>0 / 1</td>
+<td>Indicates the value of the one bit used to modulate the tones in each tone set.
+This field is relevant for HE TB NDP FB transmissions only.</td>
+</tr>
+<tr class="row-even"><td>aid</td>
+<td>0 - 16383</td>
+<td>AID of station can be up to 16383 (14 bits)</td>
+</tr>
+</tbody>
+</table>
+<div class="section" id="set-tx-default-parameters">
+<h4>Set_TX Default Parameters<a class="headerlink" href="#set-tx-default-parameters" title="Permalink to this headline">¶</a></h4>
+<span id="default-set-tx-table"></span><table border="1" class="docutils align-center" id="table-4">
+<caption><span class="caption-number">Table 5 </span><span class="caption-text">Default Settings for <strong>set_tx</strong> Command</span><a class="headerlink" href="#table-4" title="Permalink to this table">¶</a></caption>
+<colgroup>
+<col width="20%" />
+<col width="21%" />
+<col width="59%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Parameter</th>
+<th class="head">Value</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>PREAMBLE_TYPE</td>
+<td>2</td>
+<td>11a/g legacy OFDM</td>
+</tr>
+<tr class="row-odd"><td>PHY_RATE</td>
+<td>5</td>
+<td>6 Mbps</td>
+</tr>
+<tr class="row-even"><td>TX_POWER</td>
+<td>0</td>
+<td>-10 dBm</td>
+</tr>
+<tr class="row-odd"><td>GI_LTF_TYPE</td>
+<td>2</td>
+<td>4xLTF + 3.2 µs GI</td>
+</tr>
+<tr class="row-even"><td>DCM</td>
+<td>0</td>
+<td>Disable DCM</td>
+</tr>
+<tr class="row-odd"><td>LENGTH</td>
+<td>100</td>
+<td>100 data bytes</td>
+</tr>
+<tr class="row-even"><td>DELAY</td>
+<td>3000</td>
+<td>3000 µs delay between packets</td>
+</tr>
+<tr class="row-odd"><td>PACKET_MODE</td>
+<td>0</td>
+<td>Continuous mode</td>
+</tr>
+<tr class="row-even"><td>NUM_PACKETS</td>
+<td>300</td>
+<td>N/A when PACKET_MODE = 0 (Continuous Mode)</td>
+</tr>
+<tr class="row-odd"><td>DATA_MODE</td>
+<td>2</td>
+<td>Random Value</td>
+</tr>
+<tr class="row-even"><td>DATA_VALUE</td>
+<td>0x55</td>
+<td>N/A when DATA_MODE = 2 (Random Value)</td>
+</tr>
+<tr class="row-odd"><td>CCA</td>
+<td>1</td>
+<td>Enable CCA</td>
+</tr>
+<tr class="row-even"><td>BSS_COLOR</td>
+<td>13</td>
+<td>&#160;</td>
+</tr>
+<tr class="row-odd"><td>SRC_ADDR</td>
+<td>0x665544332222</td>
+<td>&#160;</td>
+</tr>
+<tr class="row-even"><td>DEST_ADDR</td>
+<td>0x060504030202</td>
+<td>&#160;</td>
+</tr>
+<tr class="row-odd"><td>PACKET_EXT</td>
+<td>1</td>
+<td>8 µs</td>
+</tr>
+<tr class="row-even"><td>FEED_STATUS</td>
+<td>0</td>
+<td>&#160;</td>
+</tr>
+<tr class="row-odd"><td>AID</td>
+<td>11</td>
+<td>&#160;</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="section" id="get-tx-params">
+<h3>get_tx_params<a class="headerlink" href="#get-tx-params" title="Permalink to this headline">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">get_tx_params</span></code> command will retrieve the TX params for PLT.</p>
+<blockquote>
+<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>calibrator get_tx_params
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="set-tb-tx">
+<h3>set_tb_tx<a class="headerlink" href="#set-tb-tx" title="Permalink to this headline">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">set_tb_tx</span></code> command is used to set the trigger based transmission parameters in the CC33xx device.
+The <code class="docutils literal notranslate"><span class="pre">set_tb_tx</span></code> command is formatted as such:</p>
+<blockquote>
+<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>calibrator set_tb_tx
+-he_ltf_num &lt;NUM_HE_LTF&gt;
+-pre_fec_padding_factor &lt;PRE_FACTOR&gt;
+-ru_alloc &lt;RU_ALLOC&gt;
+-ul_bw &lt;UL_BW&gt;
+-tb_auto &lt;TB_AUTO&gt;
+</pre></div>
+</div>
+</div></blockquote>
+<p>The arguments are defined below:</p>
+<span id="params-set-tb-tx-table"></span><table border="1" class="docutils align-center" id="table-5">
+<caption><span class="caption-number">Table 6 </span><span class="caption-text">Parameters for <strong>set_tb_tx</strong> Command</span><a class="headerlink" href="#table-5" title="Permalink to this table">¶</a></caption>
+<colgroup>
+<col width="26%" />
+<col width="17%" />
+<col width="57%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Parameter</th>
+<th class="head">Option</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td rowspan="5">NUM_HE_LTF</td>
+<td>0</td>
+<td>1 HE LTF</td>
+</tr>
+<tr class="row-odd"><td>1</td>
+<td>2 HE LTF</td>
+</tr>
+<tr class="row-even"><td>2</td>
+<td>4 HE LTF</td>
+</tr>
+<tr class="row-odd"><td>3</td>
+<td>6 HE LTF</td>
+</tr>
+<tr class="row-even"><td>4</td>
+<td>8 HE LTF</td>
+</tr>
+<tr class="row-odd"><td>RU_ALLOC</td>
+<td>0 - 60</td>
+<td>Resource Unit Allocation</td>
+</tr>
+<tr class="row-even"><td rowspan="3">UL_BW</td>
+<td>0</td>
+<td>20 MHz</td>
+</tr>
+<tr class="row-odd"><td>1</td>
+<td>40 MHz</td>
+</tr>
+<tr class="row-even"><td>2</td>
+<td>80 MHz</td>
+</tr>
+<tr class="row-odd"><td rowspan="2">TB_AUTO</td>
+<td>0</td>
+<td>Disabled</td>
+</tr>
+<tr class="row-even"><td>1</td>
+<td>Enabled</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="beacon-rssi">
+<h3>beacon_rssi<a class="headerlink" href="#beacon-rssi" title="Permalink to this headline">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">beacon_rssi</span></code> command displays the RSSI of the last beacon received. The command will be formatted as such:</p>
+<blockquote>
+<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>calibrator beacon_rssi
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="gi-ltf">
+<h3>gi_ltf<a class="headerlink" href="#gi-ltf" title="Permalink to this headline">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">gi_ltf</span></code> command sets the gi_ltf (gaurd interval and long training field) value</p>
+<blockquote>
+<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>calibrator gi_ltf &lt;Value&gt;
+</pre></div>
+</div>
+</div></blockquote>
+<span id="params-gi-ltf-table"></span><table border="1" class="docutils align-center" id="table-6">
+<caption><span class="caption-number">Table 7 </span><span class="caption-text">Parameters for <strong>gi_ltf</strong> Command</span><a class="headerlink" href="#table-6" title="Permalink to this table">¶</a></caption>
+<colgroup>
+<col width="52%" />
+<col width="48%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Option</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>0</td>
+<td>1xLTF + 1.6 µs GI</td>
+</tr>
+<tr class="row-odd"><td>1</td>
+<td>2xLTF + 1.6 µs GI</td>
+</tr>
+<tr class="row-even"><td>2</td>
+<td>4xLTF + 3.2 µs GI</td>
+</tr>
+<tr class="row-odd"><td>3</td>
+<td>2xLTF + 0.8 µs GI</td>
+</tr>
+<tr class="row-even"><td>4</td>
+<td>1xLTF + 0.8 µs GI</td>
+</tr>
+<tr class="row-odd"><td>5</td>
+<td>4xLTF + 0.8µs GI</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="psm">
+<h3>psm<a class="headerlink" href="#psm" title="Permalink to this headline">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">psm</span></code> command is used to configure the powersave mode. The format and parameters are provided below:</p>
+<blockquote>
+<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>calibrator psm &lt;INDEX&gt; &lt;VALUE&gt;
+</pre></div>
+</div>
+</div></blockquote>
+<span id="params-psm"></span><table border="1" class="docutils align-center" id="table-7">
+<caption><span class="caption-number">Table 8 </span><span class="caption-text">Parameters for <strong>psm</strong> Command</span><a class="headerlink" href="#table-7" title="Permalink to this table">¶</a></caption>
+<colgroup>
+<col width="12%" />
+<col width="9%" />
+<col width="21%" />
+<col width="13%" />
+<col width="10%" />
+<col width="36%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td>Parameter</td>
+<td>Option</td>
+<td>Description</td>
+<td>Parameter</td>
+<td>Option</td>
+<td>Description</td>
+</tr>
+<tr class="row-even"><td rowspan="5">INDEX</td>
+<td>0</td>
+<td>ACTIVE_MODE_RX_TH</td>
+<td rowspan="5">VALUE</td>
+<td>0 - 255</td>
+<td>RX Threshold value</td>
+</tr>
+<tr class="row-odd"><td>1</td>
+<td>ACTIVE_MODE_TX_TH</td>
+<td>0 - 255</td>
+<td>TX Threshold value</td>
+</tr>
+<tr class="row-even"><td>2</td>
+<td>ACTIVE_MODE_RX_TO</td>
+<td>&#160;</td>
+<td>RX Timeout Value (microseconds)</td>
+</tr>
+<tr class="row-odd"><td>3</td>
+<td>ACTIVE_MODE_TX_TO</td>
+<td>&#160;</td>
+<td>TX Timeout Value (microseconds)</td>
+</tr>
+<tr class="row-even"><td>4</td>
+<td>FORCE_POWER_MODE</td>
+<td>0, 1, 2</td>
+<td>0 - No Force
+1 - Force Active
+2 - Force Power Save</td>
+</tr>
+</tbody>
+</table>
+<p>Note that the index and value on the same row should be used in conjuction. For example if using ACTIVE_MODE_RX_TH
+then a RX Threshold value must be selected. An example of how this command would be formatted is below:</p>
+<blockquote>
+<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>calibrator psm <span class="m">0</span> <span class="m">200</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="tx-start-tone">
+<h3>tx_start_tone<a class="headerlink" href="#tx-start-tone" title="Permalink to this headline">¶</a></h3>
+<p>The purpose of the <code class="docutils literal notranslate"><span class="pre">tx_start_tone</span></code> command is to create and transmit a carrier wave that can be modulated
+with a fixed tone.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">tx_start_tone</span></code> command is formatted as such:</p>
+<blockquote>
+<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>calibrator tx_start_tone &lt;MODE&gt; &lt;OFFSET&gt;
+</pre></div>
+</div>
+</div></blockquote>
+<span id="params-tx-start-tone-table"></span><table border="1" class="docutils align-center" id="table-8">
+<caption><span class="caption-number">Table 9 </span><span class="caption-text">Parameters for <strong>tx_start_tone</strong> Command</span><a class="headerlink" href="#table-8" title="Permalink to this table">¶</a></caption>
+<colgroup>
+<col width="12%" />
+<col width="11%" />
+<col width="77%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td>Parameter</td>
+<td>Option</td>
+<td>Description</td>
+</tr>
+<tr class="row-even"><td>MODE</td>
+<td>2</td>
+<td>Single tone: TX chain is on and a sinusoidal signal is outputted</td>
+</tr>
+<tr class="row-odd"><td>OFFSET</td>
+<td>-40 - 40</td>
+<td>Integer value with range of -10 MHz to +10 MHz with steps of 0.25 MHz</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="set-manual-calib">
+<h3>set_manual_calib<a class="headerlink" href="#set-manual-calib" title="Permalink to this headline">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">set_manual_calib</span></code> command triggers the calibration process to optimize PHY performance and should be run after the <code class="docutils literal notranslate"><span class="pre">tune_channel</span></code> command. This should be rerun any time the <code class="docutils literal notranslate"><span class="pre">tune_channel</span></code> command
+is rerun and prior to running the commands that set parameters.</p>
+<blockquote>
+<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>calibrator set_manual_calib -tx &lt;TX&gt; -rx &lt;RX&gt;
+</pre></div>
+</div>
+</div></blockquote>
+<span id="set-manual-calib-table"></span><table border="1" class="docutils align-center" id="table-9">
+<caption><span class="caption-number">Table 10 </span><span class="caption-text">Parameters for <strong>set_manual_calib</strong> Command</span><a class="headerlink" href="#table-9" title="Permalink to this table">¶</a></caption>
+<colgroup>
+<col width="22%" />
+<col width="16%" />
+<col width="61%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td>Parameter</td>
+<td>Option</td>
+<td>Description</td>
+</tr>
+<tr class="row-even"><td rowspan="2">TX</td>
+<td>0</td>
+<td>Don’t Trigger TX Calibration</td>
+</tr>
+<tr class="row-odd"><td>1</td>
+<td>Trigger TX Calibration</td>
+</tr>
+<tr class="row-even"><td rowspan="2">RX</td>
+<td>0</td>
+<td>Don’t Trigger RX Calibration</td>
+</tr>
+<tr class="row-odd"><td>1</td>
+<td>Trigger RX Calibration</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="set-io-conf">
+<h3>set_io_conf<a class="headerlink" href="#set-io-conf" title="Permalink to this headline">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">set_io_conf</span></code> command allows for configuration of the I/O pins on the cc33xx device.
+There are 18 pins, listed below, that can be configured as either input or output.
+If a pin is to be configured as output, then the pin state can also be configured as high or low.</p>
+<blockquote>
+<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>calibrator set_io_conf &lt;IO_ID&gt; &lt;DIR&gt; &lt;STATE&gt;
+</pre></div>
+</div>
+</div></blockquote>
+<table border="1" class="docutils align-center" id="table-10">
+<caption><span class="caption-number">Table 11 </span><span class="caption-text">Parameters for <strong>set_io_conf</strong> Command</span><a class="headerlink" href="#table-10" title="Permalink to this table">¶</a></caption>
+<colgroup>
+<col width="33%" />
+<col width="24%" />
+<col width="42%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td>Parameter</td>
+<td>Option</td>
+<td>Description</td>
+</tr>
+<tr class="row-even"><td rowspan="18">IO_ID</td>
+<td>0</td>
+<td>SLW_CLK_IN</td>
+</tr>
+<tr class="row-odd"><td>1</td>
+<td>SDIO_CLK</td>
+</tr>
+<tr class="row-even"><td>2</td>
+<td>SDIO_CMD</td>
+</tr>
+<tr class="row-odd"><td>3</td>
+<td>SDIO_D0</td>
+</tr>
+<tr class="row-even"><td>4</td>
+<td>SDIO_D1</td>
+</tr>
+<tr class="row-odd"><td>5</td>
+<td>SDIO_D2</td>
+</tr>
+<tr class="row-even"><td>6</td>
+<td>SDIO_D3</td>
+</tr>
+<tr class="row-odd"><td>7</td>
+<td>HOST_IRQ_WL</td>
+</tr>
+<tr class="row-even"><td>8</td>
+<td>UART1_TX</td>
+</tr>
+<tr class="row-odd"><td>9</td>
+<td>UART1_RX</td>
+</tr>
+<tr class="row-even"><td>10</td>
+<td>UART1_CTS</td>
+</tr>
+<tr class="row-odd"><td>11</td>
+<td>UART1_RTS</td>
+</tr>
+<tr class="row-even"><td>12</td>
+<td>COEX_PRIO</td>
+</tr>
+<tr class="row-odd"><td>13</td>
+<td>COEX_REQ</td>
+</tr>
+<tr class="row-even"><td>14</td>
+<td>COEX_GRANT</td>
+</tr>
+<tr class="row-odd"><td>15</td>
+<td>HOST_IRQ_BLE</td>
+</tr>
+<tr class="row-even"><td>16</td>
+<td>FAST_CLK_REQ</td>
+</tr>
+<tr class="row-odd"><td>17</td>
+<td>ANT_SEL</td>
+</tr>
+<tr class="row-even"><td rowspan="2">DIR</td>
+<td>0</td>
+<td>Input</td>
+</tr>
+<tr class="row-odd"><td>1</td>
+<td>Output</td>
+</tr>
+<tr class="row-even"><td rowspan="2">STATE</td>
+<td>0</td>
+<td>High</td>
+</tr>
+<tr class="row-odd"><td>1</td>
+<td>Low</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="get-io-conf">
+<h3>get_io_conf<a class="headerlink" href="#get-io-conf" title="Permalink to this headline">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">get_io_conf</span></code> command allows for printing the configuration of the I/O pins on the cc33xx device.</p>
+<blockquote>
+<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>calibrator get_io_conf &lt;IO_ID&gt;
+</pre></div>
+</div>
+</div></blockquote>
+<table border="1" class="docutils align-center" id="table-11">
+<caption><span class="caption-number">Table 12 </span><span class="caption-text">Parameters for <strong>get_io_conf</strong> Command</span><a class="headerlink" href="#table-11" title="Permalink to this table">¶</a></caption>
+<colgroup>
+<col width="33%" />
+<col width="24%" />
+<col width="42%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td>Parameter</td>
+<td>Option</td>
+<td>Description</td>
+</tr>
+<tr class="row-even"><td rowspan="18">IO_ID</td>
+<td>0</td>
+<td>SLW_CLK_IN</td>
+</tr>
+<tr class="row-odd"><td>1</td>
+<td>SDIO_CLK</td>
+</tr>
+<tr class="row-even"><td>2</td>
+<td>SDIO_CMD</td>
+</tr>
+<tr class="row-odd"><td>3</td>
+<td>SDIO_D0</td>
+</tr>
+<tr class="row-even"><td>4</td>
+<td>SDIO_D1</td>
+</tr>
+<tr class="row-odd"><td>5</td>
+<td>SDIO_D2</td>
+</tr>
+<tr class="row-even"><td>6</td>
+<td>SDIO_D3</td>
+</tr>
+<tr class="row-odd"><td>7</td>
+<td>HOST_IRQ_WL</td>
+</tr>
+<tr class="row-even"><td>8</td>
+<td>UART1_TX</td>
+</tr>
+<tr class="row-odd"><td>9</td>
+<td>UART1_RX</td>
+</tr>
+<tr class="row-even"><td>10</td>
+<td>UART1_CTS</td>
+</tr>
+<tr class="row-odd"><td>11</td>
+<td>UART1_RTS</td>
+</tr>
+<tr class="row-even"><td>12</td>
+<td>COEX_PRIO</td>
+</tr>
+<tr class="row-odd"><td>13</td>
+<td>COEX_REQ</td>
+</tr>
+<tr class="row-even"><td>14</td>
+<td>COEX_GRANT</td>
+</tr>
+<tr class="row-odd"><td>15</td>
+<td>HOST_IRQ_BLE</td>
+</tr>
+<tr class="row-even"><td>16</td>
+<td>FAST_CLK_REQ</td>
+</tr>
+<tr class="row-odd"><td>17</td>
+<td>ANT_SEL</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="ble-plt">
+<h3>ble_plt<a class="headerlink" href="#ble-plt" title="Permalink to this headline">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">ble_plt</span></code> command turns off timed calibration and enables the device to run required ble rf
+testing commands</p>
+<blockquote>
+<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>calibrator ble_plt
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+</div>
+<div class="section" id="power-save-mode-in-calibrator">
+<h2>Power Save Mode in Calibrator<a class="headerlink" href="#power-save-mode-in-calibrator" title="Permalink to this headline">¶</a></h2>
+<p>Based on IEEE802.11 standards a station (STA) can communicate two different power save modes to an AP that it is connected to:</p>
+<blockquote>
+<div><ul class="simple">
+<li>Active Mode - In this power mode the STA remains awake and the AP is able to send traffic to it at any time.</li>
+<li>Power Save Mode - In this power mode the STA changes between going to sleep and being awake without notifying the AP. As such the AP cannot send traffic to the STA without utilizing a power save deliver protocol that use a variety of elements such as delivery traffic indication messages (DTIM) and Power Save Polling (PS-Poll) packets.</li>
+</ul>
+</div></blockquote>
+<p>When there is a heavy amount of traffic it is more efficient for the STA to remain active as power save mode can introduce latency in that case. However,
+during low traffic periods it is can be advantageous for the STA to be in power save mode to conserve as much power as possible by returning to sleep
+at the earliest opportunity.</p>
+<p>By default, the CC33xx switches between these modes dynamically based on the following parameters:</p>
+<blockquote>
+<div><ul class="simple">
+<li>RX TIMEOUT - Time since last rx packet</li>
+<li>TX TIMEOUT - Time since last tx packet</li>
+<li>RX THRESHOLD - Number of rx packets</li>
+<li>TX THRESHOLD - Number of tx packets</li>
+</ul>
+</div></blockquote>
+<p>For example if the CC33xx is in active mode, then if the TX or RX TIMEOUT threshold is reached the device will transition to power save mode. Likewise, if
+the CC33xx is in power save mode, then after sending a TX THRESHOLD number of packets or receiving an RX THRESHOLD number of packets it will transition to active mode.</p>
+</div>
+<div class="section" id="default-values">
+<h2>Default Values<a class="headerlink" href="#default-values" title="Permalink to this headline">¶</a></h2>
+<p>If the device is in active mode then it will use the below RX and TX TIMEOUT by default as the threshold to decide when it will switch to power save mode.</p>
+<blockquote>
+<div><ul class="simple">
+<li>RX TIMEOUT - 40000 microseconds</li>
+<li>TX TIMEOUT - 5000 microseconds</li>
+</ul>
+</div></blockquote>
+<p>If the device is in power save mode then it will use the below RX and TX THRESHOLDS by default as the threshold to decide when enough packets have received or transmitted
+that it is more efficient to be in active mode.</p>
+<blockquote>
+<div><ul class="simple">
+<li>RX THRESHOLD - 4 packets</li>
+<li>TX THRESHOLD - 2 packets</li>
+</ul>
+</div></blockquote>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="../../cc33xx/BP-CC33X1_HW_UserGuide.html" class="btn btn-neutral float-right" title="CC33X1 BoosterPack Hardware User’s Guide" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="../nimble/nimble.html" class="btn btn-neutral float-left" title="NimBLE Bluetooth Stack" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        <a href="https://www.ti.com/corp/docs/legal/copyright.shtml">2025, Texas Instruments</a>, Texas Instruments Incorporated. All rights reserved. <br>
+        <a href="https://www.ti.com/corp/docs/legal/trademark/trademrk.htm">Trademarks</a> | <a href="https://www.ti.com/corp/docs/legal/privacy.shtml">Privacy policy</a> | <a href="https://www.ti.com/corp/docs/legal/termsofuse.shtml">Terms of use</a> | <a href="https://www.ti.com/lsds/ti/legal/termsofsale.page">Terms of sale</a>
+
+    </p>
+  </div> 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+  
+ <script type="text/javascript">
+    $(document).ready(function() {
+        $(".toggle > *").hide();
+        $(".toggle .header").show();
+        $(".toggle .header").click(function() {
+            $(this).parent().children().not(".header").toggle(400);
+            $(this).parent().children(".header").toggleClass("open");
+        })
+    });
+</script>
+
+
+</body>
+</html>
